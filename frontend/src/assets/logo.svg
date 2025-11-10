@@ -1,0 +1,34 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Main Application Logo - Castle in Circle</title>
+
+  <defs>
+    <linearGradient id="circleGradient" x1="0" y1="256" x2="512" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8B5CF6"/> <stop offset="100%" stop-color="#6D28D9"/> </linearGradient>
+
+    <linearGradient id="castleGradient" x1="256" y1="180" x2="256" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C4B5FD"/> <stop offset="100%" stop-color="#A78BFA"/> </linearGradient>
+
+    <linearGradient id="castleOutlineGradient" x1="256" y1="180" x2="256" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+
+  </defs>
+
+  <circle cx="256" cy="256" r="250" fill="url(#circleGradient)" />
+
+  <path d="M156 260V380H356V260L336 240V200H306V240L286 260L256 240L226 260L206 240V200H176V240L156 260Z" 
+        fill="url(#castleGradient)" 
+        stroke="url(#castleOutlineGradient)" 
+        stroke-width="8" 
+        stroke-linejoin="round" />
+
+  <rect x="156" y="180" width="30" height="60" fill="url(#castleGradient)" stroke="url(#castleOutlineGradient)" stroke-width="8" stroke-linejoin="round" />
+  <rect x="206" y="180" width="30" height="60" fill="url(#castleGradient)" stroke="url(#castleOutlineGradient)" stroke-width="8" stroke-linejoin="round" />
+  <rect x="276" y="180" width="30" height="60" fill="url(#castleGradient)" stroke="url(#castleOutlineGradient)" stroke-width="8" stroke-linejoin="round" />
+  <rect x="326" y="180" width="30" height="60" fill="url(#castleGradient)" stroke="url(#castleOutlineGradient)" stroke-width="8" stroke-linejoin="round" />
+
+  <path d="M256 380V320C256 308.954 264.954 300 276 300H236C224.954 300 216 308.954 216 320V380Z" fill="#8B5CF6"/>
+  <rect x="236" y="320" width="40" height="60" fill="#8B5CF6"/>
+
+</svg>

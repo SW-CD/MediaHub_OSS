@@ -1,0 +1,471 @@
+/* frontend/src/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --app-bg: #111827;
+  --sidebar-bg: #1a202c;
+  --header-bg: #1a202c;
+  --footer-bg: #1a202c;
+  --modal-bg: #2d3748;
+  --item-bg: #2d3748;
+  --item-bg-hover: #4a5568;
+  --item-bg-active: #4299e1;
+
+  /* Lighter background for tables/modals to create separation */
+  --content-bg: #1f2937; 
+
+  --text-primary: #edf2f7;
+  --text-secondary: #e2e8f0;
+  --text-muted: #a0aec0;
+  --text-accent: #4299e1;
+
+  --border-color: #2d3748;
+  --border-color-light: #4a5568;
+
+  --button-primary-bg: #4299e1;
+  --button-primary-bg-hover: #2b6cb0;
+  --button-secondary-bg: #4a5568;
+  --button-secondary-bg-hover: #718096;
+  --button-danger-bg: #e53e3e;
+  --button-danger-bg-hover: #c53030;
+
+  --input-bg: #1a202c;
+  --input-border: #4a5568;
+  --input-focus-border: #4299e1;
+
+  /* New colors for segmented control */
+  --segmented-bg: var(--input-bg);
+  --segmented-border: var(--input-border);
+  --segmented-active-bg: var(--button-primary-bg);
+  --segmented-active-text: var(--text-primary);
+  --segmented-text: var(--text-secondary);
+  --segmented-hover-bg: var(--item-bg-hover);
+
+
+  --font-family-sans: 'Inter', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  background-color: var(--app-bg);
+  color: var(--text-secondary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  margin-top: 0;
+}
+
+a {
+  color: var(--text-accent);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+a:hover {
+  text-decoration: underline;
+  color: var(--button-primary-bg-hover);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; 
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+/* Global Button Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  user-select: none;
+}
+
+.btn-primary {
+  background-color: var(--button-primary-bg);
+  color: var(--text-primary);
+}
+.btn-primary:hover {
+  background-color: var(--button-primary-bg-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--button-secondary-bg);
+  color: var(--text-primary);
+}
+.btn-secondary:hover {
+  background-color: var(--button-secondary-bg-hover);
+}
+
+.btn-danger {
+  background-color: var(--button-danger-bg);
+  color: var(--text-primary);
+}
+.btn-danger:hover {
+  background-color: var(--button-danger-bg-hover);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--border-color-light);
+  color: var(--text-secondary);
+}
+.btn-outline:hover {
+  background-color: var(--item-bg);
+  color: var(--text-primary);
+}
+
+/* =========================================
+GLOBAL STYLES (Existing)
+=========================================
+*/
+
+/* --- Global Form Styles --- */
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* UPDATED: Helper class for labels with info icons */
+.form-label-helper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem; /* Space between label text and icon */
+}
+
+/* UPDATED: Style for the new helper icon */
+.helper-icon {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  color: var(--app-bg);
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1rem;
+  cursor: help;
+  user-select: none;
+}
+
+
+/* Base class for text inputs, selects, etc. */
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.375rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+}
+
+/* Style for validation errors */
+.form-error {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--button-danger-bg);
+}
+
+/* Custom Checkbox Style (for booleans) - Kept for other uses if needed, but not for modals now */
+.form-checkbox {
+  height: 1.25rem;
+  width: 1.25rem;
+  appearance: none;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.form-checkbox:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+}
+.form-checkbox:checked {
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+.form-checkbox:checked::before {
+  content: '✔';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+/* Wrapper for a checkbox and its label */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.checkbox-group .form-label {
+  margin: 0;
+  cursor: pointer;
+}
+
+
+/* --- Global Table Styles --- */
+
+.table-wrapper {
+  overflow-x: auto;
+  background-color: var(--content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1.25rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.table td {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  
+  /* FIX: This is the correct property for table cells. */
+  vertical-align: middle; 
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background-color: var(--item-bg-hover);
+}
+
+.table .actions-cell {
+  /*
+    FIX: The <td> itself should just align its content to the right.
+    The .actions div *inside* this cell will handle the flex layout
+    for the buttons.
+  */
+  text-align: right;
+}
+
+/* --- Global Link Button Style --- */
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-accent);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.btn-link:hover {
+  color: var(--button-primary-bg-hover);
+  text-decoration: underline;
+}
+
+.btn-link-danger {
+  color: var(--button-danger-bg);
+}
+.btn-link-danger:hover {
+  color: var(--button-danger-bg-hover);
+}
+
+
+/* =========================================
+NEW STYLES FOR BOOLEAN TOGGLE SWITCH
+=========================================
+*/
+
+/* The toggle switch container */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* Width of the switch */
+  height: 28px; /* Height of the switch */
+  flex-shrink: 0; /* Prevent switch from shrinking in flex containers */
+}
+
+/* Hide default HTML checkbox */
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider (the track) */
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--input-bg); /* Off state color */
+  border: 1px solid var(--input-border);
+  border-radius: 28px; /* Fully rounded */
+  transition: .3s;
+}
+
+/* The knob */
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* Knob height */
+  width: 20px; /* Knob width */
+  left: 3px; /* Padding from left */
+  bottom: 3px; /* Padding from bottom */
+  background-color: var(--text-muted); /* Knob color */
+  border-radius: 50%;
+  transition: .3s;
+}
+
+/* --- States --- */
+
+/* Checked (On) State */
+input:checked + .toggle-slider {
+  background-color: var(--button-primary-bg); /* On state color */
+  border-color: var(--button-primary-bg);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(22px); /* Move knob to the right */
+  background-color: var(--text-primary); /* Knob color when on */
+}
+
+/* Focus State */
+input:focus + .toggle-slider {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+}
+
+/*
+This is a new container to display the selected value (True/False)
+next to the toggle switch, as requested by the user.
+*/
+.bool-field-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* Space between toggle and text */
+  min-height: 2.25rem; /* Match height of other form controls */
+}
+
+.bool-field-value {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  user-select: none; /* Prevent text selection */
+}
+
+
+/* --- Added a specific class for the "Browse..." button input[type="file"] */
+.form-file-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--input-border);
+  border-radius: 0.375rem;
+  background-color: var(--input-bg);
+  overflow: hidden;
+}
+
+.form-file-input input[type="file"] {
+  display: none; /* Hide the default file input */
+}
+
+.form-file-input .file-label {
+  flex-grow: 1;
+  padding: 0.625rem 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer; /* Make label clickable */
+}
+
+.form-file-input .file-browse-btn {
+  background-color: var(--button-secondary-bg);
+  color: var(--text-primary);
+  padding: 0.625rem 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.form-file-input .file-browse-btn:hover {
+  background-color: var(--button-secondary-bg-hover);
+}

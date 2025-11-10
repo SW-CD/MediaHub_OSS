@@ -1,0 +1,58 @@
+<!-- frontend/src/app/pages/login-page/login-page.component.html -->
+<div class="login-container">
+  <div class="login-box">
+    <div class="login-header">
+        <img src="assets/logo.svg" alt="App Logo" class="logo-icon">
+        <h1 class="logo-text">MediaHub</h1>
+        
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.8rem; margin-bottom: 1.5rem;">
+          <a 
+            href="https://www.swcd.lu" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            style="color: inherit; text-decoration: none;"
+          >by SWCD</a>
+        </p>
+        
+        <p>Welcome back! Please log in to continue.</p>
+    </div>
+    
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="username" class="form-label">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          class="form-control"
+          [class.is-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
+          placeholder="Enter your username"
+        />
+      </div>
+      
+      <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-control"
+          [class.is-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+          placeholder="Enter your password"
+        />
+      </div>
+      
+      <div *ngIf="loginError" class="alert alert-danger">
+        {{ loginError }}
+      </div>
+      
+      <button 
+        type="submit" 
+        class="btn btn-primary login-button"
+        [disabled]="loginForm.invalid || isLoading">
+        <span *ngIf="!isLoading">Login</span>
+        <span *ngIf="isLoading">Logging in...</span>
+      </button>
+    </form>
+  </div>
+</div>

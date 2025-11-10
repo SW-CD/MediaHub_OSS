@@ -1,0 +1,149 @@
+/* frontend/src/app/components/database-settings/database-settings.component.css */
+
+.header {
+  margin-bottom: 1.5rem;
+}
+
+.header h2 {
+  margin: 0;
+  /* UPDATED: Use CSS variable */
+  color: var(--text-primary);
+}
+
+.settings-card {
+  /* UPDATED: Use CSS variables */
+  background: var(--content-bg);
+  padding: 1.5rem 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+}
+
+.settings-card h3 {
+  margin-top: 0;
+  /* UPDATED: Use CSS variables */
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+}
+
+.sub-heading {
+  font-size: 1rem;
+  /* UPDATED: Use CSS variables */
+  color: var(--text-muted);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600; /* Bolder */
+}
+.settings-card h3 + .sub-heading {
+  margin-top: 0;
+}
+
+
+/* Stats Section */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  /* UPDATED: Use CSS variables */
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  /* UPDATED: Use CSS variables */
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Form Section */
+.form-grid-three {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+}
+
+/*
+REMOVED all local form styles:
+- .form-grid
+- .form-group label
+- .form-group input
+- .form-group-toggle (and all its ::before, :checked styles)
+They are now inherited from global styles.
+*/
+
+.form-group input:read-only {
+  /* UPDATED: Use CSS variables */
+  background-color: var(--input-bg);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Form Actions Bar */
+.form-actions {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  /* UPDATED: Use CSS variables */
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 1rem;
+}
+
+/*
+REMOVED all local .btn styles.
+They are now inherited from global styles.
+*/
+
+
+/* Danger Zone */
+.danger-zone {
+  /* UPDATED: Use CSS variables */
+  border-color: var(--button-danger-bg);
+}
+
+.danger-zone h3 {
+  /* UPDATED: Use CSS variables */
+  color: var(--button-danger-bg);
+}
+
+.danger-content {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on small screens */
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.danger-content p {
+  margin: 0;
+  /* UPDATED: Use CSS variables */
+  color: var(--text-secondary);
+  flex-grow: 1;
+  min-width: 300px; /* Allow stacking */
+}
+
+/* Copied from image-list for the loading state */
+.state-message {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  background-color: var(--content-bg);
+  border-radius: 0.5rem;
+  border: 1px dashed var(--border-color-light);
+}

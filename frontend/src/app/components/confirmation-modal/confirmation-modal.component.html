@@ -1,0 +1,17 @@
+<!-- frontend/src/app/components/confirmation-modal/confirmation-modal.component.html -->
+
+<app-modal [modalId]="'confirmationModal'" [modalTitle]="modalData.title || 'Confirm Action'">
+  <div class="confirmation-content">
+    <p>{{ modalData.message }}</p>
+  </div>
+  <div class="modal-actions">
+    <!-- UPDATED: Use global .btn and .btn-secondary classes -->
+    <button type="button" class="btn btn-secondary" (click)="onCancel()">
+      Cancel
+    </button>
+    <!-- UPDATED: Use global .btn and .btn-danger classes -->
+    <button type="button" class="btn btn-danger" (click)="onConfirm()">
+      Confirm
+    </button>
+  </div>
+</app-modal>

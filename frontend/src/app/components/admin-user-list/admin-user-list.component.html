@@ -1,0 +1,63 @@
+<!-- frontend/src/app/components/admin-user-list/admin-user-list.component.html -->
+<div class="user-list-container">
+  <div class="header">
+    <!-- UPDATED: Use dark-theme h2 style, though global h2 style should cover this -->
+    <h2 class="text-2xl font-bold">User Management</h2>
+    <!-- This button already uses .btn-primary, which is now styled correctly from global CSS -->
+    <button class="btn btn-primary" (click)="openCreateUserModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+      </svg>
+      Create User
+    </button>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-state">
+    <p>Loading users...</p>
+  </div>
+
+  <div *ngIf="!isLoading && users.length === 0" class="empty-state">
+    <p>No users found.</p>
+  </div>
+
+  <!-- UPDATED: Use new global .table-wrapper class -->
+  <div *ngIf="!isLoading && users.length > 0" class="table-wrapper">
+    <!-- UPDATED: Use new global .table class -->
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">User</th>
+          <th scope="col">Roles</th>
+          <!-- UPDATED: Made header visible and right-aligned to match content -->
+          <th scope="col" style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users; trackBy: trackById">
+          <td class="user-cell">
+            <!-- UPDATED: Removed text-gray classes, will inherit from .table -->
+            <div class="font-medium">{{ user.username }}</div>
+            <div class="text-sm">ID: {{ user.id }}</div>
+          </td>
+          <td class="roles-cell">
+            <div class="roles-wrapper">
+              <!-- These badges are fine as-is -->
+              <span *ngIf="user.can_view" class="role-badge bg-blue-100 text-blue-800">View</span>
+              <span *ngIf="user.can_create" class="role-badge bg-green-100 text-green-800">Create</span>
+              <span *ngIf="user.can_edit" class="role-badge bg-yellow-100 text-yellow-800">Edit</span>
+              <span *ngIf="user.can_delete" class="role-badge bg-red-100 text-red-800">Delete</span>
+              <span *ngIf="user.is_admin" class="role-badge bg-purple-100 text-purple-800">Admin</span>
+            </div>
+          </td>
+          <td class="actions-cell">
+            <div class="actions">
+              <!-- UPDATED: Use new global .btn-link classes -->
+              <button (click)="openEditUserModal(user)" class="btn-link">Edit</button>
+              <button (click)="openDeleteUserModal(user)" class="btn-link btn-link-danger">Delete</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

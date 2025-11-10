@@ -1,0 +1,106 @@
+/* frontend/src/app/components/entry-grid/entry-grid.component.css */
+/* RENAMED: from image-grid.component.css */
+
+/* Styles moved from image-list.component.css */
+.image-grid {
+  display: grid;
+  /* Responsive grid: auto-fill creates as many columns as fit */
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.5rem;
+}
+
+.grid-card {
+  background-color: var(--content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.grid-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  border-color: var(--border-color-light);
+}
+
+.grid-card-preview {
+  width: 100%;
+  /* Creates a 1:1 aspect ratio square */
+  padding-top: 100%; 
+  position: relative;
+  background-color: var(--input-bg); /* This background will show for letterboxing */
+}
+
+/* --- ADDED: Placeholder styles --- */
+.grid-card-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.placeholder-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.status-processing {
+  color: var(--text-accent);
+}
+.status-error {
+  color: var(--button-danger-bg);
+}
+
+.processing-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* --- END ADDED --- */
+
+
+.grid-card-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* UPDATED: Changed from 'cover' to 'contain' */
+  object-fit: contain; 
+}
+
+.grid-card-info {
+  padding: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Corrected typo */
+  font-size: 0.875rem;
+}
+
+.grid-card-id {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.grid-card-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}

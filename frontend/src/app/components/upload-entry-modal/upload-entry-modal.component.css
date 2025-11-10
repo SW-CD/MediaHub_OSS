@@ -1,0 +1,49 @@
+/* frontend/src/app/components/upload-entry-modal/upload-entry-modal.component.css */
+/* RENAMED: from upload-image-modal.component.css */
+
+/* UPDATED: Add a 2-column grid for the form */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.custom-fields-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  /* UPDATED: Use CSS variable */
+  border-top: 1px solid var(--border-color);
+}
+
+.custom-fields-section h4 {
+  margin-top: 0;
+  margin-bottom: 1rem; /* Added margin */
+  /* UPDATED: Use CSS variable */
+  color: var(--text-primary);
+}
+
+.validation-error {
+  /* This class is now global (.form-error), but we keep this one */
+  /* if it's used for file inputs, otherwise it can be deleted */
+  color: var(--button-danger-bg);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  /* UPDATED: Use CSS variable */
+  border-top: 1px solid var(--border-color);
+}
+
+
+/*
+REMOVED all local .form-group, .form-group label, .form-group input,
+.btn, .btn-primary, and .btn-secondary styles.
+They are now inherited from src/styles.css
+*/

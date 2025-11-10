@@ -1,0 +1,176 @@
+<!-- frontend/src/app/components/database-settings/database-settings.component.html -->
+<div class="settings-container" *ngIf="selectedDatabase$ | async as db; else loadingOrError">
+  <div class="header">
+    <h2>Settings for: {{ db.name }}</h2>
+  </div>
+
+  <div class="settings-card">
+     <h3>Statistics</h3>
+    <div class="stats-grid" *ngIf="db.stats">
+      <div class="stat-item">
+        <!-- UPDATED: "Image Count" to "Entry Count" and "image_count" to "entry_count" -->
+        <span class="stat-label">Entry Count</span>
+        <span class="stat-value">{{ db.stats.entry_count | number }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Total Disk Space</span>
+        <span class="stat-value">{{ db.stats.total_disk_space_bytes | formatBytes }}</span>
+      </div>
+    </div>
+    <p *ngIf="!db.stats" class="text-muted">Stats are currently unavailable.</p>
+  </div>
+
+  <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()">
+    <div class="settings-card" *ngIf="currentUser$ | async as user">
+      <h3>Configuration</h3>
+      
+      <!-- NEW: Read-only Content Type display -->
+      <div class="form-group">
+        <label class="form-label">Content Type</label>
+        <input type="text" class="form-control" [value]="db.content_type | titlecase" readonly>
+      </div>
+
+      <!-- NEW: Dynamic Config section based on content_type -->
+      <div [ngSwitch]="db.content_type">
+        
+        <!-- === IMAGE SETTINGS === -->
+        <ng-container *ngSwitchCase="'image'">
+          <h4 class="sub-heading">Image Settings</h4>
+          <div class="form-group">
+            <label for="convert_to_jpeg" class="form-label">Force JPEG Conversion</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="convert_to_jpeg" formControlName="convert_to_jpeg">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                {{ settingsForm.get('convert_to_jpeg')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Converts new non-JPEG uploads to JPEG.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="create_previews_image" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <!-- UPDATED: formControlName to 'create_preview' -->
+                <input type="checkbox" id="create_previews_image" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                <!-- UPDATED: get() to 'create_preview' -->
+                {{ settingsForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates downscaled JPEG thumbnails on upload.</small>
+          </div>
+        </ng-container>
+
+        <!-- === AUDIO SETTINGS === -->
+        <ng-container *ngSwitchCase="'audio'">
+          <h4 class="sub-heading">Audio Settings</h4>
+          <div class="form-group">
+            <label for="auto_conversion" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion" formControlName="auto_conversion" class="form-control">
+              <option value="none">None</option>
+              <option value="flac">FLAC</option>
+              <option value="opus">Opus</option>
+            </select>
+            <small class="text-muted">Requires FFmpeg on server. Converts uploads to the selected format.</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="create_previews_audio" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <!-- UPDATED: formControlName to 'create_preview' -->
+                <input type="checkbox" id="create_previews_audio" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                <!-- UPDATED: get() to 'create_preview' -->
+                {{ settingsForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates JPEG waveform images on upload.</small>
+          </div>
+        </ng-container>
+
+        <!-- === FILE SETTINGS (Nothing to show) === -->
+        <ng-container *ngSwitchCase="'file'">
+          <h4 class="sub-heading">File Settings</h4>
+          <p class="text-muted">No specific configuration is available for 'Generic File' databases.</p>
+        </ng-container>
+
+      </div>
+
+      <h4 class="sub-heading">Housekeeping Rules</h4>
+      <div formGroupName="housekeeping">
+         <div class="form-grid-three">
+          <div class="form-group">
+            <label for="interval" class="form-label">Interval</label>
+            <app-interval-picker 
+              id="interval" 
+              formControlName="interval" 
+              [readOnly]="!user.can_edit">
+            </app-interval-picker>
+          </div>
+          <div class="form-group">
+            <label for="disk_space" class="form-label form-label-helper">
+              <span>Max Disk Space</span>
+              <span class="helper-icon" title="Set to 0 to disable disk space check.">?</span>
+            </label>
+            <input id="disk_space" type="text" formControlName="disk_space" class="form-control" [readOnly]="!user.can_edit">
+          </div>
+          <div class="form-group">
+            <label for="max_age" class="form-label form-label-helper">
+              <!-- UPDATED: "Image Age" to "Entry Age" -->
+              <span>Max Entry Age</span>
+              <span class="helper-icon" title="Set to 0 to disable age check.">?</span>
+            </label>
+            <input id="max_age" type="text" formControlName="max_age" class="form-control" [readOnly]="!user.can_edit">
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+         <button 
+          *ngIf="user.can_edit"
+          type="submit" 
+          class="btn btn-primary"
+          [disabled]="settingsForm.invalid || settingsForm.pristine || isLoading">
+          {{ isLoading ? 'Saving...' : 'Save Changes' }}
+        </button>
+        <button 
+          *ngIf="user.can_delete"
+          type="button" 
+          class="btn btn-secondary"
+          (click)="onTriggerHousekeeping()"
+          [disabled]="isLoading">
+          {{ isLoading ? 'Running...' : 'Run Housekeeping Now' }}
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <div class="settings-card danger-zone" *ngIf="(currentUser$ | async)?.can_delete">
+     <h3>Danger Zone</h3>
+    <div class="danger-content">
+      <!-- UPDATED: "all images" to "all entries" -->
+      <p>Deleting a database is permanent and cannot be undone. This will remove all entries and metadata associated with it.</p>
+      <button 
+        class="btn btn-danger" 
+        (click)="onDeleteDatabase()"
+        [disabled]="isLoading">
+        Delete this Database
+      </button>
+    </div>
+  </div>
+</div>
+
+<ng-template #loadingOrError>
+  <div class="state-message">
+    <p>{{ isLoading ? 'Loading database settings...' : 'Database not found or could not be loaded.' }}</p>
+  </div>
+</ng-template>

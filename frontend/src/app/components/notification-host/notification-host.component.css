@@ -1,0 +1,74 @@
+/* frontend/src/app/components/notification-host/notification-host.component.css */
+
+/* --- Global Error Banner --- */
+
+.global-error-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #e74c3c; /* Red */
+  color: white;
+  z-index: 1001; /* Above everything */
+  padding: 1rem;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.global-error-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+.close-btn:hover {
+  opacity: 0.8;
+}
+
+/* --- Toast Notification --- */
+
+.toast-notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 300px;
+  max-width: 600px;
+  color: white;
+  border-radius: 4px;
+  padding: 1rem 1.5rem;
+  z-index: 1002; /* Above even the error banner */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+
+.toast-success {
+  background-color: #2ecc71; /* Green */
+}
+
+.toast-error {
+  background-color: #e74c3c; /* Red */
+}
+
+.toast-info {
+  background-color: #3498db; /* Blue */
+}
+
+.toast-notification .close-btn {
+  margin-left: 1.5rem;
+}

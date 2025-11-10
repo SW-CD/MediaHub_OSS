@@ -1,0 +1,70 @@
+/* frontend/src/app/components/admin-user-list/admin-user-list.component.css */
+.user-list-container {
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .user-list-container {
+    padding: 1.5rem;
+  }
+}
+
+.header {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Kept loading and empty states, but removed hardcoded text colors */
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 2.5rem 0;
+  color: var(--text-muted); /* Use CSS Variable */
+}
+
+.empty-state {
+  border: 2px dashed var(--border-color-light); /* Use CSS Variable */
+  border-radius: 0.5rem;
+}
+
+/*
+  REMOVED the ::ng-deep .user-cell rule, as it was
+  based on the incorrect global style.
+*/
+
+/*
+  The .roles-cell just contains the .roles-wrapper. The global
+  flex styles will center this wrapper, which is correct.
+*/
+.roles-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/*
+  The .actions-cell will be handled by the global .table .actions-cell rule
+  in styles.css
+*/
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* These local badge styles are fine */
+.role-badge {
+  padding: 0.25em 0.75em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 9999px;
+}
+
+/*
+REMOVED local .btn-primary definition.
+It is now inherited from src/styles.css
+*/
+

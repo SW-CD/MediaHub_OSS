@@ -1,0 +1,14 @@
+[server]
+host = "localhost"
+port = 8080
+
+[database]
+path = "mediahub.db"
+storage_root = "storage_root"
+
+[logging]
+level = "debug"
+
+[media]
+ffmpeg_path = "C:/Users/dengl/Programs/ffmpeg-8.0-full_build/bin/ffmpeg.exe"
+ffprobe_path = "C:/Users/dengl/Programs/ffmpeg-8.0-full_build/bin/ffprobe.exe"

@@ -1,0 +1,48 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Environment variables
+.env
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Log files
+*.log
+
+# Build folder
+build/
+cmd/mediahub/frontend_embed
+frontend/node_modules
+
+# AI documentation folder
+AI/
+
+# Compiled binary
+/mediahub
+
+# Storage folder
+storage_root/
+
+# Password file
+passwordfile.txt

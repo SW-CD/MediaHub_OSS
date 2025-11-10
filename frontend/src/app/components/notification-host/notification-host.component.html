@@ -1,0 +1,20 @@
+<div *ngIf="globalError" class="global-error-banner">
+  <div class="global-error-content">
+    <span>{{ globalError }}</span>
+    <button (click)="clearGlobalError()" class="close-btn">&times;</button>
+  </div>
+</div>
+
+<div
+  *ngIf="toast"
+  [@toastAnimation]
+  class="toast-notification"
+  [ngClass]="{
+    'toast-success': toast.type === 'success',
+    'toast-error': toast.type === 'error',
+    'toast-info': toast.type === 'info'
+  }"
+>
+  <span>{{ toast.message }}</span>
+  <button (click)="clearToast()" class="close-btn">&times;</button>
+</div>

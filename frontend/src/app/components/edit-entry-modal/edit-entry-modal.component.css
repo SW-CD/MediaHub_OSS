@@ -1,0 +1,33 @@
+/* frontend/src/app/components/edit-entry-modal/edit-entry-modal.component.css */
+/* RENAMED: from edit-image-modal.component.css */
+
+/* UPDATED: Add a 2-column grid for the form */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.custom-fields-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  /* UPDATED: Use CSS variable */
+  border-top: 1px solid var(--border-color);
+}
+
+.custom-fields-section h4 {
+  margin-top: 0;
+  margin-bottom: 1rem; /* Added margin */
+  /* UPDATED: Use CSS variable */
+  color: var(--text-primary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  /* UPDATED: Use CSS variable */
+  border-top: 1px solid var(--border-color);
+}

@@ -1,0 +1,24 @@
+/* frontend/src/app/components/user-form/user-form.component.css */
+
+.form-actions {
+  padding-top: 1.25rem;
+  /* UPDATED: Use CSS variable */
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* UPDATED: Added new .is-invalid class for error states */
+.form-control.is-invalid {
+  border-color: var(--button-danger-bg);
+}
+.form-control.is-invalid:focus {
+  box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.5); /* red glow */
+}
+
+/*
+REMOVED all local .form-label, .form-input, .form-error,
+.checkbox-group, .form-checkbox, and .checkbox-label styles.
+They are now inherited from src/styles.css
+*/

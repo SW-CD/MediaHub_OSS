@@ -1,0 +1,30 @@
+<!-- 
+  This component's styling makes the number input and unit select
+  appear as a single, combined form control.
+-->
+<div
+  class="interval-picker-wrapper"
+  [formGroup]="intervalForm"
+  [class.read-only]="readOnly"
+>
+  <!-- Number Input -->
+  <input
+    type="number"
+    formControlName="value"
+    class="form-control interval-value"
+    [disabled]="readOnly"
+    (blur)="handleBlur()"
+  />
+
+  <!-- Unit Select Dropdown -->
+  <select
+    formControlName="unit"
+    class="form-control interval-unit"
+    [disabled]="readOnly"
+    (blur)="handleBlur()"
+  >
+    <option value="m">Minutes</option>
+    <option value="h">Hours</option>
+    <option value="d">Days</option>
+  </select>
+</div>

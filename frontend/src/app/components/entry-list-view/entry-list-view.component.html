@@ -1,0 +1,112 @@
+<!-- frontend/src/app/components/entry-list-view/entry-list-view.component.html -->
+<div class="table-wrapper">
+  <table class="table">
+    <thead>
+      <tr>
+        <th *ngFor="let col of tableColumns; trackBy: trackByColumn" 
+            [class.actions-col]="col === 'actions'"
+            [class.preview-col]="col === 'Preview'">
+          {{ col }}
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- UPDATED: image to entry, images to entries -->
+      <tr *ngFor="let entry of entries; trackBy: trackById">
+        <td *ngFor="let col of tableColumns; trackBy: trackByColumn" 
+            [class.actions-cell]="col === 'actions'"
+            [class.preview-cell]="col === 'Preview'">
+          
+          <ng-container [ngSwitch]="col">
+
+            <!-- === PREVIEW COLUMN === -->
+            <ng-container *ngSwitchCase="'Preview'">
+              <!-- 
+                NEW: Use ngSwitch to show the correct preview based on status
+              -->
+              <ng-container [ngSwitch]="entry.status">
+                
+                <!-- Case 1: Ready - Show the image -->
+                <img *ngSwitchCase="'ready'"
+                     [src]="getPreviewUrl(entry) | secureImage | async" 
+                     class="list-preview-img"
+                     (click)="onEntryClick(entry)"
+                     alt="Preview for {{entry.id}}">
+                
+                <!-- Case 2: Processing - Show spinner -->
+                <div *ngSwitchCase="'processing'" class="list-preview-placeholder status-processing">
+                  <svg class="placeholder-icon processing-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                
+                <!-- Case 3: Error - Show error icon -->
+                <div *ngSwitchCase="'error'" class="list-preview-placeholder status-error">
+                  <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 3.006-1.742 3.006H4.42c-1.53 0-2.493-1.672-1.743-3.006l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011 1v3a1 1 0 11-2 0V6a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                
+                <!-- Default: Also show ready image -->
+                <img *ngSwitchDefault
+                     [src]="getPreviewUrl(entry) | secureImage | async" 
+                     class="list-preview-img"
+                     (click)="onEntryClick(entry)"
+                     alt="Preview for {{entry.id}}">
+              </ng-container>
+            </ng-container>
+
+            <!-- === ACTIONS COLUMN === -->
+            <ng-container *ngSwitchCase="'actions'">
+             <div class="actions" *ngIf="user?.can_edit || user?.can_delete">
+               <button *ngIf="user?.can_edit" 
+                       (click)="onEditClick(entry)" 
+                       class="btn-link" 
+                       title="Edit Metadata"
+                       [disabled]="entry.status === 'processing'">Edit</button>
+               <button *ngIf="user?.can_delete" 
+                       (click)="onDeleteClick(entry)" 
+                       class="btn-link btn-link-danger" 
+                       title="Delete Entry"
+                       [disabled]="entry.status === 'processing'">Delete</button>
+             </div>
+            </ng-container>
+
+            <!-- === ID COLUMN === -->
+            <ng-container *ngSwitchCase="'id'">
+              <span (click)="onEntryClick(entry)" class="id-link" title="View Details">
+                {{ entry[col] }}
+              </span>
+            </ng-container>
+
+            <!-- === TIMESTAMP COLUMN === -->
+            <ng-container *ngSwitchCase="'timestamp'">
+              {{ entry[col] * 1000 | date:'yyyy.MM.dd HH:mm' }}
+            </ng-container>
+
+            <!-- === FILESIZE COLUMN === -->
+            <ng-container *ngSwitchCase="'filesize'">
+              {{ entry[col] | formatBytes }}
+            </ng-container>
+            
+            <!-- === DURATION COLUMN === -->
+            <ng-container *ngSwitchCase="'duration_sec'">
+              {{ entry[col] | number:'1.1-2' }}s
+            </ng-container>
+
+            <!-- === STATUS COLUMN === -->
+            <ng-container *ngSwitchCase="'status'">
+              <span class="status-text" [ngClass]="'status-' + entry.status">
+                {{ entry.status | titlecase }}
+              </span>
+            </ng-container>
+
+            <!-- === DEFAULT COLUMN (CUSTOM FIELDS) === -->
+            <ng-container *ngSwitchDefault>{{ entry[col] }}</ng-container>
+          </ng-container>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,54 @@
+/* Styles to make the input and select look like one component.
+  It mimics the .form-control style from styles.css
+*/
+.interval-picker-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+/* Style the number input */
+.interval-value {
+  flex-grow: 1; /* Take up remaining space */
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  /* Remove the number spinners in Firefox */
+  -moz-appearance: textfield;
+}
+
+/* Remove number spinners in WebKit browsers */
+.interval-value::-webkit-outer-spin-button,
+.interval-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Style the unit dropdown */
+.interval-unit {
+  flex-grow: 0;
+  flex-shrink: 0;
+  width: 120px; /* Fixed width for the unit selector */
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 0; /* Remove double border */
+}
+
+/* When disabled, ensure focus ring doesn't appear inconsistent */
+.interval-value:disabled,
+.interval-unit:disabled {
+  background-color: var(--input-bg);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Ensure focus styles apply to the wrapper */
+.interval-value:focus {
+  position: relative;
+  z-index: 1;
+}
+
+.interval-unit:focus {
+  position: relative;
+  z-index: 1;
+  border-left: 1px solid var(--input-focus-border);
+  margin-left: -1px;
+}

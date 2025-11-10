@@ -1,0 +1,177 @@
+/* frontend/src/app/components/entry-list/entry-list.component.css */
+/* RENAMED: from image-list.component.css */
+
+.image-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative; /* For the floating action button */
+}
+
+/* --- Header Bar & View Toggle --- */
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.header-bar .header {
+  margin-bottom: 0; 
+}
+
+.header-bar .header h2 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.view-mode-toggle {
+  display: flex;
+  background-color: var(--content-bg);
+  border: 1px solid var(--border-color-light);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggle-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--item-bg-hover);
+}
+.toggle-btn.active {
+  color: var(--text-primary);
+  background-color: var(--item-bg-active);
+}
+.toggle-btn:first-child {
+  border-right: 1px solid var(--border-color-light);
+}
+
+
+/* --- Filter Bar --- */
+.filter-bar {
+  background-color: var(--content-bg);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.limit-group {
+  max-width: 100px; 
+}
+
+.custom-filters-array {
+    display: contents; 
+}
+
+.custom-filter-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center; 
+    flex-basis: 100%; 
+}
+@media (min-width: 1024px) {
+  .custom-filter-row {
+    flex-basis: auto; 
+  }
+}
+
+.custom-filter-row .form-control {
+  min-width: 120px;
+}
+
+.filter-actions {
+    margin-left: auto; 
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.25rem; 
+}
+
+/* --- Content Area --- */
+.content-area {
+  flex-grow: 1;
+  overflow-y: auto;
+  /* Add padding at the bottom to avoid FAB overlap */
+  padding-bottom: 5rem;
+}
+
+/* --- Pagination --- */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.page-indicator {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+
+/* --- Action Buttons --- */
+.btn-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0.5rem; 
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.btn-remove:hover {
+  color: var(--button-danger-bg);
+  background-color: var(--item-bg-hover);
+}
+
+
+/* --- State Messages (Loading/Empty) --- */
+.state-message {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  background-color: var(--content-bg); 
+  border-radius: 0.5rem;
+  border: 1px dashed var(--border-color-light); 
+}
+
+
+/* --- Floating Action Button (FAB) --- */
+.upload-fab {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+  padding: 0;
+}
+
+.upload-fab:hover {
+  transform: scale(1.05);
+}

@@ -1,0 +1,69 @@
+<!-- frontend/src/app/components/user-form/user-form.component.html -->
+<app-modal [modalId]="'userFormModal'" [modalTitle]="isEditMode ? 'Edit User' : 'Create New User'">
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="space-y-6">
+
+    <!-- User Details Section -->
+    <div>
+      <h3 class="text-lg font-medium leading-6">User Details</h3>
+      <div class="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4">
+        <!-- UPDATED: Use new global form classes -->
+        <div class="form-group sm:col-span-1">
+          <label for="username" class="form-label">Username</label>
+          <input type="text" id="username" formControlName="username" class="form-control" [class.is-invalid]="userForm.get('username')?.invalid && userForm.get('username')?.touched">
+          <div *ngIf="userForm.get('username')?.invalid && userForm.get('username')?.touched" class="form-error">
+            Username is required and can only contain letters, numbers, and underscores.
+          </div>
+        </div>
+        <!-- UPDATED: Use new global form classes -->
+        <div class="form-group sm:col-span-1">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" id="password" formControlName="password" class="form-control" [class.is-invalid]="userForm.get('password')?.invalid && userForm.get('password')?.touched">
+          <small *ngIf="isEditMode" class="mt-1 text-sm text-muted">Leave blank to keep current password.</small>
+          <div *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched" class="form-error">
+            <div *ngIf="userForm.get('password')?.errors?.['required']">Password is required for new users.</div>
+            <div *ngIf="userForm.get('password')?.errors?.['minlength']">Password must be at least 8 characters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permissions Section -->
+    <!-- UPDATED: Use CSS variable for border -->
+    <div class="pt-6 border-t" style="border-color: var(--border-color);">
+      <h3 class="text-lg font-medium leading-6">Permissions</h3>
+      <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <!-- UPDATED: Use new global .checkbox-group -->
+        <div class="checkbox-group">
+          <input id="can_view" type="checkbox" formControlName="can_view" class="form-checkbox">
+          <label for="can_view" class="form-label">Can View</label>
+        </div>
+        <div class="checkbox-group">
+          <input id="can_create" type="checkbox" formControlName="can_create" class="form-checkbox">
+          <label for="can_create" class="form-label">Can Create</label>
+        </div>
+        <div class="checkbox-group">
+          <input id="can_edit" type="checkbox" formControlName="can_edit" class="form-checkbox">
+          <label for="can_edit" class="form-label">Can Edit</label>
+        </div>
+        <div class="checkbox-group">
+          <input id="can_delete" type="checkbox" formControlName="can_delete" class="form-checkbox">
+          <label for="can_delete" class="form-label">Can Delete</label>
+        </div>
+        <div class="checkbox-group">
+          <input id="is_admin" type="checkbox" formControlName="is_admin" class="form-checkbox">
+          <label for="is_admin" class="form-label">Is Admin</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="form-actions">
+      <!-- UPDATED: Use global .btn classes -->
+      <button type="button" (click)="closeModal()" class="btn btn-secondary">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid || isLoading">
+        <span *ngIf="!isLoading">{{ isEditMode ? 'Update User' : 'Create User' }}</span>
+        <span *ngIf="isLoading">{{ isEditMode ? 'Updating...' : 'Creating...' }}</span>
+      </button>
+    </div>
+  </form>
+</app-modal>

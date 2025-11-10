@@ -1,0 +1,161 @@
+<app-modal [modalId]="'createDatabaseModal'" [modalTitle]="'Create New Database'">
+  <form [formGroup]="createDbForm" (ngSubmit)="onSubmit()">
+    
+    <div class="form-section">
+      <h4>Basic Information</h4>
+      <div class="form-grid">
+        <!-- Database Name -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="name" class="form-label">Database Name</label>
+          <input id="name" type="text" formControlName="name" class="form-control">
+          <div *ngIf="createDbForm.get('name')?.invalid && createDbForm.get('name')?.touched" class="form-error">
+            Name is required and can only contain letters, numbers, and underscores.
+          </div>
+        </div>
+        
+        <!-- NEW: Content Type Dropdown -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="content_type" class="form-label">Content Type</label>
+          <select id="content_type" formControlName="content_type" class="form-control">
+            <option value="image">Image</option>
+            <option value="audio">Audio</option>
+            <option value="file">Generic File</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 
+      NEW: Dynamic Configuration Section 
+      Show settings based on the selected content_type.
+    -->
+    <div class="form-section" [ngSwitch]="createDbForm.get('content_type')?.value">
+      
+      <!-- === IMAGE SETTINGS === -->
+      <ng-container *ngSwitchCase="'image'">
+        <h4>Image Configuration</h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="convert_to_jpeg" class="form-label">Force JPEG Conversion</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="convert_to_jpeg" formControlName="convert_to_jpeg">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                {{ createDbForm.get('convert_to_jpeg')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Converts new non-JPEG uploads to JPEG.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="create_previews_image" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <!-- UPDATED: formControlName to 'create_preview' -->
+                <input type="checkbox" id="create_previews_image" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                <!-- UPDATED: get() to 'create_preview' -->
+                {{ createDbForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates downscaled JPEG thumbnails on upload.</small>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- === AUDIO SETTINGS === -->
+      <ng-container *ngSwitchCase="'audio'">
+        <h4>Audio Configuration</h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="auto_conversion" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion" formControlName="auto_conversion" class="form-control">
+              <option value="none">None</option>
+              <option value="flac">FLAC</option>
+              <option value="opus">Opus</option>
+            </select>
+            <small class="text-muted">Requires FFmpeg on server. Converts uploads to the selected format.</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="create_previews_audio" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <!-- UPDATED: formControlName to 'create_preview' -->
+                <input type="checkbox" id="create_previews_audio" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                <!-- UPDATED: get() to 'create_preview' -->
+                {{ createDbForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates JPEG waveform images on upload.</small>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- === FILE SETTINGS (Nothing to show) === -->
+      <ng-container *ngSwitchCase="'file'">
+        <h4>File Configuration</h4>
+        <p class="text-muted">No specific configuration is available for 'Generic File' databases.</p>
+      </ng-container>
+    </div>
+    
+    <div class="form-section" formGroupName="housekeeping">
+      <h4>Housekeeping Rules</h4>
+      <div class="form-grid-three">
+        <div class="form-group">
+          <label for="interval" class="form-label">Interval</label>
+          <app-interval-picker id="interval" formControlName="interval"></app-interval-picker>
+        </div>
+        <div class="form-group">
+          <label for="disk_space" class="form-label form-label-helper">
+            <span>Max Disk Space</span>
+            <span class="helper-icon" title="Set to 0 to disable disk space check.">?</span>
+          </label>
+          <input id="disk_space" type="text" formControlName="disk_space" class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="max_age" class="form-label form-label-helper">
+            <!-- UPDATED: "Image Age" to "Entry Age" -->
+            <span>Max Entry Age</span>
+            <span class="helper-icon" title="Set to 0 to disable age check.">?</span>
+          </label>
+          <input id="max_age" type="text" formControlName="max_age" class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-header">
+        <h4>Custom Metadata Fields</h4>
+        <button type="button" class="btn-link" (click)="addCustomField()">+ Add Field</button>
+      </div>
+      <div formArrayName="custom_fields">
+        <div *ngFor="let field of customFields.controls; let i = index" [formGroupName]="i" class="custom-field-row">
+          <input type="text" formControlName="name" placeholder="Field Name" class="form-control">
+          <select formControlName="type" class="form-control">
+            <option value="TEXT">Text</option>
+            <option value="INTEGER">Integer</option>
+            <option value="REAL">Real (Decimal)</option>
+            <option value="BOOLEAN">Boolean</option>
+          </select>
+          <button type="button" class="btn-remove" (click)="removeCustomField(i)" title="Remove Field">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="createDbForm.invalid || isLoading">
+        {{ isLoading ? 'Creating...' : 'Create Database' }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
