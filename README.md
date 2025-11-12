@@ -10,7 +10,7 @@ For a commercial version with additional, industrial features, please [contact m
   * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
   * single sign on via OIDC (e.g., using keycloak)
 
-You can find and download precompile binaries [here](https://mediahub.swcd.lu).
+-----
 
 ## 🚀 Features
 
@@ -25,6 +25,7 @@ You can find and download precompile binaries [here](https://mediahub.swcd.lu).
   * **Authentication:** Basic Authentication protects all API endpoints based on user roles stored in the database.
   * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
 
+
 -----
 
 ## 🎯 Roadmap
@@ -36,24 +37,17 @@ You can find and download precompile binaries [here](https://mediahub.swcd.lu).
 
 -----
 
-## 📚 Code Overview
+## 📥 Downloads
 
-The application is a monorepo containing two main parts:
+You can download prebuild binaries for different architectures using the provided links.
 
-1.  **Go Backend API (`/cmd`, `/internal`):**
+| Operating System | Architecture | Download Link |
+| :--- | :--- | :--- |
+| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_linux_aarch64) |
+| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_linux_x86_64) |
+| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_windows_x86_64.exe) |
 
-      * Built using Go, `gorilla/mux` for routing, and `mattn/go-sqlite3` for database interactions.
-      * Provides RESTful API endpoints under `/api/` for managing file "databases" and the entries within them.
-      * Handles file uploads, storage on the filesystem, and metadata management in a local SQLite database.
-      * Implements Basic Authentication with user roles (`CanView`, `CanCreate`, `CanEdit`, `CanDelete`).
-      * Serves the static files for the Angular frontend, which are embedded directly into the binary.
-
-2.  **Angular Frontend (`/frontend`):**
-
-      * A single-page application built with the Angular framework.
-      * Provides a user interface for logging in, viewing databases, uploading files, and editing entry details.
-      * Uses Angular's built-in router for navigation and HttpClient for API communication.
-      * Dynamically adapts the UI based on the authenticated user's permissions.
+A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.0.0/config.toml).
 
 -----
 
@@ -288,6 +282,30 @@ custom_fields = [
     {name = "source", type = "TEXT"}
 ]
 ```
+
+-----
+
+
+-----
+
+## 📚 Code Overview
+
+The application is a monorepo containing two main parts:
+
+1.  **Go Backend API (`/cmd`, `/internal`):**
+
+      * Built using Go, `gorilla/mux` for routing, and `mattn/go-sqlite3` for database interactions.
+      * Provides RESTful API endpoints under `/api/` for managing file "databases" and the entries within them.
+      * Handles file uploads, storage on the filesystem, and metadata management in a local SQLite database.
+      * Implements Basic Authentication with user roles (`CanView`, `CanCreate`, `CanEdit`, `CanDelete`).
+      * Serves the static files for the Angular frontend, which are embedded directly into the binary.
+
+2.  **Angular Frontend (`/frontend`):**
+
+      * A single-page application built with the Angular framework.
+      * Provides a user interface for logging in, viewing databases, uploading files, and editing entry details.
+      * Uses Angular's built-in router for navigation and HttpClient for API communication.
+      * Dynamically adapts the UI based on the authenticated user's permissions.
 
 -----
 
