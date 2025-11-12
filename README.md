@@ -1,8 +1,40 @@
 # MediaHub API & Web Interface ✨
 
-This project provides a web-based API and an Angular frontend for storing, managing, and retrieving files organized into distinct databases.
+This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting and retrieving files with custom metadata, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
 
-## 📚 Overview
+Intended use-cases for the software are:
+  * storing of camera data with metadata in a production environment, e.g., images for product quality checks
+  * storing of audio samples captured using microphones, e.g., for condition monitoring of machines, animal observation
+
+For a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). Commecial features include:
+  * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
+  * single sign on via OIDC (e.g., using keycloak)
+
+## 🚀 Features
+
+  * **Database Management:** Create, list, view details, update housekeeping rules, and delete files managed in databases.
+  * **Dynamic Metadata:** Supports defining custom fields (e.g., `score`, `source`, `defect`) for each database. These fields are stored and indexed for efficient searching.
+  * **Automated Housekeeping:** A background service periodically cleans up files based on configurable age (set to `0` to disable) and disk space limits (set to `0` to disable).
+  * **Media Processing:** Configure databases to automatically perform actions like converting images to JPEG or audio files to FLAC. This relies on the optional FFmpeg dependency.
+  * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). This provides immediate feedback to the user for large files, which can then be processed in the background.
+  * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
+  * **Preview Generation:** Automatically generates downscaled JPEG previews for images and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
+  * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
+  * **Authentication:** Basic Authentication protects all API endpoints based on user roles stored in the database.
+  * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
+
+-----
+
+## 🎯 Roadmap
+
+### v1.1
+  * JWT option on top of basic auth, e.g., for the frontend or other software sending many of requests
+  * webhook configuration with filtering to notify external programs on data upload (e.g., ML model, custom transcoder) for extracting/generating additional data
+  * frontend: file drag and drop functionality
+
+-----
+
+## 📚 Code Overview
 
 The application is a monorepo containing two main parts:
 
@@ -20,22 +52,6 @@ The application is a monorepo containing two main parts:
       * Provides a user interface for logging in, viewing databases, uploading files, and editing entry details.
       * Uses Angular's built-in router for navigation and HttpClient for API communication.
       * Dynamically adapts the UI based on the authenticated user's permissions.
-
------
-
-## 🚀 Features
-
-  * **Database Management:** Create, list, view details, update housekeeping rules, and delete file databases.
-  * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). This provides immediate feedback to the user for large files, which can then be processed in the background.
-  * **Media Processing:** Configure databases to automatically perform actions like converting images to JPEG or audio files to FLAC. This relies on the optional FFmpeg dependency.
-  * **Preview Generation:** Automatically generates downscaled JPEG previews for images and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
-  * **Dynamic Metadata:** Supports defining custom fields (e.g., `score`, `source`, `location`) for each database. These fields are stored and indexed for efficient searching.
-  * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
-  * **Extension-less File Storage:** Files and previews are stored on the filesystem using their unique ID, with their MIME type tracked in the database for correct delivery. The **original filename** is also stored (if provided during upload) and served back during file downloads.
-  * **Authentication:** Basic Authentication protects all API endpoints based on user roles stored in the database.
-  * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
-  * **Automated Housekeeping:** A background service periodically cleans up files based on configurable age (set to `0` to disable) and disk space limits (set to `0` to disable).
-  * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
 
 -----
 
@@ -263,3 +279,9 @@ custom_fields = [
     {name = "source", type = "TEXT"}
 ]
 ```
+
+-----
+
+## 🔣 Miscellaneous
+
+While this application is not "vibe-coded", the development is heavily supported by AI code generation for coding efficiency. If you have a no-AI software policy, you should not use this program.
