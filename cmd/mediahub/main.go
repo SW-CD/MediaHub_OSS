@@ -38,19 +38,18 @@ type CLIConfig struct {
 var frontendFS embed.FS
 
 // @title SWCD MediaHub-API
-// @version 1.0.0-beta.1
+// @version 1.0.0
 // @description This is a sample server for a file store.
 // @contact.name Christian Dengler
 // @contact.url https://www.swcd.lu
 // @contact.email denglerchr@gmail.com
-// @host localhost:8080
 // @BasePath /api
 // @schemes http
 // @securityDefinitions.basic BasicAuth
 // @import encoding/json
 
 // version holds the current application version.
-const version = "1.0.0-beta.1"
+const version = "1.0.0"
 
 // startTime holds the time the application was started.
 var startTime time.Time

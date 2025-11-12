@@ -11,9 +11,8 @@
             "url": "https://www.swcd.lu",
             "email": "denglerchr@gmail.com"
         },
-        "version": "1.0.0-beta.1"
+        "version": "1.0.0"
     },
-    "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
         "/database": {
