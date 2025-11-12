@@ -5,8 +5,9 @@
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test binary and condif
 *.test
+localconfig.toml
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
