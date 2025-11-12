@@ -10,6 +10,8 @@ For a commercial version with additional, industrial features, please [contact m
   * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
   * single sign on via OIDC (e.g., using keycloak)
 
+You can find and download precompile binaries [here](https://mediahub.swcd.lu).
+
 ## 🚀 Features
 
   * **Database Management:** Create, list, view details, update housekeeping rules, and delete files managed in databases.
@@ -55,7 +57,9 @@ The application is a monorepo containing two main parts:
 
 -----
 
-## 🛠️ Prerequisites
+## 🛠️ Prerequisites for Building
+
+As mentioned you can just use prebuild binaries, but if you want to build the program yourself, you can will need the following.
 
   * **Go:** Version 1.24.3 or later (as specified in `go.mod`).
   * **C Compiler:** A C compiler (like `gcc` or `MinGW`) is required for `mattn/go-sqlite3` (CGO).
@@ -134,7 +138,12 @@ This command creates a single executable file named `mediahub` (or `mediahub.exe
 
 ## ▶️ Running the Application
 
-After building the application, you have a single executable file. The server will create `mediahub.db` and the `storage_root` directory in the same folder where it is run, unless configured otherwise.
+After downloading or building the application, you have a single executable file. The binary will create `mediahub.db` and the `storage_root` directory in the same folder where it is run, unless configured otherwise.
+
+You can get a short help message with
+```bash
+./mediahub --help
+```
 
 ### 1\. Admin User Setup
 
