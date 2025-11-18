@@ -2,6 +2,9 @@
 package config
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -11,9 +14,11 @@ type Config struct {
 	Database DatabaseConfig `toml:"database"`
 	Logging  LoggingConfig  `toml:"logging"`
 	Media    MediaConfig    `toml:"media"`
+	JWT      JWTConfig      `toml:"jwt"`
 
 	AdminPassword      string `toml:"-"` // Not loaded from file, set by CLI/env
 	ResetAdminPassword bool   `toml:"-"` // Not loaded from file, set by CLI/env
+	JWTSecret          string `toml:"-"` // Runtime secret (from env, flag, or file)
 }
 
 // ServerConfig holds the server configuration.
@@ -36,7 +41,14 @@ type LoggingConfig struct {
 // MediaConfig holds media processing settings.
 type MediaConfig struct {
 	FFmpegPath  string `toml:"ffmpeg_path"`
-	FFprobePath string `toml:"ffprobe_path"` // <-- ADDED
+	FFprobePath string `toml:"ffprobe_path"`
+}
+
+// JWTConfig holds settings for token generation.
+type JWTConfig struct {
+	AccessDurationMin    int    `toml:"access_duration_min"`
+	RefreshDurationHours int    `toml:"refresh_duration_hours"`
+	Secret               string `toml:"secret"` // Persisted secret
 }
 
 // LoadConfig loads the configuration from a TOML file.
@@ -46,4 +58,19 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	return &config, nil
+}
+
+// SaveConfig writes the current configuration back to a TOML file.
+// Used to persist the auto-generated JWT secret.
+func SaveConfig(path string, cfg *Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create config file for saving: %w", err)
+	}
+	defer f.Close()
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(cfg); err != nil {
+		return fmt.Errorf("failed to encode config to file: %w", err)
+	}
+	return nil
 }

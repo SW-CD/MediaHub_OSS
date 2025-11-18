@@ -39,7 +39,7 @@ cmd/mediahub/frontend_embed
 frontend/node_modules
 
 # AI documentation folder
-AI/
+AI/Ignore
 
 # Compiled binary
 /mediahub
