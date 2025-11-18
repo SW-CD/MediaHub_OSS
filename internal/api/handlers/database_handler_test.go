@@ -30,6 +30,7 @@ func setupDBHandlerTestAPI(t *testing.T) (*httptest.Server, *MockDatabaseService
 	h := NewHandlers(
 		mockInfoService, // info
 		nil,             // user
+		nil,             // token (Added)
 		mockDBService,
 		nil, // entry
 		nil, // housekeeping

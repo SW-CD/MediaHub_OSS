@@ -6,6 +6,7 @@ import (
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
 	"mediahub/internal/services"
+	"mediahub/internal/services/auth" // Import auth for TokenService interface
 	"mime/multipart"
 
 	"github.com/stretchr/testify/mock"
@@ -67,12 +68,45 @@ func (m *MockUserService) InitializeAdminUser(cfg *config.Config) error {
 	return args.Error(0)
 }
 
+// --- MOCK TOKEN SERVICE (NEW) ---
+type MockTokenService struct {
+	mock.Mock
+}
+
+// Ensure MockTokenService implements auth.TokenService
+var _ auth.TokenService = (*MockTokenService)(nil)
+
+func (m *MockTokenService) GenerateTokens(user *models.User) (string, string, error) {
+	args := m.Called(user)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
+func (m *MockTokenService) ValidateAccessToken(tokenString string) (*models.User, error) {
+	args := m.Called(tokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
+func (m *MockTokenService) ValidateRefreshToken(tokenString string) (*models.User, error) {
+	args := m.Called(tokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
+func (m *MockTokenService) Logout(refreshToken string) error {
+	args := m.Called(refreshToken)
+	return args.Error(0)
+}
+
 // --- MOCK DATABASE SERVICE ---
 type MockDatabaseService struct {
 	mock.Mock
 }
 
-// --- REFACTOR: Compile-time check to ensure struct implements interface ---
 var _ services.DatabaseService = (*MockDatabaseService)(nil)
 
 func (m *MockDatabaseService) GetDatabase(name string) (*models.Database, error) {
@@ -108,26 +142,18 @@ func (m *MockDatabaseService) DeleteDatabase(name string) error {
 	return args.Error(0)
 }
 
-// --- REMOVED: GetEntry, GetEntries, SearchEntries moved to MockEntryService ---
-
 // --- MOCK ENTRY SERVICE ---
 type MockEntryService struct {
 	mock.Mock
 }
 
-// --- REFACTOR: Compile-time check to ensure struct implements interface ---
 var _ services.EntryService = (*MockEntryService)(nil)
 
-// ---
-// FIX: Updated CreateEntry signature to match interface
-// ---
 func (m *MockEntryService) CreateEntry(dbName string, metadataStr string, file multipart.File, header *multipart.FileHeader) (interface{}, int, error) {
 	args := m.Called(dbName, metadataStr, file, header)
 	if args.Get(0) == nil {
-		// Return (nil, status, error)
 		return nil, args.Int(1), args.Error(2)
 	}
-	// Return (body, status, error)
 	return args.Get(0), args.Int(1), args.Error(2)
 }
 
@@ -150,9 +176,6 @@ func (m *MockEntryService) GetEntryPreview(dbName string, id int64) (string, err
 	args := m.Called(dbName, id)
 	return args.String(0), args.Error(1)
 }
-
-// --- ADDED: Methods moved from MockDatabaseService ---
-
 func (m *MockEntryService) GetEntry(dbName string, id int64, customFields []models.CustomField) (models.Entry, error) {
 	args := m.Called(dbName, id, customFields)
 	if args.Get(0) == nil {
@@ -180,7 +203,6 @@ type MockHousekeepingService struct {
 	mock.Mock
 }
 
-// --- REFACTOR: Compile-time check to ensure struct implements interface ---
 var _ services.HousekeepingService = (*MockHousekeepingService)(nil)
 
 func (m *MockHousekeepingService) Start() {
@@ -202,10 +224,24 @@ type MockInfoService struct {
 	mock.Mock
 }
 
-// --- REFACTOR: Compile-time check to ensure struct implements interface ---
 var _ services.InfoService = (*MockInfoService)(nil)
 
 func (m *MockInfoService) GetInfo() models.Info {
 	args := m.Called()
 	return args.Get(0).(models.Info)
+}
+
+// --- MOCK STORAGE SERVICE ---
+type MockStorageService struct {
+	mock.Mock
+}
+
+func (m *MockStorageService) DeleteEntryFile(dbName string, timestamp, entryID int64) error {
+	args := m.Called(dbName, timestamp, entryID)
+	return args.Error(0)
+}
+
+func (m *MockStorageService) DeletePreviewFile(dbName string, timestamp, entryID int64) error {
+	args := m.Called(dbName, timestamp, entryID)
+	return args.Error(0)
 }

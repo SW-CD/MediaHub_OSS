@@ -26,6 +26,7 @@ func TestTriggerHousekeeping(t *testing.T) {
 	h := NewHandlers(
 		mockInfoSvc,   // info
 		nil,           // user
+		nil,           // token (Added)
 		nil,           // database
 		nil,           // entry
 		mockHKService, // housekeeping

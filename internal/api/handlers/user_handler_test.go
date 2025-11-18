@@ -24,7 +24,7 @@ func TestGetUserMe(t *testing.T) {
 		UptimeSince: time.Now(), // <-- FIX: Was StartTime
 	})
 	// This test doesn't require the full API server, just a handler.
-	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil) // No service needed for this handler
+	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, nil) // No service needed for this handler, added nil for TokenService
 	// --- END REFACTOR ---
 
 	// Create a mock user
@@ -64,7 +64,7 @@ func TestGetUserMe_NoUserInContext(t *testing.T) {
 	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil) // No service needed
+	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, nil) // No service needed, added nil for TokenService
 	// --- END REFACTOR ---
 
 	req, err := http.NewRequest("GET", "/api/me", nil)
@@ -86,7 +86,7 @@ func TestUpdateUserMe(t *testing.T) {
 	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // Added nil for TokenService
 	// --- END REFACTOR ---
 
 	mockUser := &models.User{

@@ -43,7 +43,7 @@ func TestGetUsers(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.GetUsers(rr, req)
 
@@ -87,7 +87,7 @@ func TestCreateUser(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.CreateUser(rr, req)
 
@@ -118,7 +118,7 @@ func TestCreateUser_Conflict(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.CreateUser(rr, req)
 
@@ -171,7 +171,7 @@ func TestUpdateUser(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.UpdateUser(rr, req)
 
@@ -217,7 +217,7 @@ func TestUpdateUser_LastAdmin(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.UpdateUser(rr, req)
 
@@ -247,7 +247,7 @@ func TestDeleteUser(t *testing.T) {
 
 	// Create handler and serve
 	// --- Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	h.DeleteUser(rr, req)
 
 	// Assertions
@@ -276,7 +276,7 @@ func TestDeleteUser_LastAdmin(t *testing.T) {
 
 	// Create handler and serve
 	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil)
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
 	// --- END REFACTOR ---
 	h.DeleteUser(rr, req)
 
