@@ -5,14 +5,10 @@ Here are the `CREATE TABLE` commands for the SQLite database that would power th
 ```sql
 -- Stores the database configurations, custom schemas, and type-specific settings
 CREATE TABLE IF NOT EXISTS databases (
-    name TEXT(255) PRIMARY KEY NOT NULL CHECK(length(name) <= 255),
+    name TEXT(32) PRIMARY KEY NOT NULL CHECK(length(name) <= 32),
     
     -- Type of content stored. Determines the schema of the dynamic table.
-    content_type TEXT NOT NULL CHECK(content_type IN (
-        'image', 
-        'audio',
-        'file'
-    )),
+    content_type TEXT NOT NULL DEFAULT 'image',
     
     hk_interval TEXT NOT NULL DEFAULT '1h',
     hk_disk_space TEXT NOT NULL DEFAULT '100G',
@@ -23,7 +19,11 @@ CREATE TABLE IF NOT EXISTS databases (
     config TEXT NOT NULL DEFAULT '{}',
     
     -- Stores the JSON array of custom field definitions
-    custom_fields TEXT NOT NULL DEFAULT '[]' 
+    custom_fields TEXT NOT NULL DEFAULT '[]',
+    
+    last_hk_run TIMESTAMP NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+    entry_count INTEGER NOT NULL DEFAULT 0,
+    total_disk_space_bytes INTEGER NOT NULL DEFAULT 0
 );
 
 -- NOTE: A new 'entries' table is dynamically created for *each* database,
@@ -77,8 +77,8 @@ CREATE TABLE IF NOT EXISTS "entries_MyAudioDB" (
     mime_type TEXT NOT NULL CHECK(mime_type IN (
         'audio/mpeg', 
         'audio/wav', 
-        'audio/flac',
-        'audio/opus',
+        'audio/flac', 
+        'audio/opus', 
         'audio/ogg'
     )),
     
@@ -132,7 +132,6 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT(64) UNIQUE NOT NULL CHECK(length(username) > 0 AND length(username) <= 64),
     -- Stores the securely hashed password (e.g., bcrypt)
-    -- The salt is included in the hash string.
     password_hash TEXT NOT NULL,
     -- Boolean flags (0 or 1) for each role
     can_view BOOLEAN NOT NULL DEFAULT 0,
@@ -142,4 +141,18 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin BOOLEAN NOT NULL DEFAULT 0
 );
 
+-- Refresh Token Table (Stateful Auth)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    
+    -- Stores the SHA-256 hash of the refresh token
+    token_hash TEXT UNIQUE NOT NULL, 
+    
+    expiry TIMESTAMP NOT NULL,
+    
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 ```

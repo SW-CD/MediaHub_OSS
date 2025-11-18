@@ -19,8 +19,8 @@ Returns general backend information, such as the software version or ffmpeg/ffpr
   "service_name": "SWCD MediaHub-API",
   "version": "1.0.0-beta.1",
   "uptime_since": "2025-10-27T18:30:05Z",
-  "ffmpeg": "true",
-  "ffprobe": "true",
+  "ffmpeg": true,
+  "ffprobe": true
 }
 ```
 
