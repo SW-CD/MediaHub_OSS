@@ -6,6 +6,14 @@
  */
 
 /**
+ * Represents the response from the token generation endpoints.
+ */
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+/**
  * Represents the structure of a custom metadata field
  * for a database.
  */
@@ -25,7 +33,6 @@ export interface Housekeeping {
 
 /**
  * Represents live statistics for a database.
- * UPDATED: Renamed image_count to entry_count.
  */
 export interface Stats {
   entry_count: number;
@@ -33,7 +40,7 @@ export interface Stats {
 }
 
 /**
- * NEW: Represents the dynamic, type-specific configuration
+ * Represents the dynamic, type-specific configuration
  * for a database.
  */
 export interface DatabaseConfig {
@@ -47,12 +54,11 @@ export interface DatabaseConfig {
 /**
  * Represents the full Database object, including its
  * configuration, schema, and stats.
- * UPDATED: To match the new backend concept.
  */
 export interface Database {
   name: string;
-  content_type: 'image' | 'audio' | 'file'; // <-- ADDED
-  config: DatabaseConfig; // <-- ADDED
+  content_type: 'image' | 'audio' | 'file';
+  config: DatabaseConfig;
   housekeeping: Housekeeping;
   custom_fields: CustomField[];
   stats?: Stats;
@@ -61,16 +67,15 @@ export interface Database {
 /**
  * Represents the metadata for a single entry (image, audio, or file).
  * Uses an index signature to allow for dynamic custom fields.
- * UPDATED: Renamed from Image to Entry and fields updated.
  */
 export interface Entry {
   id: number;
   timestamp: number;
   mime_type: string;
   filesize: number;
-  filename?: string; // <-- ADDED: Original filename
-  status: 'processing' | 'ready' | 'error'; // <-- ADDED
-  database_name?: string; // May not always be present depending on endpoint
+  filename?: string;
+  status: 'processing' | 'ready' | 'error';
+  database_name?: string;
 
   // Image-specific (optional)
   width?: number;
@@ -84,7 +89,7 @@ export interface Entry {
 }
 
 /**
- * NEW: Represents the partial response for an async upload (202 Accepted).
+ * Represents the partial response for an async upload (202 Accepted).
  */
 export interface PartialEntryResponse {
   id: number;
@@ -118,7 +123,6 @@ export interface ApiError {
 
 /**
  * Represents the report from a successful housekeeping run.
- * UPDATED: Renamed images_deleted to entries_deleted.
  */
 export interface HousekeepingReport {
   database_name: string;
@@ -127,45 +131,29 @@ export interface HousekeepingReport {
   message: string;
 }
 
-// --- STRUCTS FOR SEARCH ENDPOINT (Unchanged as per TODOs) ---
+// --- STRUCTS FOR SEARCH ENDPOINT ---
 
-/**
- * Defines the structure for a single filter condition or a nested group
- * for the POST /api/database/entries/search endpoint.
- */
 export interface SearchFilter {
-  // For logical grouping ("and", "or")
-  operator: string; // Should be 'and' or 'or' for groups, or comparison operator for conditions
-  conditions?: SearchFilter[]; // Used for logical grouping
-
-  // For single conditions ("=", ">", "<", etc.)
-  field?: string; // Field name (standard or custom)
-  value?: any; // The value to compare against
+  operator: string;
+  conditions?: SearchFilter[];
+  field?: string;
+  value?: any;
 }
 
-/**
- * Defines the sorting criteria for the search endpoint.
- */
 export interface SearchSort {
   field: string;
   direction: 'asc' | 'desc';
 }
 
-/**
- * Defines the limit and offset for pagination in the search endpoint.
- */
 export interface SearchPagination {
   offset: number;
-  limit: number; // Backend requires this
+  limit: number;
 }
 
-/**
- * Top-level request body for the POST /api/database/entries/search endpoint.
- */
 export interface SearchRequest {
-  filter?: SearchFilter; // Optional top-level filter group
-  sort?: SearchSort; // Optional sort criteria
-  pagination: SearchPagination; // Required pagination
+  filter?: SearchFilter;
+  sort?: SearchSort;
+  pagination: SearchPagination;
 }
 
 /**
