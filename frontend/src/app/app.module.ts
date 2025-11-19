@@ -2,7 +2,7 @@
 
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'; // <-- Imported HTTP_INTERCEPTORS
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { CommonModule } from '@angular/common';
@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 
-// Import all your components
+// Components
 import { LoginPageComponent } from './pages/login-page/login-page.component';
 import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.component';
 import { PageNotFoundComponent } from './pages/page-not-found/page-not-found.component';
@@ -31,11 +31,11 @@ import { IntervalPickerComponent } from './components/interval-picker/interval-p
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
 
-// Pipes
-import { SecureImagePipe } from './pipes/secure-image-pipe';
+// Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
+import { SecureImageDirective } from './directives/secure-image.directive'; // <-- NEW
 
-// NEW: Import the JWT Interceptor
+// Interceptor
 import { JwtInterceptor } from './interceptors/jwt.interceptor';
 
 @NgModule({
@@ -69,11 +69,10 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     IntervalPickerComponent, 
     EntryGridComponent,
     EntryListViewComponent,
-    SecureImagePipe,
+    SecureImageDirective, // <-- REPLACES SecureImagePipe
     FormatBytesPipe, 
   ],
   providers: [
-    // NEW: Register the JWT Interceptor
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }
   ],
   bootstrap: [AppComponent],
