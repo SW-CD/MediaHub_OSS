@@ -1,18 +1,14 @@
-<!-- frontend/src/app/components/entry-list/entry-list.component.html -->
+<div class="image-list-container" 
+     *ngIf="currentUser$ | async as user"
+     appFileDragDrop
+     (fileDropped)="onFileDropped($event)">
 
-<!-- The user variable is now sourced from the component property `currentUser` -->
-<div class="image-list-container" *ngIf="currentUser$ | async as user">
-
-  <!-- Header Section -->
   <div class="header-bar">
     <div class="header">
-      <!-- UPDATED: "Images in" to "Entries in" -->
       <h2 *ngIf="dbName">Entries in: {{ dbName }}</h2>
       <h2 *ngIf="!dbName">Select a Database</h2>
     </div>
     
-    <!-- View Mode Toggle -->
-    <!-- UPDATED: Fixed `class.` typo to `class=` -->
     <div class="view-mode-toggle" *ngIf="dbName">
       <button 
         class="toggle-btn"
@@ -33,11 +29,9 @@
 
   <ng-container *ngIf="dbName; else noDbSelected">
 
-    <!-- Filter Bar (Stays in parent component) -->
     <div class="filter-bar">
       <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
         <div class="filter-controls">
-          <!-- Standard Filters -->
           <div class="form-group">
             <label for="tstart" class="form-label">Start Date</label>
             <input id="tstart" type="datetime-local" formControlName="tstart" class="form-control">
@@ -47,15 +41,12 @@
             <input id="tend" type="datetime-local" formControlName="tend" class="form-control">
           </div>
           <div class="form-group limit-group">
-            <!-- UPDATED: "Limit" to "Per Page" -->
             <label for="limitPerPage" class="form-label">Per Page</label>
-            <!-- UPDATED: formControlName to "limitPerPage" -->
             <input id="limitPerPage" type="number" formControlName="limitPerPage" class="form-control">
              <div *ngIf="filterForm.get('limitPerPage')?.invalid && (filterForm.get('limitPerPage')?.dirty || filterForm.get('limitPerPage')?.touched)" class="form-error">
                  Limit required (min 1).
              </div>
           </div>
-          <!-- Dynamic Custom Field Filters -->
           <div formArrayName="customFilters" class="custom-filters-array">
             <div *ngFor="let group of customFilters.controls; let i = index" [formGroupName]="i" class="custom-filter-row">
               <select formControlName="field" class="form-control">
@@ -79,7 +70,6 @@
               </button>
             </div>
           </div>
-          <!-- Filter Actions -->
           <div class="filter-actions">
             <button type="button" class="btn-link" (click)="addCustomFilter()">+ Add Filter</button>
             <button type="submit" class="btn btn-primary" [disabled]="filterForm.invalid">Apply</button>
@@ -88,21 +78,14 @@
       </form>
     </div>
 
-    <!-- Main Content: Child Components or State Messages -->
     <div class="content-area">
       <div *ngIf="isLoading" class="state-message">
-        <!-- UPDATED: "images" to "entries" -->
         <p>Loading entries...</p>
       </div>
 
       <ng-container *ngIf="!isLoading">
-        <!-- UPDATED: Check entriesToShow.length -->
         <ng-container *ngIf="entriesToShow.length > 0; else emptyState">
 
-          <!-- *** REPLACED WITH CHILD COMPONENTS *** -->
-
-          <!-- VIEW 1: List View (Table) -->
-          <!-- UPDATED: Pass entriesToShow, rename component selector -->
           <app-entry-list-view
             *ngIf="viewMode === 'list'"
             [entries]="entriesToShow"
@@ -114,8 +97,6 @@
             (deleteClicked)="openDeleteConfirm($event)">
           </app-entry-list-view>
 
-          <!-- VIEW 2: Grid View -->
-          <!-- UPDATED: Pass entriesToShow, rename component selector -->
           <app-entry-grid
             *ngIf="viewMode === 'grid'"
             [entries]="entriesToShow"
@@ -123,8 +104,6 @@
             (entryClicked)="openDetailModal($event)">
           </app-entry-grid>
           
-          <!-- Pagination Controls (Stays in parent) -->
-          <!-- UPDATED: Logic for backend pagination -->
           <div class="pagination-controls" *ngIf="currentPage > 1 || hasNextPage">
             <button (click)="prevPage()" *ngIf="currentPage > 1" class="btn btn-secondary">
               &larr; Previous
@@ -141,19 +120,17 @@
 
         <ng-template #emptyState>
           <div class="state-message">
-            <!-- UPDATED: "images" to "entries" -->
             <p>No entries found that match the current filters.</p>
           </div>
         </ng-template>
       </ng-container>
     </div>
 
-    <!-- Floating Action Button (Stays in parent) -->
     <button
       *ngIf="user.can_create"
       class="btn btn-primary upload-fab"
       (click)="openUploadModal()"
-      title="Upload New Entry"> <!-- UPDATED: title -->
+      title="Upload New Entry">
       <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
 
@@ -161,10 +138,8 @@
 
   <ng-template #noDbSelected>
     <div class="state-message">
-      <!-- UPDATED: "images" to "entries" -->
       <p>Please select a database from the sidebar to view its entries.</p>
     </div>
   </ng-template>
 
 </div>
-

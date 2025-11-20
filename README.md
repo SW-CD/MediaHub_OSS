@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (v1.0.0) ✨
+# MediaHub API & Web Interface (v1.1.0 prerelease) ✨
 
 This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting and retrieving files with custom metadata, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
 
@@ -20,9 +20,10 @@ For a commercial version with additional, industrial features, please [contact m
   * **Media Processing:** Configure databases to automatically perform actions like converting images to JPEG or audio files to FLAC. This relies on the optional FFmpeg dependency.
   * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). This provides immediate feedback to the user for large files, which can then be processed in the background.
   * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
+  * **Drag & Drop Uploads:** Intuitive file uploading by dragging files directly onto the entry list or the upload modal.
   * **Preview Generation:** Automatically generates downscaled JPEG previews for images and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
   * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
-  * **Authentication:** Basic Authentication protects all API endpoints based on user roles stored in the database.
+  * **Hybrid Authentication:** Supports both **Basic Authentication** (for simple API scripts) and **JWT (JSON Web Tokens)** with Access/Refresh tokens (for the Web UI), protected by role-based access control.
   * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
 
 
@@ -31,9 +32,7 @@ For a commercial version with additional, industrial features, please [contact m
 ## 🎯 Roadmap
 
 ### v1.1
-  * JWT option on top of basic auth, e.g., for the frontend or other software sending many of requests
   * webhook configuration with filtering to notify external programs on data upload (e.g., ML model, custom transcoder) for extracting/generating additional data
-  * frontend: file drag and drop functionality
 
 -----
 
@@ -135,6 +134,7 @@ This command creates a single executable file named `mediahub` (or `mediahub.exe
 After downloading or building the application, you have a single executable file. The binary will create `mediahub.db` and the `storage_root` directory in the same folder where it is run, unless configured otherwise.
 
 You can get a short help message with
+
 ```bash
 ./mediahub --help
 ```
