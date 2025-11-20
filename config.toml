@@ -1,17 +1,21 @@
 [server]
-# use "0.0.0.0" to make the application available publically
-host = "localhost"
-port = 8080
+  # use "0.0.0.0" to make the application available publically
+  host = "localhost"
+  port = 8080
 
 [database]
-path = "mediahub.db"
-storage_root = "storage_root"
+  path = "mediahub.db"
+  storage_root = "storage_root"
 
 [logging]
-level = "info"
+  level = "info"
+
+[jwt]
+  access_duration_min = 5
+  refresh_duration_hours = 24
 
 ## Uncomment to provide the path to ffmpeg and ffprobe binaries,
 ## if they are not available in the PATH
 # [media]
-# ffmpeg_path = "path/to/ffmpeg.exe"
-# ffprobe_path = "path/to/ffprobe.exe"
+#   ffmpeg_path = "path/to/ffmpeg.exe"
+#   ffprobe_path = "path/to/ffprobe.exe"
