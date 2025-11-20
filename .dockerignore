@@ -1,0 +1,43 @@
+# --- Version Control & IDEs ---
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Frontend (Angular) ---
+# Don't send local dependencies or builds
+frontend/node_modules
+frontend/dist
+frontend/.angular
+frontend/coverage
+frontend/.editorconfig
+
+# --- Backend (Go) ---
+# Don't send locally compiled binaries
+mediahub
+mediahub.exe
+*.test
+*.out
+# If you use a vendor folder locally but want fresh downloads in Docker:
+vendor/
+
+# --- Local Data & Storage ---
+# Never send your local database or file storage to the image
+*.db
+*.db-journal
+*.sqlite
+storage_root/
+mediahub_storage/
+mediahub_data/
+*.log
+
+# --- Documentation & AI Context ---
+AI/
+
+# --- Docker specific ---
+docker/
