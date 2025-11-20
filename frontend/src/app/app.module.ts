@@ -33,7 +33,8 @@ import { EntryListViewComponent } from './components/entry-list-view/entry-list-
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
-import { SecureImageDirective } from './directives/secure-image.directive'; // <-- NEW
+import { SecureImageDirective } from './directives/secure-image.directive';
+import { FileDragDropDirective } from './directives/file-drag-drop.directive'; // <-- NEW
 
 // Interceptor
 import { JwtInterceptor } from './interceptors/jwt.interceptor';
@@ -69,8 +70,9 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     IntervalPickerComponent, 
     EntryGridComponent,
     EntryListViewComponent,
-    SecureImageDirective, // <-- REPLACES SecureImagePipe
-    FormatBytesPipe, 
+    SecureImageDirective,
+    FormatBytesPipe,
+    FileDragDropDirective // <-- NEW
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }

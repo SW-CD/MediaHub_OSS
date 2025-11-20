@@ -13,6 +13,7 @@ import { UploadEntryModalComponent } from '../upload-entry-modal/upload-entry-mo
 import { EntryDetailModalComponent } from '../entry-detail-modal/entry-detail-modal.component';
 import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
+import { isMimeTypeAllowed } from '../../utils/mime-types'; // <-- NEW IMPORT
 
 // Define the structure for available filters, including standard ones
 interface AvailableFilter {
@@ -21,14 +22,14 @@ interface AvailableFilter {
 }
 
 @Component({
-  selector: 'app-entry-list', // RENAMED
-  templateUrl: './entry-list.component.html', // RENAMED
-  styleUrls: ['./entry-list.component.css'], // RENAMED
+  selector: 'app-entry-list',
+  templateUrl: './entry-list.component.html',
+  styleUrls: ['./entry-list.component.css'],
   standalone: false,
 })
-export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
+export class EntryListComponent implements OnInit, OnDestroy {
   public currentUser$: Observable<User | null>;
-  public entriesToShow: Entry[] = []; // RENAMED
+  public entriesToShow: Entry[] = [];
   public currentUser: User | null = null; 
 
   public filterForm: FormGroup;
@@ -42,13 +43,10 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
   private destroy$ = new Subject<void>();
   private manualFetchTrigger$ = new Subject<void>(); 
 
-  // --- UPDATED: No longer need to subscribe to processingEntries$ here ---
-  // public processingEntries$: Observable<number[]>;
-
   // --- STATE PROPERTIES ---
   public viewMode: 'grid' | 'list' = 'grid'; 
   public currentPage = 1;
-  public imagesPerPage = 24; // This is now the 'limit' for backend pagination
+  public imagesPerPage = 24;
   public hasNextPage = false; 
 
   constructor(
@@ -61,11 +59,8 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
     private cdr: ChangeDetectorRef
   ) {
     this.currentUser$ = this.authService.currentUser$;
-    // --- UPDATED: No longer need to subscribe to processingEntries$ here ---
-    // this.processingEntries$ = this.databaseService.processingEntries$;
 
     this.filterForm = this.fb.group({
-      // UPDATED: This is now 'limit per page'
       limitPerPage: [24, [Validators.required, Validators.min(1)]],
       tstart: [''],
       tend: [''],  
@@ -106,28 +101,21 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
                this.cdr.markForCheck();
                return of([]);
             }
-            // Use RENAMED service method
             return this.databaseService.searchEntries(name, searchPayload);
           })
         )
       )
     ).subscribe({
       next: entries => {
-        // --- UPDATED: Handle backend pagination response ---
         this.imagesPerPage = this.filterForm.get('limitPerPage')?.value || 24;
         
-        // --- NEW: Check if we received the "extra" item ---
         if (entries && entries.length > this.imagesPerPage) {
-          // Yes, there is a next page
           this.hasNextPage = true;
-          // Slice the array to only show the requested number of items
           this.entriesToShow = entries.slice(0, this.imagesPerPage);
         } else {
-          // No, this is the last page
           this.hasNextPage = false;
-          this.entriesToShow = entries || []; // Assign directly
+          this.entriesToShow = entries || [];
         }
-        // ---
         this.isLoading = false; 
         this.cdr.markForCheck(); 
       },
@@ -162,13 +150,12 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
         if (db) {
           this.currentDb = db;
           this.setupTableColumns(db); // Configure table headers
-          // --- UPDATED: Dynamically build available filters based on content_type ---
           this.availableFilters = [
               { name: 'timestamp', type: 'INTEGER' },
               { name: 'filesize', type: 'INTEGER' },
               { name: 'mime_type', type: 'TEXT' },
-              { name: 'filename', type: 'TEXT' }, // <-- ADDED
-              { name: 'status', type: 'TEXT' }, // <-- ADDED FOR ASYNC
+              { name: 'filename', type: 'TEXT' }, 
+              { name: 'status', type: 'TEXT' },
           ];
           if (db.content_type === 'image') {
               this.availableFilters.push({ name: 'width', type: 'INTEGER' });
@@ -199,7 +186,6 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
 
   /**
    * Builds the SearchRequest payload for the POST endpoint.
-   * UPDATED: To remove the default status filter.
    */
   private buildSearchPayload(): SearchRequest | null {
     if (this.filterForm.invalid) {
@@ -209,10 +195,7 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
 
     const formValue = this.filterForm.value;
     
-    // --- UPDATED: Start with an empty filter list ---
     const conditions: SearchFilter[] = [];
-    // --- END UPDATE ---
-
 
     // 1. Add time filters
     if (formValue.tstart) {
@@ -234,9 +217,6 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
         const fieldDefinition = this.availableFilters.find(f => f.name === filter.field);
         let filterValue: any = String(filter.value).trim(); 
 
-        // --- UPDATED: No longer need to check for default status filter ---
-        // --- END UPDATE ---
-
         if (fieldDefinition) {
            if (fieldDefinition.type === 'INTEGER' || fieldDefinition.type === 'REAL') {
              const num = Number(filterValue);
@@ -255,13 +235,11 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
       }
     });
 
-    // --- UPDATED: Backend pagination ---
     this.imagesPerPage = formValue.limitPerPage;
     const payload: SearchRequest = {
       pagination: {
-        // --- NEW: Request n+1 items ---
         limit: this.imagesPerPage + 1,
-        offset: (this.currentPage - 1) * this.imagesPerPage // Calculate offset
+        offset: (this.currentPage - 1) * this.imagesPerPage
       },
       sort: { field: 'timestamp', direction: 'desc' }
     };
@@ -357,10 +335,8 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
 
   // --- UI Setup ---
   private setupTableColumns(db: Database): void {
-    // --- ADDED 'status' to standard columns ---
     let standardColumns = ['id', 'timestamp', 'filename', 'mime_type', 'filesize', 'status'];
     
-    // --- UPDATED: Add dynamic columns based on content_type ---
     if (db.content_type === 'image') {
       standardColumns.push('width', 'height');
     } else if (db.content_type === 'audio') {
@@ -369,7 +345,6 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
 
     const customColumns = db.custom_fields.map(field => field.name);
     
-    // --- Use the stored this.currentUser ---
     const actionColumn = (this.currentUser && (this.currentUser.can_edit || this.currentUser.can_delete)) ? ['actions'] : [];
 
     // Add 'Preview' column
@@ -384,36 +359,30 @@ export class EntryListComponent implements OnInit, OnDestroy { // RENAMED
   // --- Modal Opening Methods (Event Handlers from Children) ---
   openUploadModal(): void {
     if (this.dbName) {
-      // Use RENAMED modal ID
       this.modalService.open(UploadEntryModalComponent.MODAL_ID);
     } else {
       this.notificationService.showInfo('Please select a database first.');
     }
   }
 
-  openEditModal(entry: Entry): void { // RENAMED
+  openEditModal(entry: Entry): void {
     if (this.dbName) {
-      // --- ADDED: Check for processing status ---
       if (entry.status === 'processing') {
         this.notificationService.showError('Cannot edit an entry that is still processing.');
         return;
       }
-      // --- END ADDED ---
-      this.databaseService.selectEntry(entry); // RENAMED
-      // Use RENAMED modal ID
+      this.databaseService.selectEntry(entry);
       this.modalService.open(EditEntryModalComponent.MODAL_ID);
     }
   }
 
-openDeleteConfirm(entry: Entry): void { // RENAMED
+openDeleteConfirm(entry: Entry): void {
     if (!this.currentDb) return;
 
-    // --- ADDED: Check for processing status ---
     if (entry.status === 'processing') {
       this.notificationService.showError('Cannot delete an entry that is still processing.');
       return;
     }
-    // --- END ADDED ---
 
     const modalData: ConfirmationModalData = {
       message: `Are you sure you want to delete entry ${entry.id} from '${this.currentDb.name}'? This action cannot be undone.`
@@ -425,29 +394,20 @@ openDeleteConfirm(entry: Entry): void { // RENAMED
       )
       .subscribe(() => {
         if (this.currentDb) { 
-          // Use RENAMED service method
           this.databaseService.deleteEntry(this.currentDb.name, entry.id).subscribe();
         }
       });
   }
 
-  openDetailModal(entry: Entry): void { // RENAMED
+  openDetailModal(entry: Entry): void {
      if (this.dbName) {
-        // --- ADDED: Check for processing status ---
         if (entry.status === 'processing') {
           this.notificationService.showInfo('This entry is still processing. Details will be available when complete.');
           return;
         }
-        // --- END ADDED ---
-        this.databaseService.selectEntry(entry); // RENAMED
-        // Use RENAMED modal ID
+        this.databaseService.selectEntry(entry);
         this.modalService.open(EntryDetailModalComponent.MODAL_ID);
      }
-  }
-
-  // --- Utility Methods ---
-  getCustomFilterGroup(index: number): AbstractControl | null {
-      return this.customFilters.at(index);
   }
 
   // --- PUBLIC HELPER METHODS ---
@@ -456,7 +416,6 @@ openDeleteConfirm(entry: Entry): void { // RENAMED
     this.cdr.markForCheck();
   }
 
-  // --- UPDATED: Backend pagination logic ---
   public nextPage(): void {
     if (this.hasNextPage) {
       this.currentPage++;
@@ -469,5 +428,25 @@ openDeleteConfirm(entry: Entry): void { // RENAMED
       this.currentPage--;
       this.manualFetchTrigger$.next(); 
     }
+  }
+
+  /**
+   * NEW: Handles files dropped directly onto the list/grid.
+   * Validates MIME type against current DB, then opens the modal with the file pre-loaded.
+   */
+  onFileDropped(file: File): void {
+    if (!this.currentDb || !this.currentUser?.can_create) {
+      this.notificationService.showInfo('You cannot upload files here.');
+      return;
+    }
+
+    // Validate MIME type
+    if (!isMimeTypeAllowed(this.currentDb.content_type, file.type)) {
+      this.notificationService.showError(`Invalid file type (${file.type}) for this database. Allowed: ${this.currentDb.content_type}`);
+      return;
+    }
+
+    // Pass the file to the modal via the data object
+    this.modalService.open(UploadEntryModalComponent.MODAL_ID, { droppedFile: file });
   }
 }

@@ -469,3 +469,29 @@ next to the toggle switch, as requested by the user.
 .form-file-input .file-browse-btn:hover {
   background-color: var(--button-secondary-bg-hover);
 }
+
+
+/* Visual cue when dragging a file over a drop zone */
+.file-drag-over {
+  position: relative;
+}
+
+.file-drag-over::after {
+  content: "Drop file to upload";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(66, 153, 225, 0.9); /* Primary Blue with opacity */
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  z-index: 5000; /* Ensure it's on top */
+  border: 4px dashed white;
+  border-radius: 0.5rem;
+  pointer-events: none; /* Let the drop event pass through to the element */
+}

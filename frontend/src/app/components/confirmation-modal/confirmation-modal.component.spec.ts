@@ -1,13 +1,17 @@
 // frontend/src/app/components/confirmation-modal/confirmation-modal.component.spec.ts
 
-import { ComponentFixture, TestBed } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { ConfirmationModalComponent, ConfirmationModalData } from './confirmation-modal.component';
 import { ModalService, ModalEvent } from '../../services/modal.service';
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
-// Mock the app-modal component to avoid its complexities in this test
-@Component({ selector: 'app-modal', template: '<ng-content></ng-content>' })
+// Mock the app-modal component
+@Component({ 
+  selector: 'app-modal', 
+  template: '<ng-content></ng-content>',
+  standalone: false // <--- EXPLICITLY SET THIS
+})
 class MockModalComponent {
   @Input() modalId: string = '';
   @Input() modalTitle: string = '';
@@ -20,7 +24,6 @@ describe('ConfirmationModalComponent', () => {
   let modalEventSubject: Subject<ModalEvent>;
 
   const mockModalData: ConfirmationModalData = {
-    title: 'Test Confirmation',
     message: 'Are you sure?',
   };
 
@@ -44,7 +47,7 @@ describe('ConfirmationModalComponent', () => {
     component = fixture.componentInstance;
     mockModalService = TestBed.inject(ModalService) as jasmine.SpyObj<ModalService>;
 
-    fixture.detectChanges(); // ngOnInit subscribes
+    fixture.detectChanges();
   });
 
   it('should create', () => {
@@ -63,7 +66,7 @@ describe('ConfirmationModalComponent', () => {
     modalEventSubject.next({ id: ConfirmationModalComponent.MODAL_ID, action: 'open', data: mockModalData });
     fixture.detectChanges();
 
-    const confirmButton = fixture.nativeElement.querySelector('.btn-confirm') as HTMLButtonElement;
+    const confirmButton = fixture.nativeElement.querySelector('.btn-danger') as HTMLButtonElement;
     confirmButton.click();
 
     expect(mockModalService.close).toHaveBeenCalledWith(true);
@@ -73,10 +76,9 @@ describe('ConfirmationModalComponent', () => {
     modalEventSubject.next({ id: ConfirmationModalComponent.MODAL_ID, action: 'open', data: mockModalData });
     fixture.detectChanges();
 
-    const cancelButton = fixture.nativeElement.querySelector('.btn-cancel') as HTMLButtonElement;
+    const cancelButton = fixture.nativeElement.querySelector('.btn-secondary') as HTMLButtonElement;
     cancelButton.click();
 
     expect(mockModalService.close).toHaveBeenCalledWith(false);
   });
 });
-
