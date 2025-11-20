@@ -11,7 +11,6 @@
       </tr>
     </thead>
     <tbody>
-      <!-- UPDATED: image to entry, images to entries -->
       <tr *ngFor="let entry of entries; trackBy: trackById">
         <td *ngFor="let col of tableColumns; trackBy: trackByColumn" 
             [class.actions-cell]="col === 'actions'"
@@ -21,14 +20,11 @@
 
             <!-- === PREVIEW COLUMN === -->
             <ng-container *ngSwitchCase="'Preview'">
-              <!-- 
-                NEW: Use ngSwitch to show the correct preview based on status
-              -->
               <ng-container [ngSwitch]="entry.status">
                 
-                <!-- Case 1: Ready - Show the image -->
+                <!-- Case 1: Ready - Show the image with DIRECTIVE -->
                 <img *ngSwitchCase="'ready'"
-                     [src]="getPreviewUrl(entry) | secureImage | async" 
+                     [secureSrc]="getPreviewUrl(entry)" 
                      class="list-preview-img"
                      (click)="onEntryClick(entry)"
                      alt="Preview for {{entry.id}}">
@@ -50,7 +46,7 @@
                 
                 <!-- Default: Also show ready image -->
                 <img *ngSwitchDefault
-                     [src]="getPreviewUrl(entry) | secureImage | async" 
+                     [secureSrc]="getPreviewUrl(entry)" 
                      class="list-preview-img"
                      (click)="onEntryClick(entry)"
                      alt="Preview for {{entry.id}}">

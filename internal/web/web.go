@@ -5,7 +5,8 @@ package web
 import (
 	"bytes"
 	"embed"
-	"io" // <-- Import io
+	"encoding/json"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -16,6 +17,22 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+// errorResponse matches the JSON structure used by the API handlers.
+// Defined locally to avoid circular dependencies with the handlers package.
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+// respondWithError writes a JSON error response to ensure consistency with the API.
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(errorResponse{Error: message}); err != nil {
+		log.Printf("ERROR: Failed to encode web error response: %v", err)
+	}
+}
 
 // spaHandler serves a single-page application from an embedded filesystem.
 type spaHandler struct {
@@ -44,12 +61,12 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Try to open the requested file (e.g., "assets/logo.png")
 	file, err := h.contentFS.Open(filePath)
 	if err != nil {
-		// If it doesn't exist, serve the index.html
+		// If it doesn't exist, serve the index.html (Client-side routing fallback)
 		if os.IsNotExist(err) {
 			indexBytes, err := fs.ReadFile(h.contentFS, h.indexPath)
 			if err != nil {
-				http.Error(w, "Internal server error: index.html not found", http.StatusInternalServerError)
 				log.Printf("ERROR: spaHandler could not find %s in embedded FS: %v", h.indexPath, err)
+				respondWithError(w, http.StatusInternalServerError, "Internal server error: index.html not found")
 				return
 			}
 			reader := bytes.NewReader(indexBytes)
@@ -58,8 +75,8 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Another error (e.g., permission)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		log.Printf("ERROR: spaHandler error opening file %s: %v", filePath, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	defer file.Close()
@@ -67,24 +84,21 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get FileInfo for http.ServeContent
 	fileInfo, err := file.Stat()
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		log.Printf("ERROR: spaHandler error stating file %s: %v", filePath, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
 	// --- PERFORMANCE FIX ---
 	// We must type-assert the fs.File to io.ReadSeeker for http.ServeContent.
-	// The file from embed.FS *does* implement this, but the fs.File interface
-	// does not guarantee it, so the compiler fails without this check.
 	seeker, ok := file.(io.ReadSeeker)
 	if !ok {
 		// This should not happen with embed.FS, but we handle it gracefully
-		// by falling back to reading the file into memory.
 		log.Printf("WARN: spaHandler file %s does not implement io.ReadSeeker. Falling back to memory buffer.", filePath)
 		fileBytes, err := io.ReadAll(file)
 		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			log.Printf("ERROR: spaHandler error reading file %s: %v", filePath, err)
+			respondWithError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 		reader := bytes.NewReader(fileBytes)

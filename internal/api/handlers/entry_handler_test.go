@@ -40,6 +40,7 @@ func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *MockEntryService
 	h := NewHandlers(
 		infoSvc,      // info
 		nil,          // user
+		nil,          // token (Added)
 		mockDbSvc,    // database (for GetEntryMeta)
 		mockEntrySvc, // entry
 		nil,          // housekeeping

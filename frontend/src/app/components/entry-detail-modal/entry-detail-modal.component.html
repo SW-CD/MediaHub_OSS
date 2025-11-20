@@ -1,3 +1,4 @@
+<!-- frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.html -->
 <app-modal [modalId]="'entryDetailModal'" [modalTitle]="'Entry Details'">
   <div class="detail-container" *ngIf="entryForMetadata; else loading">
     
@@ -11,7 +12,8 @@
              alt="Entry preview for ID {{ entryForMetadata.id }}" />
 
         <div *ngSwitchCase="'audio'" class="audio-preview-wrapper">
-          <img [src]="previewUrl | secureImage | async" 
+          <!-- UPDATED: Use Directive for Audio Waveform as well -->
+          <img [secureSrc]="previewUrl" 
                class="audio-waveform" 
                alt="Waveform for {{ entryForMetadata.id }}" />
           <audio controls [src]="fileUrl" class="audio-controls"></audio>

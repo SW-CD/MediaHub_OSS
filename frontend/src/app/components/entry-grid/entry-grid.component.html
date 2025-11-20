@@ -1,6 +1,5 @@
 <!-- frontend/src/app/components/entry-grid/entry-grid.component.html -->
 <div class="image-grid">
-  <!-- UPDATED: image to entry, images to entries -->
   <div 
     *ngFor="let entry of entries; trackBy: trackById" 
     class="grid-card"
@@ -8,14 +7,12 @@
     [title]="getEntryTitle(entry)">
     
     <div class="grid-card-preview">
-      <!-- 
-        NEW: Use ngSwitch to show the correct preview based on status
-      -->
       <ng-container [ngSwitch]="entry.status">
         
         <!-- Case 1: Ready - Show the image -->
+        <!-- UPDATED: Use [secureSrc] directive instead of pipe -->
         <img *ngSwitchCase="'ready'"
-             [src]="getPreviewUrl(entry) | secureImage | async" 
+             [secureSrc]="getPreviewUrl(entry)" 
              class="grid-card-img" 
              alt="Preview for {{entry.id}}"/>
 
@@ -38,7 +35,7 @@
 
         <!-- Default: Also show ready state -->
         <img *ngSwitchDefault
-             [src]="getPreviewUrl(entry) | secureImage | async" 
+             [secureSrc]="getPreviewUrl(entry)" 
              class="grid-card-img" 
              alt="Preview for {{entry.id}}"/>
              

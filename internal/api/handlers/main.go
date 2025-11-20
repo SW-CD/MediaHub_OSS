@@ -3,7 +3,8 @@ package handlers
 
 import (
 	"mediahub/internal/config"
-	"mediahub/internal/services" // <-- IMPORT SERVICES
+	"mediahub/internal/services"
+	"mediahub/internal/services/auth"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type Handlers struct {
 	// --- Depend on interfaces, not concrete structs ---
 	Info         services.InfoService
 	User         services.UserService
+	Token        auth.TokenService
 	Database     services.DatabaseService
 	Entry        services.EntryService
 	Housekeeping services.HousekeepingService
@@ -27,6 +29,7 @@ type Handlers struct {
 func NewHandlers(
 	info services.InfoService,
 	user services.UserService,
+	token auth.TokenService,
 	database services.DatabaseService,
 	entry services.EntryService,
 	housekeeping services.HousekeepingService,
@@ -35,6 +38,7 @@ func NewHandlers(
 	return &Handlers{
 		Info:         info,
 		User:         user,
+		Token:        token,
 		Database:     database,
 		Entry:        entry,
 		Housekeeping: housekeeping,

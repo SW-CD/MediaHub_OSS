@@ -25,12 +25,19 @@ func SetupRouter(
 
 	// --- Public Endpoints ---
 	r.HandleFunc("/health", handlers.HealthCheck).Methods("GET")
-	r.HandleFunc("/api/info", h.GetInfo).Methods("GET") // <-- This now uses the interface
+	r.HandleFunc("/api/info", h.GetInfo).Methods("GET")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+
+	// Public Token Endpoints (Not protected by authMiddleware) ---
+	r.HandleFunc("/api/token", h.GetToken).Methods("POST")
+	r.HandleFunc("/api/token/refresh", h.RefreshToken).Methods("POST")
 
 	// --- Authenticated API Routes ---
 	apiRouter := r.PathPrefix("/api").Subrouter()
-	apiRouter.Use(authMiddleware.AuthMiddleware)
+	apiRouter.Use(authMiddleware.AuthMiddleware) // This will check for JWT *or* Basic
+
+	// Authenticated Logout Endpoint (Protected by authMiddleware) ---
+	apiRouter.HandleFunc("/logout", h.Logout).Methods("POST")
 
 	// Attach resource-specific routes
 	addDatabaseRoutes(apiRouter, h, authMiddleware)

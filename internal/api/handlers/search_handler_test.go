@@ -38,6 +38,7 @@ func setupSearchTestAPI(t *testing.T) (*httptest.Server, *MockDatabaseService, *
 	h := NewHandlers(
 		infoSvc, // info
 		nil,     // user
+		nil,     // token (Added)
 		mockDBService,
 		mockEntryService, // <-- FIX: Pass mockEntryService
 		nil,              // housekeeping

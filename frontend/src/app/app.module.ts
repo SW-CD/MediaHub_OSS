@@ -2,15 +2,15 @@
 
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { CommonModule } from '@angular/common'; // <-- IMPORTANT
+import { CommonModule } from '@angular/common';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 
-// Import all your components
+// Components
 import { LoginPageComponent } from './pages/login-page/login-page.component';
 import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.component';
 import { PageNotFoundComponent } from './pages/page-not-found/page-not-found.component';
@@ -31,10 +31,12 @@ import { IntervalPickerComponent } from './components/interval-picker/interval-p
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
 
-// --- ADD NEW PIPE IMPORTS ---
-// UPDATED: Import the standalone pipe
-import { SecureImagePipe } from './pipes/secure-image-pipe';
-import { FormatBytesPipe } from './pipes/format-bytes.pipe'; // <-- ADDED
+// Pipes & Directives
+import { FormatBytesPipe } from './pipes/format-bytes.pipe';
+import { SecureImageDirective } from './directives/secure-image.directive'; // <-- NEW
+
+// Interceptor
+import { JwtInterceptor } from './interceptors/jwt.interceptor';
 
 @NgModule({
   declarations: [
@@ -49,7 +51,7 @@ import { FormatBytesPipe } from './pipes/format-bytes.pipe'; // <-- ADDED
     ModalComponent,
     CreateDatabaseModalComponent,
     UploadEntryModalComponent,
-    EntryDetailModalComponent, // <-- This component is NOT standalone
+    EntryDetailModalComponent,
     EditEntryModalComponent,
     ConfirmationModalComponent,
     AdminUserListComponent,
@@ -67,11 +69,12 @@ import { FormatBytesPipe } from './pipes/format-bytes.pipe'; // <-- ADDED
     IntervalPickerComponent, 
     EntryGridComponent,
     EntryListViewComponent,
-    // UPDATED: Add SecureImagePipe here so EntryDetailModalComponent can use it
-    SecureImagePipe,
-    FormatBytesPipe, // <-- ADDED
+    SecureImageDirective, // <-- REPLACES SecureImagePipe
+    FormatBytesPipe, 
   ],
-  providers: [],
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

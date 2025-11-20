@@ -47,6 +47,18 @@ definitions:
       password:
         type: string
     type: object
+  handlers.tokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  handlers.tokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
   models.CustomField:
     properties:
       name:
@@ -829,6 +841,43 @@ paths:
       summary: Get service information
       tags:
       - Info
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidates a refresh token. This endpoint is protected by an Access
+        Token.
+      parameters:
+      - description: Refresh Token to invalidate
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.tokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Authentication required (invalid access token)
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Could not process token
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - Auth
   /me:
     get:
       description: Get the currently authenticated user's details.
@@ -883,6 +932,65 @@ paths:
       summary: Update current user's password
       tags:
       - Users
+  /token:
+    post:
+      description: Authenticate using Basic Auth to receive an access and refresh
+        token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.tokenResponse'
+        "401":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Token generation failed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get JWT tokens
+      tags:
+      - Auth
+  /token/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Provide a valid refresh token to receive a new access token. The
+        old refresh token is revoked.
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.tokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.tokenResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Invalid or expired token
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Token generation failed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Refresh JWT access token
+      tags:
+      - Auth
   /user:
     delete:
       description: Deletes a user account.
@@ -1057,4 +1165,9 @@ schemes:
 securityDefinitions:
   BasicAuth:
     type: basic
+  BearerAuth:
+    description: Type "Bearer" followed by a space and a JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

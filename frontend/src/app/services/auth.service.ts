@@ -4,200 +4,178 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
-import { User } from '../models/api.models';
+import { User, TokenResponse } from '../models/api.models';
 import { Router } from '@angular/router';
 
 /**
- * Manages user authentication, including login, logout,
- * and storing the current user's data and permissions
- * fetched from /api/me.
+ * Manages user authentication using JWT (JSON Web Tokens).
+ * Handles Login (Token Fetch), Logout (Token Revocation), and Token Refresh.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private readonly apiUrl = '/api';
+  private readonly ACCESS_TOKEN_KEY = 'access_token';
+  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
 
-  /**
-   * Holds the currently authenticated user's data.
-   * BehaviorSubject allows components to subscribe and get the
-   * current value immediately.
-   */
   private currentUserSubject = new BehaviorSubject<User | null>(null);
-
-  /**
-   * Exposes the current user as an observable.
-   * Components can subscribe to this to react to login/logout events.
-   */
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  /**
-   * A simple boolean observable to quickly check if the user is authenticated.
-   */
+  // Helper to check if we have a user loaded
   public isAuthenticated$ = this.currentUser$.pipe(map((user) => !!user));
 
-  /**
-   * Stores the Basic Auth credentials in base64 format (e.g., "Basic dXNlcjpwYXNz")
-   */
-  private currentAuthToken: string | null = null;
-
-  constructor(private http: HttpClient, private router: Router) {
-    // FIX: On service initialization, ONLY set the token from storage.
-    // The AuthGuard will now be responsible for triggering the user fetch
-    // to prevent a race condition on page refresh.
-    this.currentAuthToken = this.getAuthTokenFromStorage();
-  }
+  constructor(private http: HttpClient, private router: Router) {}
 
   /**
-   * Attempts to log the user in with a username and password.
-   * @param username The user's username.
-   * @param password The user's password.
-   * @returns An observable of the User object.
+   * Logs the user in by exchanging credentials for JWT tokens,
+   * then fetching the user's profile.
    */
   login(username: string, password: string): Observable<User> {
-    // Create the Basic Auth token
-    const token = 'Basic ' + btoa(`${username}:${password}`);
-    const headers = new HttpHeaders({ Authorization: token });
-    // --- DEBUG ---
-    console.log(`[AUTHSERVICE] login - Attempting to GET /api/me for user '${username}'`);
+    // 1. Prepare Basic Auth header for the token endpoint
+    const basicAuth = 'Basic ' + btoa(`${username}:${password}`);
+    const headers = new HttpHeaders({ Authorization: basicAuth });
 
-    // Make the /api/me call. This serves two purposes:
-    // 1. It validates the credentials (backend returns 401 if bad).
-    // 2. It fetches the user's roles in the same request.
-    return this.http.get<User>(`${this.apiUrl}/me`, { headers }).pipe(
-      tap((user) => {
-        // --- DEBUG ---
-        console.log(`[AUTHSERVICE] login - Success. User roles received.`, user);
-        // On success, store the token and user data
-        this.currentAuthToken = token;
-        sessionStorage.setItem('authToken', token);
-        this.currentUserSubject.next(user);
+    // 2. Call POST /api/token to get the tokens
+    return this.http.post<TokenResponse>(`${this.apiUrl}/token`, {}, { headers }).pipe(
+      tap((tokens) => {
+        this.storeTokens(tokens);
+      }),
+      // 3. Once we have tokens, fetch the user profile (Interceptor will inject Bearer token)
+      switchMap(() => this.fetchCurrentUser()),
+      map(user => {
+        if (!user) throw new Error('Failed to fetch user details after login');
+        return user;
       }),
       catchError((err: HttpErrorResponse) => {
-        // --- DEBUG ---
-        console.log(`[AUTHSERVICE] login - Failed. Status: ${err.status}`, err);
-        // On failure, clear any existing data
-        this.logout();
-        
-        // --- FIX: Re-throw the original HttpErrorResponse ---
-        // This allows the component to see the status code.
-        return throwError(() => err); 
+        this.logout(false); // Clean up if anything fails
+        return throwError(() => err);
       })
     );
   }
 
   /**
-   * Logs the user out, clears all stored credentials,
-   * and navigates to the login page.
+   * Logs the user out.
+   * Attempts to revoke the refresh token on the server, then clears local state.
+   * @param notifyServer Whether to call the API to revoke the token (default: true)
    */
-  logout(): void {
-    // --- DEBUG ---
-    console.log('[AUTHSERVICE] logout - Clearing session and navigating to /login');
-    this.currentAuthToken = null;
+  logout(notifyServer: boolean = true): void {
+    const refreshToken = this.getRefreshToken();
+    
+    if (notifyServer && refreshToken) {
+      // Call the server to revoke the token
+      // We use a simple object for the body as per the spec
+      this.http.post(`${this.apiUrl}/logout`, { refresh_token: refreshToken }).subscribe({
+        next: () => console.log('Logout successful on server'),
+        error: (err) => console.warn('Logout failed on server (token might be expired)', err),
+        complete: () => this.clearSessionAndRedirect()
+      });
+    } else {
+      this.clearSessionAndRedirect();
+    }
+  }
+
+  private clearSessionAndRedirect(): void {
+    this.clearTokens();
     this.currentUserSubject.next(null);
-    sessionStorage.removeItem('authToken');
-    // We use /login as the path, which will be defined in app-routing
     this.router.navigate(['/login']);
   }
 
   /**
-   * FIX: New public method to get the token directly from session storage.
-   * This allows the AuthGuard to check for a token without relying on
-   * the service's async initialization.
+   * Refreshes the access token using the refresh token.
+   * This is typically called by the JwtInterceptor.
    */
-  public getAuthTokenFromStorage(): string | null {
-    return sessionStorage.getItem('authToken');
+  refreshToken(): Observable<TokenResponse> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    return this.http.post<TokenResponse>(`${this.apiUrl}/token/refresh`, { 
+      refresh_token: refreshToken 
+    }).pipe(
+      tap((tokens) => {
+        this.storeTokens(tokens);
+      })
+    );
   }
 
-
   /**
-   * Fetches the current user's data using the stored auth token.
-   * Used to re-authenticate a user when the app loads.
-   * FIX: Made public so the AuthGuard can call it.
+   * Fetches the current user's data using the stored access token.
    */
   public fetchCurrentUser(): Observable<User | null> {
-    const token = this.getAuthTokenFromStorage();
-    if (!token) {
+    if (!this.getAccessToken()) {
       return of(null);
     }
     
-    // Set the in-memory token for subsequent requests by other services
-    this.currentAuthToken = token;
-    const headers = new HttpHeaders({ Authorization: this.currentAuthToken });
-    
-    return this.http.get<User>(`${this.apiUrl}/me`, { headers }).pipe(
+    return this.http.get<User>(`${this.apiUrl}/me`).pipe(
       tap((user) => {
-        // Store the user data
         this.currentUserSubject.next(user);
       }),
       catchError(() => {
-        // If the token is invalid (e.g., expired, user deleted),
-        // log the user out.
-        this.logout();
+        // If fetching user fails (e.g., 401 even after refresh attempts), log out locally
+        this.clearSessionAndRedirect();
         return of(null);
       })
     );
   }
 
+  // --- Token Management Helpers ---
+
+  private storeTokens(tokens: TokenResponse): void {
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.access_token);
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refresh_token);
+  }
+
+  private clearTokens(): void {
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  public getAccessToken(): string | null {
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  public getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
   /**
-   * Gets the current user object.
-   * @returns The current User object or null.
+   * @deprecated Use getAccessToken() or let the Interceptor handle it.
+   * Kept for compatibility if other components check storage existence.
    */
+  public getAuthTokenFromStorage(): string | null {
+    return this.getAccessToken();
+  }
+
   public getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  /**
-   * Gets the current Basic Auth token.
-   * This is used by other services (like DatabaseService)
-   * to authenticate their own requests.
-   * @returns The auth token string (e.g., "Basic ...") or null.
-   */
-  public getAuthToken(): string | null {
-    return this.currentAuthToken;
-  }
+  // --- User Management Methods (unchanged) ---
 
-  /**
-   * A helper to check if the current user has a specific role.
-   * @param role The role to check.
-   * @returns True if the user has the role, false otherwise.
-   */
   public hasRole(role: keyof User): boolean {
     const user = this.getCurrentUser();
     return user ? !!user[role] : false;
   }
 
   changeOwnPassword(newPassword: string): Observable<any> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      Authorization: this.getAuthToken() || '',
-    });
-    return this.http.patch(`${this.apiUrl}/me`, { password: newPassword }, { headers });
+    return this.http.patch(`${this.apiUrl}/me`, { password: newPassword });
   }
 
   getUsers(): Observable<User[]> {
-    const headers = new HttpHeaders({ Authorization: this.getAuthToken() || '' });
-    return this.http.get<User[]>(`${this.apiUrl}/users`, { headers });
+    return this.http.get<User[]>(`${this.apiUrl}/users`);
   }
 
   createUser(userData: any): Observable<User> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      Authorization: this.getAuthToken() || '',
-    });
-    return this.http.post<User>(`${this.apiUrl}/user`, userData, { headers });
+    return this.http.post<User>(`${this.apiUrl}/user`, userData);
   }
 
   updateUser(userId: number, updates: any): Observable<User> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      Authorization: this.getAuthToken() || '',
-    });
-    return this.http.patch<User>(`${this.apiUrl}/user?id=${userId}`, updates, { headers });
+    return this.http.patch<User>(`${this.apiUrl}/user?id=${userId}`, updates);
   }
 
   deleteUser(userId: number): Observable<{ message: string }> {
-    const headers = new HttpHeaders({ Authorization: this.getAuthToken() || '' });
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/user?id=${userId}`, { headers });
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/user?id=${userId}`);
   }
 }

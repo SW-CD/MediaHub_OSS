@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mediahub/internal/models"
-	"mediahub/internal/services" // <-- Import services
+	"mediahub/internal/services"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,12 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- REFACTOR: MockHousekeepingService is now defined in main_test.go ---
-
 func TestTriggerHousekeeping(t *testing.T) {
-	// --- REFACTOR: Mock HousekeepingService ---
+	// Mock HousekeepingService
 	mockHKService := new(MockHousekeepingService)
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
+	// Mock InfoService for NewHandlers
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
@@ -28,12 +26,12 @@ func TestTriggerHousekeeping(t *testing.T) {
 	h := NewHandlers(
 		mockInfoSvc,   // info
 		nil,           // user
+		nil,           // token (Added)
 		nil,           // database
 		nil,           // entry
 		mockHKService, // housekeeping
 		nil,           // cfg
 	)
-	// --- END REFACTOR ---
 
 	t.Run("Successful housekeeping run", func(t *testing.T) {
 		report := &models.HousekeepingReport{
@@ -60,9 +58,8 @@ func TestTriggerHousekeeping(t *testing.T) {
 
 	t.Run("Database not found", func(t *testing.T) {
 		// Mock the service call to return a not found error
-		// --- REFACTOR: Use standard service error ---
+		// Use standard service error
 		mockHKService.On("TriggerHousekeeping", "NotFoundDB").Return(nil, services.ErrNotFound).Once()
-		// --- END REFACTOR ---
 
 		req, _ := http.NewRequest("POST", "/database/housekeeping?name=NotFoundDB", nil)
 		rr := httptest.NewRecorder()

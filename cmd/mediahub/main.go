@@ -2,7 +2,9 @@
 package main
 
 import (
-	"embed" // Import the embed package
+	"crypto/rand"
+	"embed"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"net/http"
@@ -32,6 +34,7 @@ type CLIConfig struct {
 	ConfigPath    string
 	FFmpegPath    string
 	FFprobePath   string
+	JWTSecret     string
 }
 
 //go:embed all:frontend_embed/browser
@@ -46,6 +49,10 @@ var frontendFS embed.FS
 // @BasePath /api
 // @schemes http
 // @securityDefinitions.basic BasicAuth
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and a JWT token.
 // @import encoding/json
 
 // version holds the current application version.
@@ -71,6 +78,7 @@ func customUsage() {
 	fmt.Fprintf(os.Stderr, "  FDB_FFMPEG_PATH\t(see --ffmpeg-path)\n")
 	fmt.Fprintf(os.Stderr, "  FDB_FFPROBE_PATH\t(see --ffprobe-path)\n")
 	fmt.Fprintf(os.Stderr, "  FDB_INIT_CONFIG\t(see --init_config)\n")
+	fmt.Fprintf(os.Stderr, "  FDB_JWT_SECRET\t(see --jwt-secret)\n")
 }
 
 func main() {
@@ -99,6 +107,7 @@ func main() {
 	flag.StringVar(&cliCfg.ConfigPath, "config_path", configPathDefault, "Path to the base configuration file. (Env: FDB_CONFIG_PATH)")
 	flag.StringVar(&cliCfg.FFmpegPath, "ffmpeg-path", "", "Path to ffmpeg executable. (Env: FDB_FFMPEG_PATH)")
 	flag.StringVar(&cliCfg.FFprobePath, "ffprobe-path", "", "Path to ffprobe executable. (Env: FDB_FFPROBE_PATH)")
+	flag.StringVar(&cliCfg.JWTSecret, "jwt-secret", "", "Secret key for signing JWTs. (Env: FDB_JWT_SECRET)")
 
 	var initConfigPath string // This variable will be filled by the flag
 	flag.StringVar(&initConfigPath, "init_config", initConfigPathDefault, "Path to a TOML config file for one-time initialization of users/databases. (Env: FDB_INIT_CONFIG)")
@@ -108,28 +117,59 @@ func main() {
 	flag.Parse()
 
 	// 2. Load configuration from file
-	// cliCfg.ConfigPath now holds the correct path (CLI > ENV > Default)
 	cfg, err := config.LoadConfig(cliCfg.ConfigPath)
 	if err != nil {
-		isHelp := false
-		for _, arg := range os.Args {
-			if arg == "-h" || arg == "--help" || arg == "help" {
-				isHelp = true
-				break
-			}
-		}
-		if !isHelp {
-			// Only error if --help was not requested
-			fmt.Printf("Failed to load configuration from %s: %v\n", cliCfg.ConfigPath, err)
-			os.Exit(1)
+		if os.IsNotExist(err) {
+			logging.Log.Warnf("Config file not found at %s. Creating a new one with defaults.", cliCfg.ConfigPath)
+			cfg = &config.Config{} // Create empty config
 		} else {
-			// If help was requested, `flag.Parse()` already printed it and exited.
-			return
+			// Handle other errors (e.g., permission, malformed TOML)
+			isHelp := false
+			for _, arg := range os.Args {
+				if arg == "-h" || arg == "--help" || arg == "help" {
+					isHelp = true
+					break
+				}
+			}
+			if !isHelp {
+				fmt.Printf("Failed to load configuration from %s: %v\n", cliCfg.ConfigPath, err)
+				os.Exit(1)
+			} else {
+				return
+			}
 		}
 	}
 
 	// 3. Override with CLI flags and environment variables
 	overrideConfigFromEnvAndCLI(&cliCfg, cfg)
+
+	// JWT Secret Initialization Logic
+	// Priority 1: Use secret from flag/env
+	if cfg.JWTSecret == "" {
+		// Priority 2: Use secret from config.toml
+		if cfg.JWT.Secret != "" {
+			logging.Log.Info("Using JWT secret loaded from config.toml.")
+			cfg.JWTSecret = cfg.JWT.Secret
+		} else {
+			// Priority 3: Generate, save, and use a new secret
+			logging.Log.Info("No JWT secret found in flags, env, or config. Generating a new random secret...")
+			newSecretBytes := make([]byte, 32) // 256 bits
+			if _, err := rand.Read(newSecretBytes); err != nil {
+				logging.Log.Fatalf("Failed to generate new JWT secret: %v", err)
+			}
+			newSecretString := hex.EncodeToString(newSecretBytes)
+
+			cfg.JWT.Secret = newSecretString // This will be saved to the file
+			cfg.JWTSecret = newSecretString  // This is used at runtime
+
+			// Save back to file
+			if err := config.SaveConfig(cliCfg.ConfigPath, cfg); err != nil {
+				logging.Log.Warnf("Failed to save new JWT secret to %s: %v", cliCfg.ConfigPath, err)
+			} else {
+				logging.Log.Infof("New JWT secret has been generated and saved to %s.", cliCfg.ConfigPath)
+			}
+		}
+	}
 
 	logging.Init(cfg.Logging.Level)
 
@@ -141,15 +181,20 @@ func main() {
 	}
 	defer repo.Close()
 
+	// Service Initialization
 	storageService := services.NewStorageService(cfg)
 	infoService := services.NewInfoService(version, startTime, media.IsFFmpegAvailable(), media.IsFFprobeAvailable())
 	userService := services.NewUserService(repo)
+
+	// Initialize Token Service
+	tokenService := auth.NewTokenService(cfg, userService, repo) // <-- NEW
+
 	databaseService := services.NewDatabaseService(repo, storageService)
 	entryService := services.NewEntryService(repo, storageService, cfg)
 	housekeepingService := services.NewHousekeepingService(repo, storageService)
 
-	// Initialize Auth Middleware (depends on UserService) ---
-	authMiddleware := auth.NewMiddleware(userService)
+	// Initialize Auth Middleware (Hybrid)
+	authMiddleware := auth.NewMiddleware(userService, tokenService) // <-- UPDATED
 
 	// Call Admin User Setup from UserService ---
 	if err := userService.InitializeAdminUser(cfg); err != nil {
@@ -157,7 +202,6 @@ func main() {
 	}
 
 	// Run init config (depends on Repository) ---
-	// initConfigPath now holds the correct path (CLI > ENV > Default)
 	if initConfigPath != "" {
 		logging.Log.Infof("Found init_config, running initialization from: %s", initConfigPath)
 		initconfig.Run(userService, databaseService, initConfigPath)
@@ -168,11 +212,10 @@ func main() {
 	defer housekeepingService.Stop()
 
 	// Create Handlers struct with all services ---
-	// This now passes the concrete service structs, which satisfy the
-	// interfaces expected by NewHandlers.
 	h := handlers.NewHandlers(
 		infoService,
 		userService,
+		tokenService,
 		databaseService,
 		entryService,
 		housekeepingService,
@@ -219,6 +262,9 @@ func overrideConfigFromEnvAndCLI(cliCfg *CLIConfig, cfg *config.Config) {
 	if envFFprobePath := os.Getenv("FDB_FFPROBE_PATH"); envFFprobePath != "" {
 		cfg.Media.FFprobePath = envFFprobePath
 	}
+	if envJWTSecret := os.Getenv("FDB_JWT_SECRET"); envJWTSecret != "" {
+		cfg.JWTSecret = envJWTSecret
+	}
 
 	// --- Load from CLI Flags SECOND (to override env) ---
 	if cliCfg.Password != "" {
@@ -238,5 +284,31 @@ func overrideConfigFromEnvAndCLI(cliCfg *CLIConfig, cfg *config.Config) {
 	}
 	if cliCfg.FFprobePath != "" {
 		cfg.Media.FFprobePath = cliCfg.FFprobePath
+	}
+	if cliCfg.JWTSecret != "" {
+		cfg.JWTSecret = cliCfg.JWTSecret
+	}
+
+	// --- Set Defaults ---
+	if cfg.Server.Host == "" {
+		cfg.Server.Host = "localhost"
+	}
+	if cfg.Server.Port == 0 {
+		cfg.Server.Port = 8080
+	}
+	if cfg.Database.Path == "" {
+		cfg.Database.Path = "mediahub.db"
+	}
+	if cfg.Database.StorageRoot == "" {
+		cfg.Database.StorageRoot = "storage_root"
+	}
+	if cfg.Logging.Level == "" {
+		cfg.Logging.Level = "info"
+	}
+	if cfg.JWT.AccessDurationMin == 0 {
+		cfg.JWT.AccessDurationMin = 5
+	}
+	if cfg.JWT.RefreshDurationHours == 0 {
+		cfg.JWT.RefreshDurationHours = 24
 	}
 }
