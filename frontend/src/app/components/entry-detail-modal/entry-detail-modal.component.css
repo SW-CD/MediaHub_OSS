@@ -132,3 +132,22 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color-light);
+}
+
+/* NEW: Pushes the delete button to the far left */
+.delete-action {
+  margin-right: auto;
+}
+
+.btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -6,7 +6,7 @@ Intended use-cases for the software are:
   * storing of camera data with metadata in a production environment, e.g., images for product quality checks
   * storing of audio samples captured using microphones, e.g., for condition monitoring of machines, animal observation
 
-For a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). Commecial features include:
+For a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). Commercial features include:
   * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
   * single sign on via OIDC (e.g., using keycloak)
 

@@ -1,18 +1,14 @@
-<!-- frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.html -->
 <app-modal [modalId]="'entryDetailModal'" [modalTitle]="'Entry Details'">
   <div class="detail-container" *ngIf="entryForMetadata; else loading">
     
     <div class="entry-preview">
-      
       <div [ngSwitch]="entryForMetadata.mime_type | slice:0:5">
-        
         <img *ngSwitchCase="'image'" 
              [src]="fileUrl" 
              class="preview-image"
              alt="Entry preview for ID {{ entryForMetadata.id }}" />
 
         <div *ngSwitchCase="'audio'" class="audio-preview-wrapper">
-          <!-- UPDATED: Use Directive for Audio Waveform as well -->
           <img [secureSrc]="previewUrl" 
                class="audio-waveform" 
                alt="Waveform for {{ entryForMetadata.id }}" />
@@ -42,12 +38,23 @@
       </table>
     </div>
 
-    <div class="modal-actions">
+    <div class="modal-actions" *ngIf="currentUser$ | async as user">
+      
+      <button 
+        *ngIf="user.can_delete"
+        type="button" 
+        class="btn btn-danger delete-action" 
+        (click)="onDelete()"
+        [disabled]="isLoadingFile || entryForMetadata.status === 'processing'">
+        Delete
+      </button>
+
       <a [href]="fileUrl" 
          [download]="entryForMetadata.filename || 'download'" 
          class="btn btn-secondary"
          [class.disabled]="isLoadingFile" 
          [style.pointer-events]="isLoadingFile ? 'none' : 'auto'">Download</a>
+      
       <button type="button" class="btn btn-primary" (click)="closeModal()">Close</button>
     </div>
 

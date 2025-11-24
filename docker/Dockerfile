@@ -1,73 +1,84 @@
+# Build the application (backend and frontend) as a docker image
+# -> run in the project root folder `docker build -t mediahub:1.1.0 -f ./docker/Dockerfile .`
+# Start a container with, e.g., 
+# docker run -d \
+#   --name mediahub \
+#   -p 8080:8080 \
+#   -v $(pwd)/mediahub_data:/config \
+#   -v $(pwd)/mediahub_storage:/storage \
+#   -e FDB_PASSWORD="admin-password-123" \
+#   mediahub:v1.1.0
+
 # STAGE 1: The Builder
-#
-# This stage uses a full Go + Node.js image to build the Angular
-# frontend and compile the Go backend, including CGO dependencies.
-#
+# Docker will automatically pull the golang image matching your host architecture (amd64 or arm64)
 FROM golang:1.24-bookworm AS builder
 
-# 1. Install dependencies for CGO (gcc) and Angular (nodejs/npm)
-RUN apt-get update && apt-get install -y gcc nodejs npm
+# 1. Install build dependencies
+RUN apt-get update && apt-get install -y curl gcc
+# NodeSource script detects arch automatically
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs
 
-# 2. Set up the working directory and copy all source code
 WORKDIR /app
-COPY . .
 
-# 3. Build the Angular frontend
-# This will place the output in 'cmd/mediahub/frontend_embed/'
+# 2. Cache Go Modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 3. Cache Node Modules
+COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 RUN npm install
+
+# 4. Build Frontend
+WORKDIR /app
+COPY . .
+WORKDIR /app/frontend
 RUN npm run build -- --configuration production
 
-# 4. Build the Go backend
+# 5. Build Backend
 WORKDIR /app
-# We enable CGO for go-sqlite3 and build the binary
-RUN CGO_ENABLED=1 go build -o /app/mediahub ./cmd/mediahub
+# We leave GOARCH auto-detected so it matches the container's arch
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /app/mediahub ./cmd/mediahub
 
 
-#
 # STAGE 2: The Final Production Image
-#
-# This stage uses a minimal Debian image, installs *only*
-# runtime dependencies, and copies the built binary from Stage 1.
-#
 FROM debian:12-slim
 
-# 1. Install runtime dependencies (FFmpeg, FFprobe, and SSL certs)
-# ca-certificates is required for any HTTPS requests (e.g., webhooks)
-RUN apt-get update && apt-get install -y ffmpeg ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# 1. Install basics + Download Static FFmpeg
+# We use 'dpkg --print-architecture' to dynamically grab 'amd64' or 'arm64'
+RUN apt-get update && apt-get install -y ca-certificates curl xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Detect architecture (returns 'amd64' or 'arm64')
+    ARCH=$(dpkg --print-architecture) && \
+    echo "Downloading FFmpeg for architecture: $ARCH" && \
+    # Download specific version based on detection
+    curl -L -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${ARCH}-static.tar.xz" && \
+    tar -xJf ffmpeg.tar.xz && \
+    # Move binaries (wildcard handles the variable folder names)
+    mv ffmpeg-*-static/ffmpeg /usr/local/bin/ && \
+    mv ffmpeg-*-static/ffprobe /usr/local/bin/ && \
+    # Cleanup
+    rm -rf ffmpeg.tar.xz ffmpeg-*-static
 
-# 2. Create the persistent folders for configuration and storage
-# These will be set as volumes.
-RUN mkdir /config
-RUN mkdir /storage
-
-# 3. Create a non-root user to run the application
-# Running as 'root' in a container is a security risk.
+# 2. Create user
 RUN addgroup --system app && adduser --system --ingroup app app
 
-# 4. Set up the application directory
+# 3. Setup folders
+RUN mkdir /config /storage && \
+    chown -R app:app /config /storage
+
+# 4. Copy artifacts
 WORKDIR /app
-
-# 5. Copy the compiled binary from the 'builder' stage
-# Also change its ownership to the new 'app' user
 COPY --from=builder --chown=app:app /app/mediahub .
+COPY --from=builder --chown=app:app /app/config.toml /config/config.toml
 
-# 6. Set environment variables to point to our new folders
-# This tells the app to create its DB in /config and store files in /storage
+# 5. Config
 ENV FDB_DATABASE_PATH=/config/mediahub.db
 ENV FDB_STORAGE_ROOT=/storage
 ENV FDB_CONFIG_PATH=/config/config.toml
 
-# 7. Switch to the non-root user
 USER app
-
-# 8. Expose the default port
 EXPOSE 8080
-
-# 9. Define mount points for persistent data
-# This allows users to -v /path/on/host:/config
 VOLUME ["/config", "/storage"]
-
-# 10. Run the application
 ENTRYPOINT ["./mediahub"]
