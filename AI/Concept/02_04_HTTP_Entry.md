@@ -46,6 +46,7 @@ A `multipart/form-data` body with two parts:
 **Status 201 - Created**
 
 Returned for small, in-memory files. Returns the full metadata object for the newly created entry, including all generated fields and a `status` of `"ready"`.
+This response indicated only that the file is uploaded and metadata was generated, it does not indicated that the preview image was generated already (in case the database config is set to generate previews).
 
 ```json
 {
