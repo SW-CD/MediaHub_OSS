@@ -1,15 +1,15 @@
 // frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.ts
+
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject, of } from 'rxjs';
-import { switchMap, takeUntil, map } from 'rxjs/operators';
-import { Database, Entry } from '../../models/api.models';
+import { Subject, Observable, of } from 'rxjs'; // Added Observable
+import { switchMap, takeUntil, map, take, filter } from 'rxjs/operators'; // Added take, filter
+import { Database, Entry, User } from '../../models/api.models'; // Added User
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-
-// NOTE: We still import SecureImageDirective implicitly if it's in AppModule,
-// but since this is a Modal inside AppModule, we rely on the module setup.
-// Unlike the standalone Grid/List components, this component is declared in AppModule.
+import { AuthService } from '../../services/auth.service'; // Added
+import { NotificationService } from '../../services/notification.service'; // Added
+import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component'; // Added
 
 @Component({
   selector: 'app-entry-detail-modal',
@@ -24,8 +24,10 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
   public fileUrl: SafeUrl | null = null;
   public metadataKeys: string[] = [];
   public isLoadingFile: boolean = true;
+  
+  // NEW: Observable for RBAC in the template
+  public currentUser$: Observable<User | null>;
 
-  // URL string for the preview (waveform), processed by the Directive in the template
   public previewUrl: string | null = null;
 
   private currentDatabase: Database | null = null;
@@ -35,8 +37,13 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
   constructor(
     private modalService: ModalService,
     private databaseService: DatabaseService,
-    private sanitizer: DomSanitizer
-  ) {}
+    private sanitizer: DomSanitizer,
+    private authService: AuthService, // NEW
+    private notificationService: NotificationService // NEW
+  ) {
+    // Initialize the user stream
+    this.currentUser$ = this.authService.currentUser$;
+  }
 
   ngOnInit(): void {
     this.databaseService.selectedDatabase$
@@ -60,7 +67,6 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
               this.entryForMetadata = metaEntry;
               this.metadataKeys = Object.keys(metaEntry).filter(key => key !== 'id').sort();
               
-              // The directive will handle fetching this URL securely
               this.previewUrl = this.getPreviewUrl();
 
               return this.databaseService.getEntryFileBlob(this.currentDatabase!.name, entry.id).pipe(
@@ -88,6 +94,45 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  // NEW: Handle Deletion
+  onDelete(): void {
+    if (!this.currentDatabase || !this.entryForMetadata) return;
+
+    if (this.entryForMetadata.status === 'processing') {
+      this.notificationService.showError('Cannot delete an entry that is still processing.');
+      return;
+    }
+
+    const modalData: ConfirmationModalData = {
+      title: 'Delete Entry',
+      message: `Are you sure you want to delete entry ${this.entryForMetadata.id}? This action cannot be undone.`
+    };
+
+    // Open Confirmation Modal and wait for result
+    this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
+      .pipe(
+        take(1),
+        filter(confirmed => confirmed === true)
+      )
+      .subscribe(() => {
+        // We set isLoadingFile to true to disable buttons while the request is in flight
+        this.isLoadingFile = true; 
+        
+        this.databaseService.deleteEntry(this.currentDatabase!.name, this.entryForMetadata!.id)
+          .subscribe({
+            next: () => {
+              // Success! The service handles the list refresh.
+              // We just close this modal.
+              this.closeModal();
+            },
+            error: () => {
+              // On error, re-enable the controls
+              this.isLoadingFile = false;
+            }
+          });
+      });
+  }
+
   private revokeFileObjectUrl(): void {
     if (this.currentObjectUrl) {
       URL.revokeObjectURL(this.currentObjectUrl);
@@ -111,11 +156,5 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.revokeFileObjectUrl();
-    
-    this.fileUrl = null;
-    this.previewUrl = null;
-    this.isLoadingFile = true;
-    this.entryForMetadata = null;
-    this.metadataKeys = [];
   }
 }

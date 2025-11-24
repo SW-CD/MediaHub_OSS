@@ -1,5 +1,13 @@
 # Build the application (backend and frontend) as a docker image
-# run in the project root folder `docker build -t mediahub:1.1.0 -f ./docker/Dockerfile .`
+# -> run in the project root folder `docker build -t mediahub:1.1.0 -f ./docker/Dockerfile .`
+# Start a container with, e.g., 
+# docker run -d \
+#   --name mediahub \
+#   -p 8080:8080 \
+#   -v $(pwd)/mediahub_data:/config \
+#   -v $(pwd)/mediahub_storage:/storage \
+#   -e FDB_PASSWORD="admin-password-123" \
+#   mediahub:v1.1.0
 
 # STAGE 1: The Builder
 # Docker will automatically pull the golang image matching your host architecture (amd64 or arm64)
