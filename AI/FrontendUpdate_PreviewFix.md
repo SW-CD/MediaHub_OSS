@@ -1,91 +1,110 @@
-# Feature Guide: Intelligent Preview Handling
+# Feature Guide: Frontend Preview & Status Handling (v2)
 
-## 1. Context & Problem Statement
-The backend utilizes a "Hybrid Upload Strategy." For small files, it processes them synchronously and returns a `201 Created` status with `status: "ready"` immediately. However, the generation of the preview thumbnail happens in a background goroutine.
+## 1. Context & Backend Changes
+The backend has been updated to fix a race condition during file uploads.
+* **Previous Behavior:** Synchronous uploads immediately returned `status: "ready"`, even if the preview was still generating. This caused 404s on the image tag.
+* **New Behavior:**
+    * If `create_preview` is **enabled**: New entries return `status: "processing"`. A background worker generates the preview and then updates status to `"ready"`.
+    * If `create_preview` is **disabled**: New entries return `status: "ready"` immediately.
 
-**The Race Condition:**
-1.  Frontend receives `status: "ready"`.
-2.  Frontend immediately requests the preview URL.
-3.  Backend has not finished writing the JPEG to disk yet.
-4.  Backend returns `404 Not Found`.
-5.  Frontend displays a broken image icon.
+**Frontend Goal:**
+We need to update the UI to respect these states and provide a robust fallback for when an image fails to load (e.g., a 404 on a "ready" entry).
 
-We need a frontend-only solution that "smooths over" this race condition without adding blocking logic to the API. Additionally, we must respect the database configuration (some databases have preview generation disabled entirely).
+## 2. Visual State Logic
 
-## 2. The Logic Matrix
-The frontend will decide what to render based on four factors:
-1.  **DB Config:** Is `create_preview` enabled for this database?
-2.  **Entry Status:** Is the entry `processing` or `ready`?
-3.  **Session History:** Was this entry uploaded during the current user session?
-4.  **Network Result:** Did the preview image request succeed or 404?
+We will implement a priority system for displaying thumbnails in the Grid and List views.
 
-| `create_preview` | Entry Status | Is Recent Upload? | Image Request | **UI Result** |
-| :--- | :--- | :--- | :--- | :--- |
-| **False** | Any | Any | N/A | **Generic Icon** (File/Audio/Image type icon) |
-| **True** | `processing` | N/A | N/A | **Spinner** (Backend is explicitly busy) |
-| **True** | `ready` | **Yes** | **Error (404)** | **Spinner** (Assume race condition; wait for user refresh) |
-| **True** | `ready` | No | **Error (404)** | **"No Preview" Placeholder** (Generation permanently failed/lost) |
-| **True** | `ready` | Any | **Success** | **The Preview Image** |
+| Entry Status | Image Load Result | **Visual Output** | Description |
+| :--- | :--- | :--- | :--- |
+| **`processing`** | N/A | **Spinner Icon** 🔄 | Backend is working. Do not attempt to load image. |
+| **`error`** | N/A | **Error Icon** ⚠️ | Backend explicitly reported a failure (e.g., ffmpeg error). |
+| **`ready`** | **Success** | **The Image** 🖼️ | Normal state. |
+| **`ready`** | **Error (404)** | **"No Preview" Icon** 🚫 | Entry is valid, but preview file is missing or was never generated. |
 
-## 3. Implementation Guide
+## 3. Implementation Steps
 
-### Step 1: Centralized State Tracking (`DatabaseService`)
-We need to track which IDs were uploaded in the current session to distinguish "just uploaded" files from "broken old files."
-
-* **File:** `src/app/services/database.service.ts`
-* **Action:**
-    * Add a private property: `private recentUploads = new Set<number>();`
-    * Add method: `markAsRecentUpload(id: number): void`
-    * Add method: `isRecentUpload(id: number): boolean`
-
-### Step 2: Flagging New Entries (`UploadEntryModalComponent`)
-When an upload is successful, flag the ID immediately.
-
-* **File:** `src/app/components/upload-entry-modal/upload-entry-modal.component.ts`
-* **Action:**
-    * In `onSubmit()`, inside the `next` callback for `uploadEntry`.
-    * If status is `201` (Created) or `202` (Accepted), call `this.databaseService.markAsRecentUpload(response.id)`.
-
-### Step 3: Reactive Image Loading (`SecureImageDirective`)
-Since we fetch images via `HttpClient` (to attach Bearer tokens), standard `<img>` error events do not fire reliably for 404s on the blob request.
+### Step 1: Update `SecureImageDirective`
+Currently, the directive logs errors to the console but doesn't tell the parent component. We need it to emit an event so the parent can switch to the "No Preview" placeholder.
 
 * **File:** `src/app/directives/secure-image.directive.ts`
-* **Action:**
-    * Add `@Output() imageLoadError = new EventEmitter<void>();`
-    * In the `http.get(...).subscribe({ error: ... })` block, emit this event. This allows the parent component to react specifically to authorization or 404 errors during the blob fetch.
+* **Changes:**
+    1.  Add an `@Output() imageError = new EventEmitter<void>();`
+    2.  In the `subscribe({ error: ... })` block of the HTTP request, emit `this.imageError.emit()`.
+    3.  Ensure the directive doesn't keep the "loading" class if an error occurs.
 
-### Step 4: Updating View Logic (`EntryList` & `EntryGrid`)
-The components currently assume that if `status === 'ready'`, the image exists. We must decouple this.
+### Step 2: Standardize Icons & Placeholders
+We need consistent SVG icons for the different states.
+* **Processing:** Use the existing spinner SVG logic (already in `entry-grid`).
+* **Error (Backend):** Use an exclamation triangle SVG. This file is available as `frontend\src\assets\icons\error-icon.svg`
+* **No Preview (404):** Use the file available as `frontend\src\assets\icons\no-preview-icon.svg`
 
-* **Files:**
-    * `src/app/components/entry-list-view/entry-list-view.component.ts` (and `.html`)
-    * `src/app/components/entry-grid/entry-grid.component.ts` (and `.html`)
-* **Logic Updates:**
-    * **Inputs:** Add `@Input() createPreview: boolean = true;` to receive DB config.
-    * **State:** Add a local tracker for load errors (e.g., `failedPreviewIds: Set<number>`).
-    * **Method:** Implement `onImageError(entry: Entry)`:
-        * Check `databaseService.isRecentUpload(entry.id)`.
-        * If recent, the UI state remains "loading" (Spinner).
-        * If NOT recent, the UI state becomes "error" (Placeholder).
-* **Template Updates:**
-    * Refactor the `ngSwitch` logic.
-    * **Priority 1:** If `!createPreview` -> Show Generic Icon.
-    * **Priority 2:** If `status === 'processing'` -> Show Spinner.
-    * **Priority 3:** If `status === 'ready'`:
-        * Render `<img>` with `[secureSrc]` and `(imageLoadError)`.
-        * If the image previously errored (check local state):
-            * Show Spinner (if Recent).
-            * Show "No Preview" (if Old).
+### Step 3: Update `EntryGridComponent`
+This component needs to track which specific image IDs have failed to load.
 
-### Step 5: Parent Controller Update (`EntryList`)
-Pass the configuration down to the children.
+* **File:** `src/app/components/entry-grid/entry-grid.component.ts`
+    * **Add Property:** `failedImageIds = new Set<number>();`
+    * **Add Method:** `onImageError(id: number)` which adds the ID to the set.
+    * **Update Method:** In `ngOnChanges` (or a setter for `entries`), clear the set to reset state when filters change.
 
-* **File:** `src/app/components/entry-list/entry-list.component.html`
-* **Action:**
-    * Pass `[createPreview]="currentDb?.config?.create_preview ?? true"` to `<app-entry-grid>` and `<app-entry-list-view>`.
+* **File:** `src/app/components/entry-grid/entry-grid.component.html`
+    * Refactor the `[ngSwitch="entry.status"]`.
+    * **Case `ready`:**
+        * Check `!failedImageIds.has(entry.id)`.
+        * If true: Render `<img [secureSrc]... (imageError)="onImageError(entry.id)">`.
+        * If false (it failed): Render the **"No Preview"** placeholder div.
 
-## 4. Summary of Visual States
-1.  **Spinner:** Used for `status='processing'` OR (`status='ready'` + Recent Upload + 404).
-2.  **Generic Icon:** Used when database `create_preview = false`.
-3.  **Broken Image / No Preview Icon:** Used for (`status='ready'` + Old Upload + 404).
-4.  **Actual Image:** Used for `status='ready'` + 200 OK.
+### Step 4: Update `EntryListViewComponent`
+Apply the same logic as the Grid component.
+
+* **File:** `src/app/components/entry-list-view/entry-list-view.component.ts`
+    * Add `failedImageIds` set and error handler.
+
+* **File:** `src/app/components/entry-list-view/entry-list-view.component.html`
+    * Update the "Preview" column logic to handle the 404 fallback.
+
+### Step 5: Polling for "Processing" Items (Optional but Recommended)
+The `DatabaseService` already has logic for `processingEntries$`. Ensure that the `EntryListComponent` (the parent) triggers a refresh of the list when the `DatabaseService` announces a processing entry has finished.
+* *Current state check:* The `DatabaseService` seems to trigger `refreshNotifier`. Verify this correctly updates the grid without full page reload flickering.
+
+## 4. Code Snippets
+
+**SecureImageDirective Update:**
+```typescript
+@Output() imageError = new EventEmitter<void>();
+
+// ... inside error block
+this.renderer.removeClass(this.el.nativeElement, 'loading-image');
+this.imageError.emit();
+```
+
+**Grid Template Logic (Pseudo-code):**
+
+```html
+<div [ngSwitch]="entry.status">
+  
+  <!-- PROCESSING -->
+  <div *ngSwitchCase="'processing'" class="placeholder">
+     <spinner-icon></spinner-icon>
+  </div>
+
+  <!-- ERROR (Backend) -->
+  <div *ngSwitchCase="'error'" class="placeholder">
+     <error-icon></error-icon>
+  </div>
+
+  <!-- READY -->
+  <ng-container *ngSwitchCase="'ready'">
+     <!-- If we haven't detected a load error yet -->
+     <img *ngIf="!failedImageIds.has(entry.id)"
+          [secureSrc]="url" 
+          (imageError)="onImageError(entry.id)" />
+     
+     <!-- If load failed (404) -->
+     <div *ngIf="failedImageIds.has(entry.id)" class="placeholder">
+        <no-preview-icon></no-preview-icon>
+        <span>No Preview</span>
+     </div>
+  </ng-container>
+
+</div>
+```
