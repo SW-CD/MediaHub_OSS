@@ -66,7 +66,14 @@ func (s *entryService) parseUploadMetadata(dbName, metadataStr string) (*models.
 
 	// Parse Database Config
 	var dbConfig models.DatabaseConfig
-	dbConfig.CreatePreview = true // Default
+
+	// Only default to true for supported media types.
+	if db.ContentType == "image" || db.ContentType == "audio" {
+		dbConfig.CreatePreview = true
+	} else {
+		dbConfig.CreatePreview = false // Explicitly false for 'file'
+	}
+
 	if len(db.Config) > 0 {
 		if err := json.Unmarshal(db.Config, &dbConfig); err != nil {
 			logging.Log.Warnf("Could not parse db.Config for %s, using defaults. Error: %v", dbName, err)
