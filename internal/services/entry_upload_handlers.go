@@ -68,7 +68,16 @@ func (s *entryService) handleSmallFileSync(file multipart.File, header *multipar
 	entryMetadata["height"] = 0
 	entryMetadata["duration_sec"] = 0
 	entryMetadata["channels"] = 0
-	entryMetadata["status"] = "ready" // Set status to "ready" for sync path
+
+	// --- STATUS LOGIC UPDATE ---
+	// If previews are enabled, we set the status to "processing".
+	// The background goroutine will flip it to "ready" when done.
+	// If previews are disabled, we are effectively "ready" immediately.
+	initialStatus := "ready"
+	if dbConfig.CreatePreview {
+		initialStatus = "processing"
+	}
+	entryMetadata["status"] = initialStatus
 
 	preliminaryEntry, err := tx.CreateEntryInTx(db.Name, db.ContentType, entryMetadata, db.CustomFields)
 	if err != nil {
@@ -165,14 +174,19 @@ func (s *entryService) handleSmallFileSync(file multipart.File, header *multipar
 	}
 
 	// 13. Launch async tasks *after* commit
-	go s.generateAndSavePreview(permanentEntryPath, db, preliminaryEntry)
+	// --- FIX: Only generate preview if enabled in config ---
+	if dbConfig.CreatePreview {
+		go s.generateAndSavePreview(permanentEntryPath, db, preliminaryEntry)
+	}
 	go s.updateMetadataAsync(db, id, permanentEntryPath, finalMimeType)
 
 	// 14. Get the final, complete entry data and return
 	finalEntry, err := s.Repo.GetEntry(db.Name, id, db.CustomFields)
 	if err != nil {
 		logging.Log.Errorf("EntryService: Failed to retrieve final entry data for %d: %v", id, err)
-		return preliminaryEntry, http.StatusCreated, nil // Return preliminary as a fallback
+		// Return preliminary as a fallback, but ensure status matches our logic
+		preliminaryEntry["status"] = initialStatus
+		return preliminaryEntry, http.StatusCreated, nil
 	}
 
 	// --- Return 201 Created ---

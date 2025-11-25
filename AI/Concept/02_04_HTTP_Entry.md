@@ -6,7 +6,7 @@ Uploads a new file to a specific database using `multipart/form-data`. This allo
 
 The backend validates the file's MIME type and intelligently detects the upload size to determine the processing strategy:
 
-  * **Small Files (In-Memory):** Are processed **synchronously**. The backend performs all conversion, preview generation, and metadata extraction *before* returning. This request will be slower, but the full entry metadata is returned upon completion with a `201 Created` status.
+  * **Small Files (In-Memory):** Are processed **synchronously** for storage and format conversion. However, **preview generation** is handled in the background to improve response times. Returns `201 Created` with the entry metadata. The `status` field will be `"processing"` if a preview is being generated, or `"ready"` if previews are disabled.
   * **Large Files (On-Disk):** Are processed **asynchronously**. The backend secures the file for background processing and returns a `202 Accepted` status *immediately*. The client must then poll the `GET /api/entry/meta` endpoint until the entry's `status` field changes from `"processing"` to `"ready"`.
 
 **Role Required: `CanCreate`**
@@ -45,8 +45,10 @@ A `multipart/form-data` body with two parts:
 
 **Status 201 - Created**
 
-Returned for small, in-memory files. Returns the full metadata object for the newly created entry, including all generated fields and a `status` of `"ready"`.
-This response indicated only that the file is uploaded and metadata was generated, it does not indicated that the preview image was generated already (in case the database config is set to generate previews).
+Returned for small, in-memory files. Returns the entry metadata object.
+
+* If `create_preview` is **disabled**, the `status` will be `"ready"`, and the entry is immediately complete.
+* If `create_preview` is **enabled**, the `status` will be `"processing"`. This indicates the file is safe, but the preview is being generated in the background. Clients should check the status or wait before requesting the preview image.
 
 ```json
 {
@@ -58,7 +60,7 @@ This response indicated only that the file is uploaded and metadata was generate
     "filename": "my_song.wav",
     "duration_sec": 150.2,
     "channels": 2,
-    "status": "ready",
+    "status": "processing",
     "artist": "Demo",
     "album": "Demo Album"
 }

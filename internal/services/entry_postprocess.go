@@ -45,14 +45,28 @@ func (s *entryService) updateMetadataAsync(db *models.Database, entryID int64, f
 	logging.Log.Debugf("Successfully updated metadata for entry %d", entryID)
 }
 
-// generateAndSavePreview generates a preview for a file.
-// This is launched as a goroutine for *synchronous* (small file) uploads
-// to avoid blocking the API response.
+// generateAndSavePreview generates a preview for a file and updates the entry status.
+// This is launched as a goroutine for *synchronous* (small file) uploads.
 func (s *entryService) generateAndSavePreview(mediaFilePath string, db *models.Database, entry models.Entry) {
 	id := entry["id"].(int64)
 	timestamp := entry["timestamp"].(int64)
 
 	logging.Log.Debugf("Preview generation starting for %s, entry %d", db.Name, id)
+
+	// --- Status Management ---
+	// We defer the status update to ensure the entry transitions out of 'processing'
+	// even if preview generation fails. The file itself is safe, so we default to 'ready'.
+	// If the preview fails, the frontend will just show a placeholder.
+	defer func() {
+		logging.Log.Debugf("Marking entry %d as 'ready' after preview attempt.", id)
+		// We use s.Repo.UpdateEntry directly to allow updating the protected 'status' field
+		// (s.UpdateEntry in service layer sanitizes/removes 'status').
+		updates := models.Entry{"status": "ready"}
+		if err := s.Repo.UpdateEntry(db.Name, id, updates, db.CustomFields); err != nil {
+			logging.Log.Errorf("CRITICAL: Failed to update status to 'ready' for entry %d: %v", id, err)
+		}
+	}()
+
 	previewPath, err := s.Storage.GetPreviewPath(db.Name, timestamp, id)
 	if err != nil {
 		logging.Log.Errorf("Failed to get preview path for entry %d: %v", id, err)
@@ -76,7 +90,6 @@ func (s *entryService) generateAndSavePreview(mediaFilePath string, db *models.D
 			previewInputFile, // Pass the file handle as the reader
 			previewPath,
 			"mjpeg",
-			// "-i", mediaFilePath, // This was the BUG, remove it
 			"-vf", "scale=200:200:force_original_aspect_ratio=decrease",
 			"-q:v", "4", // Good quality JPEG
 			"-frames:v", "1", // Ensure only one frame is output
@@ -84,8 +97,9 @@ func (s *entryService) generateAndSavePreview(mediaFilePath string, db *models.D
 
 		if err != nil {
 			logging.Log.Errorf("Failed to create FFmpeg image preview for entry %d: %v", id, err)
+		} else {
+			logging.Log.Debugf("Preview generation finished successfully for entry %d (FFmpeg)", id)
 		}
-		logging.Log.Debugf("Preview generation finished for entry %d", id)
 		return // Stop here, don't use the Go fallback
 	}
 	// --- End FFmpeg image preview ---
@@ -104,12 +118,15 @@ func (s *entryService) generateAndSavePreview(mediaFilePath string, db *models.D
 		logging.Log.Warnf("FFmpeg not found. Generating image preview for entry %d using pure Go (high memory risk)", id)
 		if err := media.CreateImagePreview(previewFile, previewPath); err != nil {
 			logging.Log.Errorf("Failed to create image preview for entry %d: %v", id, err)
+		} else {
+			logging.Log.Debugf("Preview generation finished successfully for entry %d (Pure Go)", id)
 		}
 	case "audio":
 		logging.Log.Debugf("Generating audio preview for entry %d", id)
 		if err := media.CreateAudioPreview(previewFile, previewPath); err != nil {
 			logging.Log.Errorf("Failed to create audio preview for entry %d: %v", id, err)
+		} else {
+			logging.Log.Debugf("Preview generation finished successfully for entry %d (Audio)", id)
 		}
 	}
-	logging.Log.Debugf("Preview generation finished for entry %d", id)
 }
