@@ -236,7 +236,7 @@ info:
     url: https://www.swcd.lu
   description: This is a sample server for a file store.
   title: SWCD MediaHub-API
-  version: 1.0.0
+  version: 1.1.0
 paths:
   /database:
     delete:

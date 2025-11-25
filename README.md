@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (v1.1.0 prerelease) ✨
+# MediaHub API & Web Interface (v1.1.0) ✨
 
 This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting and retrieving files with custom metadata, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
 
