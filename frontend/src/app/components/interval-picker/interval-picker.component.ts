@@ -1,3 +1,4 @@
+// frontend/src/app/components/interval-picker/interval-picker.component.ts
 import { Component, Input, OnInit, OnDestroy, forwardRef } from '@angular/core';
 import {
   ControlValueAccessor,
@@ -8,8 +9,8 @@ import {
 } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { CommonModule } from '@angular/common'; // <-- ADD THIS IMPORT
-import { ReactiveFormsModule } from '@angular/forms'; // <-- ADD THIS IMPORT
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule } from '@angular/forms';
 
 /**
  * A custom form control for picking intervals (e.g., "30m", "2h", "7d").
@@ -19,8 +20,8 @@ import { ReactiveFormsModule } from '@angular/forms'; // <-- ADD THIS IMPORT
   selector: 'app-interval-picker',
   templateUrl: './interval-picker.component.html',
   styleUrls: ['./interval-picker.component.css'],
-  standalone: true, // <-- ADD THIS
-  imports: [CommonModule, ReactiveFormsModule], // <-- ADD THIS
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -32,7 +33,17 @@ import { ReactiveFormsModule } from '@angular/forms'; // <-- ADD THIS IMPORT
 export class IntervalPickerComponent
   implements ControlValueAccessor, OnInit, OnDestroy
 {
-  @Input() readOnly = false;
+  // Internal tracking of readOnly state
+  private _readOnly = false;
+
+  @Input()
+  get readOnly(): boolean {
+    return this._readOnly;
+  }
+  set readOnly(value: boolean) {
+    this._readOnly = value;
+    this.updateFormDisabledState();
+  }
 
   public intervalForm: FormGroup;
   private destroy$ = new Subject<void>();
@@ -43,8 +54,8 @@ export class IntervalPickerComponent
 
   constructor(private fb: FormBuilder) {
     this.intervalForm = this.fb.group({
-      value: [10, [Validators.required, Validators.min(1)]], // <-- CHANGED default value to 10
-      unit: ['m', Validators.required], // <-- CHANGED default unit to 'm'
+      value: [10, [Validators.required, Validators.min(1)]],
+      unit: ['m', Validators.required],
     });
   }
 
@@ -60,6 +71,17 @@ export class IntervalPickerComponent
           this.onChange(''); // Propagate invalid state
         }
       });
+      
+    // Ensure initial state is correct
+    this.updateFormDisabledState();
+  }
+
+  private updateFormDisabledState(): void {
+    if (this.readOnly) {
+      this.intervalForm.disable({ emitEvent: false });
+    } else {
+      this.intervalForm.enable({ emitEvent: false });
+    }
   }
 
   /**
@@ -70,7 +92,7 @@ export class IntervalPickerComponent
   private parseInterval(intervalString: string): void {
     if (!intervalString) {
       this.intervalForm.patchValue(
-        { value: 10, unit: 'm' }, // <-- CHANGED default
+        { value: 10, unit: 'm' },
         { emitEvent: false }
       );
       return;
@@ -81,12 +103,12 @@ export class IntervalPickerComponent
 
     if (match) {
       const value = parseInt(match[1], 10);
-      const unit = match[2] || 'm'; // <-- CHANGED default to 'm' if no unit
+      const unit = match[2] || 'm';
       this.intervalForm.patchValue({ value, unit }, { emitEvent: false });
     } else {
       // Handle invalid or unexpected format
       this.intervalForm.patchValue(
-        { value: 10, unit: 'm' }, // <-- CHANGED default
+        { value: 10, unit: 'm' },
         { emitEvent: false }
       );
     }
@@ -125,12 +147,7 @@ export class IntervalPickerComponent
    * @param isDisabled Whether the control should be disabled.
    */
   setDisabledState(isDisabled: boolean): void {
-    this.readOnly = isDisabled;
-    if (isDisabled) {
-      this.intervalForm.disable();
-    } else {
-      this.intervalForm.enable();
-    }
+    this.readOnly = isDisabled; // This calls the setter, which updates the form
   }
 
   /**
@@ -145,4 +162,3 @@ export class IntervalPickerComponent
     this.destroy$.complete();
   }
 }
-

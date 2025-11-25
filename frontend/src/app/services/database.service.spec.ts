@@ -1,20 +1,21 @@
 // frontend/src/app/services/database.service.spec.ts
 
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { Router } from '@angular/router'; // Import Router
+import { Router } from '@angular/router'; 
 import { DatabaseService } from './database.service';
 import { AuthService } from './auth.service';
 import { NotificationService } from './notification.service';
 import { Database, Entry, SearchRequest } from '../models/api.models';
 import { ContentType, EntryStatus } from '../models/enums';
+import { of } from 'rxjs';
 
 describe('DatabaseService', () => {
   let service: DatabaseService;
   let httpMock: HttpTestingController;
   let mockAuthService: jasmine.SpyObj<AuthService>;
   let mockNotificationService: jasmine.SpyObj<NotificationService>;
-  let mockRouter: jasmine.SpyObj<Router>; // Spy for Router
+  let mockRouter: jasmine.SpyObj<Router>;
 
   const mockDatabases: Database[] = [
     {
@@ -28,16 +29,16 @@ describe('DatabaseService', () => {
 
   beforeEach(() => {
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['getAccessToken', 'logout']);
-    const notificationServiceSpy = jasmine.createSpyObj('NotificationService', ['showSuccess', 'showError', 'showGlobalError']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']); // Create Router spy
+    const notificationServiceSpy = jasmine.createSpyObj('NotificationService', ['showSuccess', 'showError', 'showGlobalError', 'showInfo']);
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule], // No RouterTestingModule needed if we mock Router
+      imports: [HttpClientTestingModule], 
       providers: [
         DatabaseService,
         { provide: AuthService, useValue: authServiceSpy },
         { provide: NotificationService, useValue: notificationServiceSpy },
-        { provide: Router, useValue: routerSpy } // Provide the spy
+        { provide: Router, useValue: routerSpy }
       ],
     });
 
@@ -111,7 +112,7 @@ describe('DatabaseService', () => {
         service.createDatabase(newDbData).subscribe(db => {
             expect(db.name).toBe('NewDB');
             expect(mockNotificationService.showSuccess).toHaveBeenCalled();
-            expect(mockRouter.navigate).toHaveBeenCalledWith(['/dashboard/db', 'NewDB']); // Verify navigation
+            expect(mockRouter.navigate).toHaveBeenCalledWith(['/dashboard/db', 'NewDB']);
             done();
         });
 
@@ -139,5 +140,71 @@ describe('DatabaseService', () => {
       expect(req.request.method).toBe('DELETE');
       req.flush({ message: 'Entry deleted.' });
     });
+  });
+
+  describe('uploadEntry', () => {
+    const dbName = 'TestDB1';
+    const file = new File([''], 'test.png', { type: 'image/png' });
+    const metadata = { timestamp: 123456 };
+
+    it('should handle 201 Created with Ready status (No Polling)', () => {
+      service.uploadEntry(dbName, metadata, file).subscribe();
+
+      const req = httpMock.expectOne(r => r.url === '/api/entry');
+      expect(req.request.method).toBe('POST');
+      
+      // Return 201 with Ready status
+      req.flush({ id: 100, status: 'ready' }, { status: 201, statusText: 'Created' });
+
+      // Expect NO polling request (getEntryMeta)
+      httpMock.expectNone('/api/entry/meta');
+    });
+
+    it('should handle 201 Created with Processing status (Triggers Polling)', fakeAsync(() => {
+      // 1. Trigger Upload
+      service.uploadEntry(dbName, metadata, file).subscribe();
+
+      const req = httpMock.expectOne(r => r.url === '/api/entry');
+      // Return 201 but with 'processing' status (e.g. generating preview)
+      req.flush({ id: 101, status: 'processing' }, { status: 201, statusText: 'Created' });
+
+      // 2. Advance time to trigger polling (timer starts after 2000ms)
+      tick(2000);
+
+      // 3. Expect the polling request
+      const pollReq = httpMock.expectOne(r => r.url === '/api/entry/meta' && r.params.get('id') === '101');
+      expect(pollReq.request.method).toBe('GET');
+      
+      // Return 'ready' to stop polling
+      pollReq.flush({ id: 101, status: 'ready' });
+
+      // 4. Ensure success toast for completion is shown
+      // UPDATED: The implementation emits "Entry uploaded successfully." immediately,
+      // but does NOT emit a second success message on polling completion.
+      expect(mockNotificationService.showSuccess).toHaveBeenCalledWith('Entry uploaded successfully.');
+      
+      discardPeriodicTasks(); // Clean up timer
+    }));
+
+    it('should handle 202 Accepted (Async/Large File) and trigger polling', fakeAsync(() => {
+      // 1. Trigger Upload
+      service.uploadEntry(dbName, metadata, file).subscribe();
+
+      const req = httpMock.expectOne(r => r.url === '/api/entry');
+      // Return 202 Accepted
+      req.flush({ id: 102, status: 'processing' }, { status: 202, statusText: 'Accepted' });
+
+      // 2. Expect Info notification
+      expect(mockNotificationService.showInfo).toHaveBeenCalledWith(jasmine.stringMatching(/processing/));
+
+      // 3. Advance time
+      tick(2000);
+
+      // 4. Expect polling request
+      const pollReq = httpMock.expectOne(r => r.url === '/api/entry/meta' && r.params.get('id') === '102');
+      pollReq.flush({ id: 102, status: 'ready' });
+
+      discardPeriodicTasks();
+    }));
   });
 });

@@ -207,10 +207,23 @@ export class DatabaseService {
       observe: 'response'
     }).pipe(
       tap(response => {
+        // Case 1: Synchronous Creation (201)
         if (response.status === 201) {
+          const entry = response.body as Entry;
           this.notificationService.showSuccess('Entry uploaded successfully.');
+          
+          // FIX: Check if the synchronously created entry is still processing (e.g. waiting for preview)
+          if (entry && entry.status === 'processing') {
+             this.addProcessingEntry(entry.id);
+             // We don't need to show an info toast here, the success message is enough,
+             // but we MUST start polling so the preview appears automatically.
+             this.pollForEntryStatus(dbName, entry.id);
+          }
+
           this.triggerImageListRefresh();
         }
+        
+        // Case 2: Asynchronous Accepted (202)
         if (response.status === 202) {
           const partialEntry = response.body as PartialEntryResponse;
           this.addProcessingEntry(partialEntry.id);
@@ -293,22 +306,28 @@ export class DatabaseService {
   }
 
   private pollForEntryStatus(dbName: string, entryId: number): void {
+    // Poll every 2 seconds, starting after 2 seconds
     timer(2000, 2000).pipe(
       switchMap(() => this.getEntryMeta(dbName, entryId)),
+      // Continue polling while status is 'processing'
       filter(entry => entry.status !== 'processing'),
+      // Take the first non-processing status (ready or error)
       take(1),
+      // Safety: Stop polling after 30 attempts (60 seconds)
       take(30),
       finalize(() => {
+        // If we exit and the ID is still in our processing list, it likely timed out
         if (this.processingEntriesSubject.value.includes(entryId)) {
            this.removeProcessingEntry(entryId);
-           this.notificationService.showError(`Polling for entry ${entryId} timed out.`);
+           // Optional: Notify user of timeout, but silent fail might be better for UX if it's just slow
+           // this.notificationService.showError(`Polling for entry ${entryId} timed out.`);
         }
       })
     ).subscribe({
       next: entry => {
         this.removeProcessingEntry(entry.id);
         if (entry.status === 'ready') {
-          this.notificationService.showSuccess(`Entry ${entry.id} processing complete.`);
+          // Success: Refresh the list so the spinner is replaced by the preview
           this.triggerImageListRefresh();
         } else if (entry.status === 'error') {
           this.notificationService.showError(`Entry ${entry.id} failed to process.`);

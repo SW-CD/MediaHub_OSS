@@ -3,6 +3,8 @@ import {
   Directive,
   ElementRef,
   Input,
+  Output,
+  EventEmitter,
   OnChanges,
   OnDestroy,
   SimpleChanges,
@@ -10,13 +12,15 @@ import {
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subscription, BehaviorSubject } from 'rxjs';
-import { switchMap, filter, tap } from 'rxjs/operators';
+import { switchMap, filter } from 'rxjs/operators';
 
 /**
  * Directive to load images/media securely using the JwtInterceptor.
  * It handles Blob URL creation and REVOCATION to prevent memory leaks.
+ * * It also emits an error event if the image fails to load (e.g. 404),
+ * allowing the parent component to show a fallback.
  *
- * Usage: <img [secureSrc]="'/api/entry/preview?...'">
+ * Usage: <img [secureSrc]="'/api/entry/preview?...'" (imageError)="handleError()">
  */
 @Directive({
   selector: '[secureSrc]',
@@ -24,6 +28,7 @@ import { switchMap, filter, tap } from 'rxjs/operators';
 })
 export class SecureImageDirective implements OnChanges, OnDestroy {
   @Input() secureSrc: string | null = null;
+  @Output() imageError = new EventEmitter<void>(); // <-- Emits when loading fails
 
   private currentUrlSubject = new BehaviorSubject<string | null>(null);
   private subscription: Subscription;
@@ -39,7 +44,7 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
       .pipe(
         filter(url => !!url),
         switchMap(url => {
-          // Set a loading state or placeholder if desired
+          // Set a loading state
           this.renderer.addClass(this.el.nativeElement, 'loading-image');
           
           // Fetch the blob. Interceptor adds Auth headers.
@@ -61,7 +66,9 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
         error: (err) => {
           console.error('Error loading secure image:', err);
           this.renderer.removeClass(this.el.nativeElement, 'loading-image');
-          // Optionally set an error placeholder
+          
+          // Emit the error so the parent can handle it (e.g., show placeholder)
+          this.imageError.emit();
         }
       });
   }

@@ -1,4 +1,4 @@
-<!-- 
+<!-- frontend/src/app/components/interval-picker/interval-picker.component.html
   This component's styling makes the number input and unit select
   appear as a single, combined form control.
 -->
@@ -12,7 +12,6 @@
     type="number"
     formControlName="value"
     class="form-control interval-value"
-    [disabled]="readOnly"
     (blur)="handleBlur()"
   />
 
@@ -20,7 +19,6 @@
   <select
     formControlName="unit"
     class="form-control interval-unit"
-    [disabled]="readOnly"
     (blur)="handleBlur()"
   >
     <option value="m">Minutes</option>

@@ -9,14 +9,7 @@
     <div class="grid-card-preview">
       <ng-container [ngSwitch]="entry.status">
         
-        <!-- Case 1: Ready - Show the image -->
-        <!-- UPDATED: Use [secureSrc] directive instead of pipe -->
-        <img *ngSwitchCase="'ready'"
-             [secureSrc]="getPreviewUrl(entry)" 
-             class="grid-card-img" 
-             alt="Preview for {{entry.id}}"/>
-
-        <!-- Case 2: Processing - Show spinner -->
+        <!-- Case 1: Processing - Show spinner -->
         <div *ngSwitchCase="'processing'" class="grid-card-placeholder status-processing">
           <svg class="placeholder-icon processing-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -25,7 +18,7 @@
           <span>PROCESSING</span>
         </div>
 
-        <!-- Case 3: Error - Show error icon -->
+        <!-- Case 2: Error (Backend reported failure) -->
         <div *ngSwitchCase="'error'" class="grid-card-placeholder status-error">
           <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 3.006-1.742 3.006H4.42c-1.53 0-2.493-1.672-1.743-3.006l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011 1v3a1 1 0 11-2 0V6a1 1 0 011-1z" clip-rule="evenodd" />
@@ -33,12 +26,45 @@
           <span>ERROR</span>
         </div>
 
-        <!-- Default: Also show ready state -->
-        <img *ngSwitchDefault
-             [secureSrc]="getPreviewUrl(entry)" 
-             class="grid-card-img" 
-             alt="Preview for {{entry.id}}"/>
-             
+        <!-- Case 3: Ready (Normal State) -->
+        <ng-container *ngSwitchCase="'ready'">
+          
+          <!-- Sub-case 3A: No load error detected yet -->
+          <img *ngIf="!failedImageIds.has(entry.id)"
+               [secureSrc]="getPreviewUrl(entry)" 
+               (imageError)="onImageError(entry.id)"
+               class="grid-card-img" 
+               alt="Preview for {{entry.id}}"/>
+
+          <!-- Sub-case 3B: Load error (404) detected -->
+          <div *ngIf="failedImageIds.has(entry.id)" class="grid-card-placeholder">
+             <!-- "No Preview" Icon (Camera off / Image slash) -->
+             <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+            </svg>
+            <span>NO PREVIEW</span>
+          </div>
+
+        </ng-container>
+
+        <!-- Default Case (Treat as Ready for safety) -->
+        <ng-container *ngSwitchDefault>
+           <img *ngIf="!failedImageIds.has(entry.id)"
+               [secureSrc]="getPreviewUrl(entry)" 
+               (imageError)="onImageError(entry.id)"
+               class="grid-card-img" 
+               alt="Preview for {{entry.id}}"/>
+            
+            <div *ngIf="failedImageIds.has(entry.id)" class="grid-card-placeholder">
+              <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+              </svg>
+             <span>NO PREVIEW</span>
+           </div>
+        </ng-container>
+
       </ng-container>
     </div>
     
