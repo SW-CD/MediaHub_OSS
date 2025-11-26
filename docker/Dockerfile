@@ -7,55 +7,73 @@
 #   -v $(pwd)/mediahub_data:/config \
 #   -v $(pwd)/mediahub_storage:/storage \
 #   -e FDB_PASSWORD="admin-password-123" \
-#   mediahub:v1.1.0
+#   mediahub:1.1.0
 
 # STAGE 1: The Builder
-# Docker will automatically pull the golang image matching your host architecture (amd64 or arm64)
+# We use a multi-stage approach to grab Node binaries cleanly
+FROM node:22-bookworm AS node_source
 FROM golang:1.24-bookworm AS builder
 
-# 1. Install build dependencies
-RUN apt-get update && apt-get install -y curl gcc
-# NodeSource script detects arch automatically
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs
+# Prevent generic apt warnings
+ARG DEBIAN_FRONTEND=noninteractive
+
+# 1. Install minimal build dependencies
+# We assume gcc and standard libs are enough.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Install Node.js by copying from the official image
+# This avoids the "apt does not have a stable CLI interface" warning completely
+COPY --from=node_source /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node_source /usr/local/bin/node /usr/local/bin/node
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 WORKDIR /app
 
-# 2. Cache Go Modules
+# 3. Cache Go Modules
 COPY go.mod go.sum ./
 RUN go mod download
 
-# 3. Cache Node Modules
+# 4. Cache Node Modules
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
-RUN npm install
+# 'npm ci' is faster and cleaner for builds
+RUN npm ci --no-audit --no-fund
 
-# 4. Build Frontend
+# 5. Build Frontend
 WORKDIR /app
 COPY . .
 WORKDIR /app/frontend
 RUN npm run build -- --configuration production
 
-# 5. Build Backend
+# 6. Build Backend
 WORKDIR /app
-# We leave GOARCH auto-detected so it matches the container's arch
-RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /app/mediahub ./cmd/mediahub
+# -trimpath removes file system paths from the binary (security + size)
+# -ldflags="-s -w" strips debug info (size)
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /app/mediahub ./cmd/mediahub
 
 
 # STAGE 2: The Final Production Image
 FROM debian:12-slim
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 # 1. Install basics + Download Static FFmpeg
-# We use 'dpkg --print-architecture' to dynamically grab 'amd64' or 'arm64'
-RUN apt-get update && apt-get install -y ca-certificates curl xz-utils && \
-    rm -rf /var/lib/apt/lists/* && \
-    # Detect architecture (returns 'amd64' or 'arm64')
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/* && \
+    # Detect architecture
     ARCH=$(dpkg --print-architecture) && \
+    # Map debian arch to John Van Sickle arch naming if necessary (usually they match for amd64/arm64)
     echo "Downloading FFmpeg for architecture: $ARCH" && \
-    # Download specific version based on detection
     curl -L -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${ARCH}-static.tar.xz" && \
     tar -xJf ffmpeg.tar.xz && \
-    # Move binaries (wildcard handles the variable folder names)
+    # Move binaries
     mv ffmpeg-*-static/ffmpeg /usr/local/bin/ && \
     mv ffmpeg-*-static/ffprobe /usr/local/bin/ && \
     # Cleanup
@@ -74,9 +92,9 @@ COPY --from=builder --chown=app:app /app/mediahub .
 COPY --from=builder --chown=app:app /app/config.toml /config/config.toml
 
 # 5. Config
-ENV FDB_DATABASE_PATH=/config/mediahub.db
-ENV FDB_STORAGE_ROOT=/storage
-ENV FDB_CONFIG_PATH=/config/config.toml
+ENV FDB_DATABASE_PATH=/config/mediahub.db \
+    FDB_STORAGE_ROOT=/storage \
+    FDB_CONFIG_PATH=/config/config.toml
 
 USER app
 EXPOSE 8080
