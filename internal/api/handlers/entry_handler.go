@@ -256,6 +256,12 @@ func (h *Handlers) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 // @Security BasicAuth
 // @Router /entry/meta [get]
 func (h *Handlers) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
+	// DISABLE CACHING
+	// This is critical for the frontend poller to work correctly on remote servers.
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
 	dbName := r.URL.Query().Get("database_name")
 	if dbName == "" {
 		respondWithError(w, http.StatusBadRequest, "Missing required query parameter: database_name")
@@ -269,7 +275,6 @@ func (h *Handlers) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Call DatabaseService (GetDatabase) ---
-	// This is still correct, we need the custom fields from the DB definition
 	db, err := h.Database.GetDatabase(dbName)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Database not found.")
@@ -277,7 +282,6 @@ func (h *Handlers) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Call EntryService (GetEntry) ---
-	// This now correctly calls the EntryService
 	entry, err := h.Entry.GetEntry(dbName, id, db.CustomFields)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Entry not found.")
