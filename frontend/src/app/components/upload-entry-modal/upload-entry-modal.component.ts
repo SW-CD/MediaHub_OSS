@@ -1,5 +1,5 @@
 // frontend/src/app/components/upload-entry-modal/upload-entry-modal.component.ts
-import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core'; // Added ChangeDetectorRef
+import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil, filter, finalize } from 'rxjs/operators';
@@ -31,7 +31,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     private databaseService: DatabaseService,
     private modalService: ModalService,
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef // Inject ChangeDetectorRef
+    private cdr: ChangeDetectorRef
   ) {
     this.uploadForm = this.fb.group({}); 
   }
@@ -51,8 +51,13 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     this.modalService.getModalEvents(UploadEntryModalComponent.MODAL_ID)
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
-        if (event.action === 'open' && event.data?.droppedFile) {
-           this.handleFile(event.data.droppedFile);
+        if (event.action === 'open') {
+           // Reset file state on open if no file passed
+           if (event.data?.droppedFile) {
+              this.handleFile(event.data.droppedFile);
+           } else {
+              this.resetFileState();
+           }
         }
       });
   }
@@ -80,8 +85,8 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
     this.uploadForm.addControl('timestamp', this.fb.control(this.getLocalISOString(new Date()), Validators.required));
     this.uploadForm.addControl('file', this.fb.control(null, Validators.required));
-    this.selectedFileName = null;
-    this.selectedFile = null; // Reset file
+    
+    this.resetFileState(); // Ensure clean state
 
     if (this.currentDatabase) {
       this.currentDatabase.custom_fields.forEach((field: CustomField) => {
@@ -91,40 +96,56 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     }
   }
 
+  private resetFileState(): void {
+    this.selectedFile = null;
+    this.selectedFileName = null;
+    // We use emitEvent: false to prevent triggering listeners unnecessarily during reset
+    this.uploadForm.get('file')?.setValue(null, { emitEvent: false });
+  }
+
   onFileSelected(event: Event): void {
     const element = event.currentTarget as HTMLInputElement;
     const fileList: FileList | null = element.files;
+    
     if (fileList && fileList.length > 0) {
-      this.handleFile(fileList[0]);
-    } else {
-      this.handleFile(null);
+      const file = fileList[0];
+      this.handleFile(file);
+      
+      // Reset the input value safely
+      // This allows selecting the same file again if needed,
+      // and prevents the browser from holding onto a file reference we've processed.
+      // However, doing this *during* the event can cause the DOMException in some browsers.
+      // We simply let the native input be. We don't need to clear it unless we close the modal.
     }
   }
 
   handleFile(file: File | null): void {
     if (!file) {
-      this.selectedFile = null;
-      this.selectedFileName = null;
-      this.uploadForm.patchValue({ file: null });
+      this.resetFileState();
       return;
     }
 
     if (this.currentDatabase && !isMimeTypeAllowed(this.currentDatabase.content_type, file.type)) {
         this.notificationService.showError(`Invalid file type (${file.type}). Allowed: ${this.currentDatabase.content_type}`);
+        // Don't clear the form here, let the user see they made a mistake but keep the modal open
         return; 
     }
 
     this.selectedFile = file;
     this.selectedFileName = file.name;
     
-    // Patch the form value
+    // Patch the form value with the File object.
+    // NOTE: Some browsers throw the DOMException if you try to set the value of a 
+    // file input programmatically to a File object.
+    // However, 'file' here is an internal FormControl, NOT the native DOM input.
+    // Angular handles this, but to be safe and avoid the error, we should pass
+    // the File object to the control, but ensure we aren't trying to write it back to the DOM.
     this.uploadForm.patchValue({ file: this.selectedFile });
     
     // Mark touched and FORCE validation update
     this.uploadForm.get('file')?.markAsTouched();
     this.uploadForm.get('file')?.updateValueAndValidity();
     
-    // Manually trigger change detection to ensure the button state updates in the view
     this.cdr.detectChanges();
   }
 
@@ -163,6 +184,8 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.modalService.close();
+    // Reset form logic is handled in ngOnInit or initializeForm when re-opened
+    // But we can clear it here too to be safe
     if (this.currentDatabase) {
       this.initializeForm();
     }
