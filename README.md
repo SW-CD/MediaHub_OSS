@@ -42,11 +42,11 @@ You can download prebuild binaries for different architectures using the provide
 
 | Operating System | Architecture | Download Link |
 | :--- | :--- | :--- |
-| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_linux_aarch64) |
-| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_linux_x86_64) |
-| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v1.0.0/mediahub_windows_x86_64.exe) |
+| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_linux_aarch64) |
+| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_linux_x86_64) |
+| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_windows_x86_64.exe) |
 
-A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.0.0/config.toml).
+A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.1.0/config.toml).
 
 -----
 
