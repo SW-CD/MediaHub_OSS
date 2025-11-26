@@ -26,14 +26,6 @@ For a commercial version with additional, industrial features, please [contact m
   * **Hybrid Authentication:** Supports both **Basic Authentication** (for simple API scripts) and **JWT (JSON Web Tokens)** with Access/Refresh tokens (for the Web UI), protected by role-based access control.
   * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
 
-
------
-
-## 🎯 Roadmap
-
-### v1.1
-  * webhook configuration with filtering to notify external programs on data upload (e.g., ML model, custom transcoder) for extracting/generating additional data
-
 -----
 
 ## 📥 Downloads
