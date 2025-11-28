@@ -1,6 +1,5 @@
 [server]
-  # use "0.0.0.0" to make the application available publically
-  host = "localhost"
+  host = "0.0.0.0"
   port = 8080
 
 [database]
