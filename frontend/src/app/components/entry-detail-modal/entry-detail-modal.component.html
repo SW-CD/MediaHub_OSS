@@ -1,5 +1,5 @@
 <app-modal [modalId]="'entryDetailModal'" [modalTitle]="'Entry Details'">
-  <div class="detail-container" *ngIf="entryForMetadata; else loading">
+  <div class="detail-container" *ngIf="entryForMetadata && currentDatabase; else loading">
     
     <div class="entry-preview">
       <div [ngSwitch]="entryForMetadata.mime_type | slice:0:5">
@@ -26,36 +26,121 @@
       </div>
     </div>
     
-    <div class="metadata-section">
-      <h3>Metadata</h3>
-      <table class="metadata-table">
-        <tbody>
-          <tr *ngFor="let key of metadataKeys">
-            <th>{{ key }}</th>
-            <td>{{ key === 'timestamp' ? (entryForMetadata[key] * 1000 | date:'yyyy.MM.dd HH:mm:ss') : entryForMetadata[key] }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="metadata-split-view">
+      
+      <div class="metadata-block">
+        <h3>File Information</h3>
+        <table class="metadata-table">
+          <tbody>
+            <tr>
+              <th>ID</th>
+              <td>{{ entryForMetadata.id }}</td>
+            </tr>
+            <tr>
+              <th>Filename</th>
+              <td>{{ entryForMetadata.filename || 'N/A' }}</td>
+            </tr>
+            <tr>
+              <th>Size</th>
+              <td>{{ entryForMetadata.filesize | formatBytes }}</td>
+            </tr>
+            <tr>
+              <th>Type</th>
+              <td>{{ entryForMetadata.mime_type }}</td>
+            </tr>
+            <tr>
+              <th>Status</th>
+              <td>{{ entryForMetadata.status | titlecase }}</td>
+            </tr>
+            <tr>
+              <th>Created</th>
+              <td>{{ entryForMetadata.timestamp * 1000 | date:'yyyy.MM.dd HH:mm:ss' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="metadata-block">
+        
+        <ng-container [ngSwitch]="currentDatabase.content_type">
+          <ng-container *ngSwitchCase="'image'">
+            <h3>Image Properties</h3>
+            <table class="metadata-table">
+              <tr>
+                <th>Dimensions</th>
+                <td>{{ entryForMetadata.width }} x {{ entryForMetadata.height }} px</td>
+              </tr>
+            </table>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'audio'">
+            <h3>Audio Properties</h3>
+            <table class="metadata-table">
+              <tr>
+                <th>Duration</th>
+                <td>{{ entryForMetadata.duration_sec | number:'1.1-2' }} sec</td>
+              </tr>
+              <tr>
+                <th>Channels</th>
+                <td>{{ entryForMetadata.channels }}</td>
+              </tr>
+            </table>
+          </ng-container>
+        </ng-container>
+
+        <ng-container *ngIf="currentDatabase.custom_fields.length > 0">
+          <h3 class="mt-4">Custom Metadata</h3>
+          <table class="metadata-table">
+            <tbody>
+              <tr *ngFor="let field of currentDatabase.custom_fields">
+                <th>{{ field.name }}</th>
+                <td *ngIf="field.type === 'BOOLEAN'">
+                   <span [class.text-green]="entryForMetadata[field.name]" [class.text-muted]="!entryForMetadata[field.name]">
+                     {{ entryForMetadata[field.name] ? 'True' : 'False' }}
+                   </span>
+                </td>
+                <td *ngIf="field.type !== 'BOOLEAN'">
+                  {{ entryForMetadata[field.name] }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </ng-container>
+      </div>
+
     </div>
 
     <div class="modal-actions" *ngIf="currentUser$ | async as user">
       
-      <button 
-        *ngIf="user.can_delete"
-        type="button" 
-        class="btn btn-danger delete-action" 
-        (click)="onDelete()"
-        [disabled]="isLoadingFile || entryForMetadata.status === 'processing'">
-        Delete
-      </button>
+      <div class="action-group-left">
+        <button 
+          *ngIf="user.can_delete"
+          type="button" 
+          class="btn btn-danger" 
+          (click)="onDelete()"
+          [disabled]="isLoadingFile || entryForMetadata.status === 'processing'">
+          Delete
+        </button>
 
-      <a [href]="fileUrl" 
-         [download]="entryForMetadata.filename || 'download'" 
-         class="btn btn-secondary"
-         [class.disabled]="isLoadingFile" 
-         [style.pointer-events]="isLoadingFile ? 'none' : 'auto'">Download</a>
-      
-      <button type="button" class="btn btn-primary" (click)="closeModal()">Close</button>
+        <button 
+          *ngIf="user.can_edit"
+          type="button" 
+          class="btn btn-secondary" 
+          (click)="onEdit()"
+          [disabled]="entryForMetadata.status === 'processing'">
+          Edit
+        </button>
+      </div>
+
+      <div class="action-group-right">
+        <a [href]="fileUrl" 
+           [download]="entryForMetadata.filename || 'download'" 
+           class="btn btn-secondary"
+           [class.disabled]="isLoadingFile" 
+           [style.pointer-events]="isLoadingFile ? 'none' : 'auto'">Download</a>
+        
+        <button type="button" class="btn btn-primary" (click)="closeModal()">Close</button>
+      </div>
     </div>
 
   </div>

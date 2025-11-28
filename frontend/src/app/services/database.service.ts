@@ -1,6 +1,6 @@
 // frontend/src/app/services/database.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http'; // Removed HttpHeaders usage
+import { HttpClient, HttpParams, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable, Subject, throwError, of, timer } from 'rxjs';
 import { catchError, tap, map, switchMap, filter, take, finalize } from 'rxjs/operators';
 import { Database, Entry, HousekeepingReport, SearchRequest, DatabaseConfig, PartialEntryResponse } from '../models/api.models';
@@ -10,7 +10,7 @@ import { Router } from '@angular/router';
 
 export interface DatabaseUpdatePayload {
   config?: DatabaseConfig;
-  housekeeping?: any; // Using any here to match previous usage or strict Housekeeping type
+  housekeeping?: any;
 }
 
 /**
@@ -76,8 +76,6 @@ export class DatabaseService {
 
     if (isAuthError) {
       this.notificationService.showGlobalError(errorMessage);
-      // The interceptor usually calls logout, but we can double check here
-      // We don't call authService.logout() here to avoid loops if the interceptor is already handling it.
     } else {
       this.notificationService.showError(errorMessage);
     }
@@ -87,7 +85,6 @@ export class DatabaseService {
 
 
   public loadDatabases(): Observable<Database[]> {
-    // Interceptor handles Auth
     return this.http
       .get<Database[]>(`${this.apiUrl}/databases`)
       .pipe(
@@ -212,11 +209,8 @@ export class DatabaseService {
           const entry = response.body as Entry;
           this.notificationService.showSuccess('Entry uploaded successfully.');
           
-          // FIX: Check if the synchronously created entry is still processing (e.g. waiting for preview)
           if (entry && entry.status === 'processing') {
              this.addProcessingEntry(entry.id);
-             // We don't need to show an info toast here, the success message is enough,
-             // but we MUST start polling so the preview appears automatically.
              this.pollForEntryStatus(dbName, entry.id);
           }
 
@@ -252,9 +246,12 @@ export class DatabaseService {
       .set('database_name', dbName)
       .set('id', entryId.toString());
 
+    // Explicitly request */* (or a binary type) to avoid the backend sending JSON base64
+    // which happens if the browser sends Accept: application/json by default.
     return this.http.get(`${this.apiUrl}/entry/file`, {
         params,
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: new HttpHeaders({ 'Accept': '*/*' })
       })
       .pipe(catchError((err) => this.handleError(err)));
   }
@@ -316,18 +313,14 @@ export class DatabaseService {
       // Safety: Stop polling after 30 attempts (60 seconds)
       take(30),
       finalize(() => {
-        // If we exit and the ID is still in our processing list, it likely timed out
         if (this.processingEntriesSubject.value.includes(entryId)) {
            this.removeProcessingEntry(entryId);
-           // Optional: Notify user of timeout, but silent fail might be better for UX if it's just slow
-           // this.notificationService.showError(`Polling for entry ${entryId} timed out.`);
         }
       })
     ).subscribe({
       next: entry => {
         this.removeProcessingEntry(entry.id);
         if (entry.status === 'ready') {
-          // Success: Refresh the list so the spinner is replaced by the preview
           this.triggerImageListRefresh();
         } else if (entry.status === 'error') {
           this.notificationService.showError(`Entry ${entry.id} failed to process.`);

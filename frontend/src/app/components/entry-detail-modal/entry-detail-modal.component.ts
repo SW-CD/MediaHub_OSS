@@ -1,15 +1,16 @@
 // frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.ts
 
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject, Observable, of } from 'rxjs'; // Added Observable
-import { switchMap, takeUntil, map, take, filter } from 'rxjs/operators'; // Added take, filter
-import { Database, Entry, User } from '../../models/api.models'; // Added User
+import { Subject, Observable, of } from 'rxjs';
+import { switchMap, takeUntil, map, take, filter, tap } from 'rxjs/operators';
+import { Database, Entry, User } from '../../models/api.models';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-import { AuthService } from '../../services/auth.service'; // Added
-import { NotificationService } from '../../services/notification.service'; // Added
-import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component'; // Added
+import { AuthService } from '../../services/auth.service';
+import { NotificationService } from '../../services/notification.service';
+import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
+import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component'; // <-- IMPORT THIS
 
 @Component({
   selector: 'app-entry-detail-modal',
@@ -22,15 +23,15 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
 
   public entryForMetadata: Entry | null = null;
   public fileUrl: SafeUrl | null = null;
-  public metadataKeys: string[] = [];
+  // REMOVED: metadataKeys is no longer needed as we map fields manually in HTML
   public isLoadingFile: boolean = true;
   
-  // NEW: Observable for RBAC in the template
   public currentUser$: Observable<User | null>;
-
   public previewUrl: string | null = null;
-
-  private currentDatabase: Database | null = null;
+  
+  // Changed to public so HTML can access config/custom_fields
+  public currentDatabase: Database | null = null; 
+  
   private currentObjectUrl: string | null = null;
   private destroy$ = new Subject<void>();
 
@@ -38,10 +39,9 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     private modalService: ModalService,
     private databaseService: DatabaseService,
     private sanitizer: DomSanitizer,
-    private authService: AuthService, // NEW
-    private notificationService: NotificationService // NEW
+    private authService: AuthService,
+    private notificationService: NotificationService
   ) {
-    // Initialize the user stream
     this.currentUser$ = this.authService.currentUser$;
   }
 
@@ -58,24 +58,25 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
         this.fileUrl = null;
         this.previewUrl = null;
         this.isLoadingFile = true;
-        this.metadataKeys = [];
         this.entryForMetadata = null;
 
         if (entry && this.currentDatabase) {
+          // Fetch fresh metadata
           return this.databaseService.getEntryMeta(this.currentDatabase.name, entry.id).pipe(
             switchMap(metaEntry => {
               this.entryForMetadata = metaEntry;
-              this.metadataKeys = Object.keys(metaEntry).filter(key => key !== 'id').sort();
-              
               this.previewUrl = this.getPreviewUrl();
 
+              // Fetch the actual file blob
               return this.databaseService.getEntryFileBlob(this.currentDatabase!.name, entry.id).pipe(
                 map(blob => {
                   this.currentObjectUrl = URL.createObjectURL(blob);
                   this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(this.currentObjectUrl);
                   this.isLoadingFile = false;
                   return 'loaded';
-                })
+                }),
+                // Handle case where file load fails but metadata loaded ok
+                tap({ error: () => this.isLoadingFile = false })
               );
             })
           );
@@ -94,7 +95,21 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  // NEW: Handle Deletion
+  // --- NEW: Edit Handler ---
+  onEdit(): void {
+    if (!this.entryForMetadata) return;
+
+    if (this.entryForMetadata.status === 'processing') {
+      this.notificationService.showError('Cannot edit an entry that is still processing.');
+      return;
+    }
+
+    // Open the Edit Modal. 
+    // Since both components listen to `selectedEntry$`, updates will propagate automatically 
+    // if the service updates the subject after save.
+    this.modalService.open(EditEntryModalComponent.MODAL_ID);
+  }
+
   onDelete(): void {
     if (!this.currentDatabase || !this.entryForMetadata) return;
 
@@ -108,25 +123,20 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       message: `Are you sure you want to delete entry ${this.entryForMetadata.id}? This action cannot be undone.`
     };
 
-    // Open Confirmation Modal and wait for result
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(
         take(1),
         filter(confirmed => confirmed === true)
       )
       .subscribe(() => {
-        // We set isLoadingFile to true to disable buttons while the request is in flight
         this.isLoadingFile = true; 
         
         this.databaseService.deleteEntry(this.currentDatabase!.name, this.entryForMetadata!.id)
           .subscribe({
             next: () => {
-              // Success! The service handles the list refresh.
-              // We just close this modal.
               this.closeModal();
             },
             error: () => {
-              // On error, re-enable the controls
               this.isLoadingFile = false;
             }
           });
@@ -149,7 +159,6 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     this.previewUrl = null;
     this.isLoadingFile = true;
     this.entryForMetadata = null;
-    this.metadataKeys = [];
   }
 
   ngOnDestroy(): void {

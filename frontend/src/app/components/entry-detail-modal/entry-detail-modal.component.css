@@ -1,33 +1,30 @@
 /* frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.css */
-/* RENAMED: from image-detail-modal.component.css */
 
 .detail-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Reduced gap slightly */
+  gap: 1.5rem; 
 }
 
-/* RENAMED: .image-preview to .entry-preview */
 .entry-preview {
   width: 100%;
-  max-height: 50vh; /* Keep max height */
-  min-height: 200px; /* --- ADDED: Give the loading box a minimum height --- */
+  max-height: 50vh; 
+  min-height: 200px;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: var(--app-bg); /* Use dark app background */
-  border-radius: 0.375rem; /* Match other border-radius */
-  border: 1px solid var(--border-color); /* Add a subtle border */
-  overflow: hidden; /* Ensure image respects border radius */
+  background-color: var(--app-bg); 
+  border-radius: 0.375rem; 
+  border: 1px solid var(--border-color); 
+  overflow: hidden; 
 }
 
-.preview-image { /* RENAMED: from .image-preview img */
+.preview-image {
   max-width: 100%;
-  max-height: 50vh; /* Match container max height */
+  max-height: 50vh; 
   object-fit: contain;
 }
 
-/* --- ADDED: Styles for Audio and File previews --- */
 .audio-preview-wrapper {
   display: flex;
   flex-direction: column;
@@ -61,10 +58,7 @@
   height: 80px;
   opacity: 0.7;
 }
-/* --- END ADDED --- */
 
-
-/* --- ADDED: Style for the loading placeholder --- */
 .loading-placeholder {
   display: flex;
   justify-content: center;
@@ -76,75 +70,84 @@
   font-style: italic;
   user-select: none;
 }
-/* --- END ADDED --- */
 
+/* --- NEW: Metadata Grid --- */
+.metadata-split-view {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
 
-.metadata-section h3 {
+/* On larger screens, split into two columns */
+@media (min-width: 640px) {
+  .metadata-split-view {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.metadata-block h3 {
   margin-top: 0;
-  margin-bottom: 1rem;
-  color: var(--text-primary); /* Use theme text color */
-  border-bottom: 1px solid var(--border-color-light); /* Add theme border */
-  padding-bottom: 0.5rem; /* Add padding */
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+.metadata-block h3.mt-4 {
+  margin-top: 1.5rem;
 }
 
 .metadata-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
 .metadata-table th,
 .metadata-table td {
-  padding: 0.75rem;
+  padding: 0.5rem 0; /* Reduced padding for compact view */
   text-align: left;
-  border-bottom: 1px solid var(--border-color); /* Use theme border */
+  border-bottom: 1px solid var(--border-color);
 }
 
 .metadata-table th {
-  font-weight: 600; /* Slightly bolder */
-  color: var(--text-muted); /* Use theme muted color for labels */
-  width: 30%;
-  text-transform: capitalize;
+  font-weight: 500;
+  color: var(--text-muted);
+  width: 40%;
   white-space: nowrap;
 }
 
 .metadata-table td {
-  color: var(--text-secondary); /* Use theme secondary text color for values */
+  color: var(--text-secondary);
   word-break: break-all;
+  padding-left: 1rem;
 }
 
-/* Make table more readable */
 .metadata-table tr:last-child th,
 .metadata-table tr:last-child td {
   border-bottom: none;
 }
 
+/* Helpers for boolean text */
+.text-green { color: #48bb78; font-weight: 600; }
+.text-muted { color: var(--text-muted); }
+
+
+/* --- UPDATED: Action Bar --- */
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+  justify-content: space-between; /* Push groups apart */
+  align-items: center;
   margin-top: 1rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color-light); /* Use theme border */
+  border-top: 1px solid var(--border-color);
 }
 
-/* --- ADDED: Disabled state for download button --- */
-.btn.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.modal-actions {
+.action-group-left, .action-group-right {
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color-light);
-}
-
-/* NEW: Pushes the delete button to the far left */
-.delete-action {
-  margin-right: auto;
+  gap: 0.75rem;
 }
 
 .btn.disabled {

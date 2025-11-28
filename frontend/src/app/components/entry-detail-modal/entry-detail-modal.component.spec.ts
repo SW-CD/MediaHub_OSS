@@ -1,8 +1,11 @@
 // frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.spec.ts
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, Subject, throwError } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { CommonModule } from '@angular/common'; // Required for *ngIf/ngSwitch
 import { DomSanitizer } from '@angular/platform-browser';
+import { HttpClientTestingModule } from '@angular/common/http/testing'; // To prevent HTTP errors
+
 import { EntryDetailModalComponent } from './entry-detail-modal.component';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
@@ -11,6 +14,8 @@ import { NotificationService } from '../../services/notification.service';
 import { Entry, Database, User } from '../../models/api.models';
 import { ContentType, EntryStatus } from '../../models/enums';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component';
+import { FormatBytesPipe } from '../../pipes/format-bytes.pipe';
 import { Component, Input } from '@angular/core';
 
 // Mock the app-modal component to avoid template errors
@@ -64,7 +69,8 @@ describe('EntryDetailModalComponent', () => {
   };
 
   beforeEach(async () => {
-    // Create Spies
+    // 1. Create Spies
+    // We define ALL methods we expect to be called here.
     mockDatabaseService = jasmine.createSpyObj('DatabaseService', 
       ['getEntryMeta', 'getEntryFileBlob', 'getEntryPreviewUrl', 'deleteEntry', 'clearSelectedEntry'], 
       {
@@ -78,14 +84,20 @@ describe('EntryDetailModalComponent', () => {
     mockNotificationService = jasmine.createSpyObj('NotificationService', ['showError', 'showSuccess']);
     mockSanitizer = jasmine.createSpyObj('DomSanitizer', ['bypassSecurityTrustUrl']);
 
-    // Mock returns
+    // 2. Configure default return values
+    // Crucial: ensure getEntryFileBlob returns an Observable, or the component throws "reading 'pipe' of undefined"
     mockDatabaseService.getEntryMeta.and.returnValue(of(mockEntry));
-    mockDatabaseService.getEntryFileBlob.and.returnValue(of(new Blob(['test content'])));
+    mockDatabaseService.getEntryFileBlob.and.returnValue(of(new Blob(['test content'], { type: 'image/jpeg' })));
     mockDatabaseService.getEntryPreviewUrl.and.returnValue('mock-preview-url');
     mockSanitizer.bypassSecurityTrustUrl.and.returnValue('safe-url');
 
     await TestBed.configureTestingModule({
       declarations: [ EntryDetailModalComponent, MockModalComponent ],
+      imports: [ 
+        CommonModule, // Required for structural directives
+        HttpClientTestingModule, // Required for preventing HTTP injection errors
+        FormatBytesPipe // Standalone pipe
+      ],
       providers: [
         { provide: DatabaseService, useValue: mockDatabaseService },
         { provide: ModalService, useValue: mockModalService },
@@ -98,44 +110,70 @@ describe('EntryDetailModalComponent', () => {
 
     fixture = TestBed.createComponent(EntryDetailModalComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges(); // Trigger ngOnInit
+    
+    // 3. Trigger initial data binding (ngOnInit)
+    fixture.detectChanges(); 
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('onDelete', () => {
+  describe('onEdit', () => {
     beforeEach(() => {
-      // Ensure the component has loaded the entry data needed for deletion
+      // Reset state for specific tests
       component.entryForMetadata = mockEntry;
-      // We need to manually set currentDatabase if it wasn't captured in ngOnInit correctly during test setup
-      // (Though the mock observable should have handled it, accessing the private var or ensuring state is safe)
-      // Accessing private via 'any' for test setup:
-      (component as any).currentDatabase = mockDb;
+      component.currentDatabase = mockDb;
     });
 
-    it('should show error if entry status is "processing"', () => {
+    it('should open EditEntryModal if status is "Ready"', () => {
+      // Act
+      component.onEdit();
+
+      // Assert
+      expect(mockModalService.open).toHaveBeenCalledWith(EditEntryModalComponent.MODAL_ID);
+    });
+
+    it('should show error and NOT open modal if status is "Processing"', () => {
       // Arrange
       component.entryForMetadata = { ...mockEntry, status: EntryStatus.Processing };
 
       // Act
-      component.onDelete();
+      component.onEdit();
 
       // Assert
       expect(mockNotificationService.showError).toHaveBeenCalledWith(jasmine.stringMatching(/processing/));
       expect(mockModalService.open).not.toHaveBeenCalled();
     });
 
-    it('should open confirmation modal if status is "ready"', () => {
+    it('should do nothing if entry metadata is missing', () => {
       // Arrange
-      // Mock the modal to return an empty observable (neither true nor false yet) to stop execution there
-      mockModalService.open.and.returnValue(of(false)); 
+      component.entryForMetadata = null;
 
       // Act
-      component.onDelete();
+      component.onEdit();
 
       // Assert
+      expect(mockModalService.open).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onDelete', () => {
+    beforeEach(() => {
+      component.entryForMetadata = mockEntry;
+      component.currentDatabase = mockDb;
+    });
+
+    it('should show error if entry status is "processing"', () => {
+      component.entryForMetadata = { ...mockEntry, status: EntryStatus.Processing };
+      component.onDelete();
+      expect(mockNotificationService.showError).toHaveBeenCalledWith(jasmine.stringMatching(/processing/));
+      expect(mockModalService.open).not.toHaveBeenCalled();
+    });
+
+    it('should open confirmation modal if status is "ready"', () => {
+      mockModalService.open.and.returnValue(of(false)); 
+      component.onDelete();
       expect(mockModalService.open).toHaveBeenCalledWith(
         ConfirmationModalComponent.MODAL_ID, 
         jasmine.objectContaining({ title: 'Delete Entry' })
@@ -143,43 +181,32 @@ describe('EntryDetailModalComponent', () => {
     });
 
     it('should NOT call delete API if user cancels confirmation', () => {
-      // Arrange
       mockModalService.open.and.returnValue(of(false)); // User clicks Cancel
-
-      // Act
       component.onDelete();
-
-      // Assert
       expect(mockDatabaseService.deleteEntry).not.toHaveBeenCalled();
     });
 
     it('should call delete API and close modal if user confirms', () => {
-      // Arrange
       mockModalService.open.and.returnValue(of(true)); // User clicks Confirm
       mockDatabaseService.deleteEntry.and.returnValue(of({ message: 'Deleted' }));
 
-      // Act
       component.onDelete();
 
-      // Assert
-      expect(component.isLoadingFile).toBeTrue(); // UI should lock
+      expect(component.isLoadingFile).toBeTrue();
       expect(mockDatabaseService.deleteEntry).toHaveBeenCalledWith(mockDb.name, mockEntry.id);
-      expect(mockModalService.close).toHaveBeenCalled(); // Component should close itself
-      expect(mockDatabaseService.clearSelectedEntry).toHaveBeenCalled(); // Cleanup
+      expect(mockModalService.close).toHaveBeenCalled();
+      expect(mockDatabaseService.clearSelectedEntry).toHaveBeenCalled();
     });
 
     it('should reset loading state if delete API fails', () => {
-      // Arrange
-      mockModalService.open.and.returnValue(of(true)); // User clicks Confirm
+      mockModalService.open.and.returnValue(of(true)); 
       mockDatabaseService.deleteEntry.and.returnValue(throwError(() => new Error('API Error')));
 
-      // Act
       component.onDelete();
 
-      // Assert
       expect(mockDatabaseService.deleteEntry).toHaveBeenCalled();
-      expect(component.isLoadingFile).toBeFalse(); // Should unlock UI on error
-      expect(mockModalService.close).not.toHaveBeenCalled(); // Should stay open so user sees context
+      expect(component.isLoadingFile).toBeFalse();
+      expect(mockModalService.close).not.toHaveBeenCalled();
     });
   });
 
@@ -188,6 +215,7 @@ describe('EntryDetailModalComponent', () => {
       component.currentUser$.subscribe(user => {
         expect(user).toEqual(mockUser);
         expect(user?.can_delete).toBeTrue();
+        expect(user?.can_edit).toBeTrue();
         done();
       });
     });
