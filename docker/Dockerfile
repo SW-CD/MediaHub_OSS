@@ -1,5 +1,5 @@
 # Build the application (backend and frontend) as a docker image
-# -> run in the project root folder `docker build -t mediahub:1.1.0 -f ./docker/Dockerfile .`
+# -> run in the project root folder `docker build -t denglerchr/mediahub_oss:latest -f ./docker/Dockerfile .`
 # Start a container with, e.g., 
 # docker run -d \
 #   --name mediahub \
@@ -7,7 +7,7 @@
 #   -v $(pwd)/mediahub_data:/config \
 #   -v $(pwd)/mediahub_storage:/storage \
 #   -e FDB_PASSWORD="admin-password-123" \
-#   mediahub:1.1.0
+#   denglerchr/mediahub_oss:latest
 
 # STAGE 1: The Builder
 # We use a multi-stage approach to grab Node binaries cleanly
@@ -79,24 +79,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Cleanup
     rm -rf ffmpeg.tar.xz ffmpeg-*-static
 
-# 2. Create user
-RUN addgroup --system app && adduser --system --ingroup app app
+# 2. Setup folders
+RUN mkdir /config /storage
 
-# 3. Setup folders
-RUN mkdir /config /storage && \
-    chown -R app:app /config /storage
-
-# 4. Copy artifacts
+# 3. Copy artifacts
 WORKDIR /app
-COPY --from=builder --chown=app:app /app/mediahub .
-COPY --from=builder --chown=app:app /app/config.toml /config/config.toml
+COPY --from=builder /app/mediahub .
+COPY --from=builder /app/config.toml /config/config.toml
 
-# 5. Config
+# 4. Config
 ENV FDB_DATABASE_PATH=/config/mediahub.db \
     FDB_STORAGE_ROOT=/storage \
     FDB_CONFIG_PATH=/config/config.toml
 
-USER app
 EXPOSE 8080
 VOLUME ["/config", "/storage"]
 ENTRYPOINT ["./mediahub"]
