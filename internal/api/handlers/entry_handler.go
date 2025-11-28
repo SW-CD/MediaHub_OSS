@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // @Summary Upload an entry
@@ -100,12 +101,14 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Get an entry file
-// @Description Retrieves a raw entry file.
+// @Description Retrieves a raw entry file. Supports Content Negotiation via Accept header.
 // @Tags entry
 // @Produce octet-stream
+// @Produce json
 // @Param   database_name  query  string  true  "Database Name"
 // @Param   id             query  int     true  "Entry ID"
-// @Success 200 {file} file "The raw file data"
+// @Success 200 {file} file "The raw file data (default)"
+// @Success 200 {object} models.FileJSONResponse "Base64 encoded file data (if Accept: application/json)"
 // @Failure 400 {object} ErrorResponse "Invalid request"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden"
@@ -137,6 +140,17 @@ func (h *Handlers) GetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// --- Content Negotiation: JSON response for Grafana/Web clients ---
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		// If filename is empty, fallback to ID
+		if filename == "" {
+			filename = fmt.Sprintf("%d", id)
+		}
+		serveFileAsJSON(w, entryPath, filename, mimeType)
+		return
+	}
+
+	// --- Standard Binary Response ---
 	w.Header().Set("Content-Type", mimeType)
 
 	// Set Content-Disposition header if filename is available
@@ -149,12 +163,14 @@ func (h *Handlers) GetEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Get an entry preview
-// @Description Retrieves a 200x200 JPEG preview of an entry.
+// @Description Retrieves a 200x200 JPEG preview of an entry. Supports Content Negotiation via Accept header.
 // @Tags entry
 // @Produce jpeg
+// @Produce json
 // @Param   database_name  query  string  true  "Database Name"
 // @Param   id             query  int     true  "Entry ID"
-// @Success 200 {file} file "The JPEG preview image"
+// @Success 200 {file} file "The JPEG preview image (default)"
+// @Success 200 {object} models.FileJSONResponse "Base64 encoded preview data (if Accept: application/json)"
 // @Failure 400 {object} ErrorResponse "Invalid request"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden"
@@ -197,6 +213,15 @@ func (h *Handlers) GetEntryPreview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
 	w.Header().Set("Expires", "0")                                         // Proxies.
 
+	// --- Content Negotiation: JSON response ---
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		// Previews are always JPEGs named by ID
+		filename := fmt.Sprintf("%d.jpg", id)
+		serveFileAsJSON(w, previewPath, filename, "image/jpeg")
+		return
+	}
+
+	// --- Standard Binary Response ---
 	w.Header().Set("Content-Type", "image/jpeg")
 	http.ServeFile(w, r, previewPath)
 }

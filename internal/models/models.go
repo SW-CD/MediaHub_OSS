@@ -68,7 +68,6 @@ type Database struct {
 	LastHkRun    time.Time       `json:"last_hk_run"`
 }
 
-// --- NEW: Moved from handler ---
 // DatabaseCreatePayload is used for the POST /api/database request.
 type DatabaseCreatePayload struct {
 	Name         string                 `json:"name"`
@@ -78,7 +77,6 @@ type DatabaseCreatePayload struct {
 	CustomFields []CustomField          `json:"custom_fields"`
 }
 
-// --- NEW: Moved from handler ---
 // DatabaseUpdatePayload is used for the PUT /api/database request.
 type DatabaseUpdatePayload struct {
 	Config       map[string]interface{} `json:"config,omitempty"`
@@ -96,6 +94,14 @@ type PartialEntryResponse struct {
 	DatabaseName string `json:"database_name"`
 	Status       string `json:"status"`        // Will be "processing"
 	CustomFields Entry  `json:"custom_fields"` // Only fields provided by user
+}
+
+// FileJSONResponse is used when clients request a file via Accept: application/json.
+// This is used for both /entry/file and /entry/preview endpoints.
+type FileJSONResponse struct {
+	Filename string `json:"filename"`
+	MimeType string `json:"mime_type"`
+	Data     string `json:"data"` // Base64 encoded string with data URI prefix
 }
 
 // User represents a user account in the system.

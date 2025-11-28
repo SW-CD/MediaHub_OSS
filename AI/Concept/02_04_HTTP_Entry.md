@@ -28,7 +28,6 @@ A `multipart/form-data` body with two parts:
 1.  **`metadata` part**:
       * `Content-Type: application/json`
       * Body: A JSON string containing the entry metadata.
-    <!-- end list -->
     ```json
     {
         "timestamp": 1780713653,
@@ -131,7 +130,7 @@ Deletes a single file from disk and its metadata from the corresponding database
 
 #### GET /api/entry/file
 
-Retrieves the raw **original** file.
+Retrieves the raw **original** file. This endpoint supports **Content Negotiation** to accommodate clients (like Grafana) that cannot handle binary streams behind authentication headers.
 **Role Required: `CanView`**
 
 ##### Request
@@ -141,15 +140,41 @@ Retrieves the raw **original** file.
   * **database\_name** (query param, required): The name of the database the entry belongs to.
   * **id** (query param, required): The unique ID of the entry to retrieve.
 
-##### Success Response
+##### Headers (Request)
+
+  * `Accept` (optional):
+      * `*/*` (or omitted): Triggers the **Standard Binary Response**.
+      * `application/json`: Triggers the **JSON Base64 Response**.
+
+##### Response: Standard Binary (Default)
+
+Returned when `Accept` is `*/*` or omitted.
 
 **Status 200 - OK**
 
   * **Headers:**
       * `Content-Type`: The stored MIME type of the file (e.g., `audio/flac`, `image/jpeg`).
-      * `Content-Length`: (filesize in bytes)
-      * `Content-Disposition`: `attachment; filename="my_song.wav"` (Tells the browser to save the file with its original name. This header is omitted if the stored filename is empty).
+      * `Content-Length`: The file size in bytes.
+      * `Content-Disposition`: `attachment; filename="my_song.wav"` (Forces download with original filename).
   * **Body:** The raw binary data of the file.
+
+##### Response: JSON / Base64
+
+Returned when `Accept` is `application/json`.
+
+**Status 200 - OK**
+
+  * **Headers:**
+      * `Content-Type`: `application/json`
+  * **Body:** A JSON object containing the file metadata and the Base64-encoded content string.
+
+```json
+{
+  "filename": "my_song.wav",
+  "mime_type": "audio/wav",
+  "data": "data:audio/wav;base64,UklGRi..."
+}
+```
 
 ##### Error Responses
 
@@ -162,7 +187,7 @@ Retrieves the raw **original** file.
 
 #### GET /api/entry/preview
 
-Retrieves the generated preview for an entry (e.g., image thumbnail, audio waveform). This is the recommended endpoint for displaying entries in a gallery or list view.
+Retrieves the generated preview for an entry (e.g., image thumbnail, audio waveform). This is the recommended endpoint for displaying entries in a gallery or list view. This endpoint supports **Content Negotiation**.
 **Role Required: `CanView`**
 
 ##### Request
@@ -172,14 +197,46 @@ Retrieves the generated preview for an entry (e.g., image thumbnail, audio wavef
   * **database\_name** (query param, required): The name of the database the entry belongs to.
   * **id** (query param, required): The unique ID of the entry to retrieve the preview for.
 
-##### Success Response
+##### Headers (Request)
+
+  * `Accept` (optional):
+      * `*/*` (or omitted): Triggers the **Standard Binary Response**.
+      * `application/json`: Triggers the **JSON Base64 Response**.
+
+##### Response: Standard Binary (Default)
+
+Returned when `Accept` is `*/*` or omitted.
 
 **Status 200 - OK**
 
   * **Headers:**
       * `Content-Type`: `image/jpeg`
-      * `Content-Length`: (filesize in bytes)
-  * **Body:** The raw binary data of the preview (thumbnail or waveform).
+      * `Content-Length`: The file size in bytes.
+      * `Cache-Control`: `no-cache, no-store, must-revalidate` (Prevents stale previews).
+      * `Pragma`: `no-cache`.
+      * `Expires`: `0`.
+  * **Body:** The raw binary data of the preview (JPEG).
+
+##### Response: JSON / Base64
+
+Returned when `Accept` is `application/json`.
+
+**Status 200 - OK**
+
+  * **Headers:**
+      * `Content-Type`: `application/json`
+      * `Cache-Control`: `no-cache, no-store, must-revalidate`.
+      * `Pragma`: `no-cache`.
+      * `Expires`: `0`.
+  * **Body:** A JSON object containing the preview metadata and the Base64-encoded content string.
+
+```json
+{
+  "filename": "10232.jpg",
+  "mime_type": "image/jpeg",
+  "data": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+}
+```
 
 ##### Error Responses
 
