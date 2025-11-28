@@ -4,7 +4,7 @@
 # docker run -d \
 #   --name mediahub \
 #   -p 8080:8080 \
-#   -v $(pwd)/mediahub_data:/config \
+#   -v $(pwd)/mediahub_config:/config \
 #   -v $(pwd)/mediahub_storage:/storage \
 #   -e FDB_PASSWORD="admin-password-123" \
 #   denglerchr/mediahub_oss:latest

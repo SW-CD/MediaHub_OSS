@@ -42,6 +42,17 @@ You can download prebuild binaries for different architectures using the provide
 
 A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.1.0/config.toml).
 
+As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub.
+```bash
+docker run -d \
+  --name mediahub \
+  -p 8080:8080 \
+  -v $(pwd)/mediahub_config:/config \
+  -v $(pwd)/mediahub_storage:/storage \
+  -e FDB_PASSWORD="your-secure-password" \
+  denglerchr/mediahub_oss:latest
+```
+
 -----
 
 ## ▶️ Running the Application

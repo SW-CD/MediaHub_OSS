@@ -43,6 +43,7 @@ AI/Ignore
 
 # Compiled binary
 /mediahub
+/mediahub_linux_x86_64
 
 # Storage folder
 storage_root/
