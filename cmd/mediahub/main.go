@@ -291,7 +291,7 @@ func overrideConfigFromEnvAndCLI(cliCfg *CLIConfig, cfg *config.Config) {
 
 	// --- Set Defaults ---
 	if cfg.Server.Host == "" {
-		cfg.Server.Host = "localhost"
+		cfg.Server.Host = "0.0.0.0"
 	}
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 8080
