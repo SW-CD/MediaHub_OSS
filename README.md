@@ -1,14 +1,16 @@
 # MediaHub API & Web Interface (v1.1.0) ✨
 
-This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting and retrieving files with custom metadata, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
+This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting, managing custom metadata and retrieving files, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
+
+<p align="center">
+  <img src="screenshots/DataFlow.webp" alt="MediaHub" width="600">
+</p>
 
 Intended use-cases for the software are:
-  * storing of camera data with metadata in a production environment, e.g., images for product quality checks
+  * storing of camera data with metadata in a production environment, e.g., images for product quality checks, wildlife observation etc
   * storing of audio samples captured using microphones, e.g., for condition monitoring of machines, animal observation
 
-For a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). Commercial features include:
-  * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
-  * single sign on via OIDC (e.g., using keycloak)
+You can find screenshots of what the frontend looks like in the [screenshots](/screenshots/) folder.
 
 -----
 
@@ -42,88 +44,11 @@ A template `config.toml` file is also available for download [here](https://down
 
 -----
 
-## 🛠️ Prerequisites for Building
-
-As mentioned you can just use prebuild binaries, but if you want to build the program yourself, you can will need the following.
-
-  * **Go:** Version 1.24.3 or later (as specified in `go.mod`).
-  * **C Compiler:** A C compiler (like `gcc` or `MinGW`) is required for `mattn/go-sqlite3` (CGO).
-  * **Node.js & npm:** Required for building the frontend.
-  * **Angular CLI:** The command-line interface for Angular. Install globally with `npm install -g @angular/cli`.
-  * **(Optional) FFmpeg & FFprobe:** Required for:
-    * Audio-to-FLAC/Opus conversion (`ffmpeg`).
-    * Audio waveform preview generation (`ffmpeg`).
-    * Metadata extraction (duration, channels) for MP3, FLAC, Ogg, etc. (`ffprobe`).
-    * If not found, these features will be disabled. The paths can be configured in `config.toml` or via flags/env vars.
-
------
-
-## ⚙️ Building the Application
-
-The build process compiles the Go backend with the Angular frontend embedded directly into the final executable. All commands should be run from the **root directory** of the project.
-
-### 1\. (Optional) Generate API Documentation
-
-If you have made changes to the API handlers, regenerate the Swagger documentation *before* building the frontend.
-
-```bash
-# Ensure you have the swag CLI tool installed
-# go get -u [github.com/swaggo/swag/cmd/swag](https://github.com/swaggo/swag/cmd/swag)
-
-# From the project root, regenerate the docs
-swag init -g ./cmd/mediahub/main.go
-```
-
-The generated documentation is served at the `/swagger/index.html` endpoint.
-
-### 2\. Build the Frontend (Angular UI)
-
-This step builds the static Angular application and places the output files where the Go backend can find and embed them.
-
-```bash
-# Navigate into the frontend directory
-cd frontend
-
-# Install Node.js dependencies
-npm install
-
-# Build the static assets for production
-ng build
-
-# Go back to the root directory
-cd ..
-```
-
-The `angular.json` file is configured to output the build to `cmd/mediahub/frontend_embed/`. This location is crucial for the Go compiler to find and embed the files.
-
-### 3\. Build the Backend (Go API)
-
-This final step compiles the Go application, embeds the frontend, and creates a single executable file.
-
-**Important:** This project uses `mattn/go-sqlite3`, which requires CGO. You **must** enable CGO for the build to succeed.
-
-**On Linux/macOS:**
-
-```bash
-# From the project root directory
-CGO_ENABLED=1 go build -o mediahub ./cmd/mediahub
-```
-
-**On Windows (PowerShell):**
-
-```powershell
-# From the project root directory
-$env:CGO_ENABLED=1
-go build -o mediahub.exe ./cmd/mediahub
-```
-
-This command creates a single executable file named `mediahub` (or `mediahub.exe`) in your project root. This file contains the entire application, including the web UI.
-
------
-
 ## ▶️ Running the Application
 
-After downloading or building the application, you have a single executable file. The binary will create `mediahub.db` and the `storage_root` directory in the same folder where it is run, unless configured otherwise.
+After downloading or building the application, you need a `config.toml` file as well. Simply put it in the same folder, or start the binary with the `--config_path` option.
+The binary will create `mediahub.db` and the `storage_root` directory in the same folder where it is run, unless configured otherwise.
+You can then visit the web UI under the port you configured.
 
 You can get a short help message with
 
@@ -277,6 +202,85 @@ custom_fields = [
 
 -----
 
+## 🛠️ Prerequisites for Building
+
+As mentioned you can just use prebuild binaries, but if you want to build the program yourself, you can will need the following.
+
+  * **Go:** Version 1.24.3 or later (as specified in `go.mod`).
+  * **C Compiler:** A C compiler (like `gcc` or `MinGW`) is required for `mattn/go-sqlite3` (CGO).
+  * **Node.js & npm:** Required for building the frontend.
+  * **Angular CLI:** The command-line interface for Angular. Install globally with `npm install -g @angular/cli`.
+  * **(Optional) FFmpeg & FFprobe:** Required for:
+    * Audio-to-FLAC/Opus conversion (`ffmpeg`).
+    * Audio waveform preview generation (`ffmpeg`).
+    * Metadata extraction (duration, channels) for MP3, FLAC, Ogg, etc. (`ffprobe`).
+    * If not found, these features will be disabled. The paths can be configured in `config.toml` or via flags/env vars.
+
+-----
+
+## ⚙️ Building the Application
+
+The build process compiles the Go backend with the Angular frontend embedded directly into the final executable. All commands should be run from the **root directory** of the project.
+
+### 1\. (Optional) Generate API Documentation
+
+If you have made changes to the API handlers, regenerate the Swagger documentation *before* building the frontend.
+
+```bash
+# Ensure you have the swag CLI tool installed
+# go get -u [github.com/swaggo/swag/cmd/swag](https://github.com/swaggo/swag/cmd/swag)
+
+# From the project root, regenerate the docs
+swag init -g ./cmd/mediahub/main.go
+```
+
+The generated documentation is served at the `/swagger/index.html` endpoint.
+
+### 2\. Build the Frontend (Angular UI)
+
+This step builds the static Angular application and places the output files where the Go backend can find and embed them.
+
+```bash
+# Navigate into the frontend directory
+cd frontend
+
+# Install Node.js dependencies
+npm install
+
+# Build the static assets for production
+ng build
+
+# Go back to the root directory
+cd ..
+```
+
+The `angular.json` file is configured to output the build to `cmd/mediahub/frontend_embed/`. This location is crucial for the Go compiler to find and embed the files.
+
+### 3\. Build the Backend (Go API)
+
+This final step compiles the Go application, embeds the frontend, and creates a single executable file.
+
+**Important:** This project uses `mattn/go-sqlite3`, which requires CGO. You **must** enable CGO for the build to succeed.
+
+**On Linux/macOS:**
+
+```bash
+# From the project root directory
+CGO_ENABLED=1 go build -o mediahub ./cmd/mediahub
+```
+
+**On Windows (PowerShell):**
+
+```powershell
+# From the project root directory
+$env:CGO_ENABLED=1
+go build -o mediahub.exe ./cmd/mediahub
+```
+
+This command creates a single executable file named `mediahub` (or `mediahub.exe`) in your project root. This file contains the entire application, including the web UI.
+
+-----
+
 ## 📚 Code Overview
 
 The application is a monorepo containing two main parts:
@@ -295,6 +299,17 @@ The application is a monorepo containing two main parts:
       * Provides a user interface for logging in, viewing databases, uploading files, and editing entry details.
       * Uses Angular's built-in router for navigation and HttpClient for API communication.
       * Dynamically adapts the UI based on the authenticated user's permissions.
+
+-----
+
+## 💼 Support and commercial features
+
+You can use the free version for commercial use cases without any restrictions.
+If you are in need of software support or you are interested in a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). 
+
+Available commercial features include:
+  * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
+  * single sign on via OIDC (e.g., using keycloak)
 
 -----
 

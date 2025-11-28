@@ -49,3 +49,6 @@ storage_root/
 
 # Password file
 passwordfile.txt
+
+# screenshots in png version
+screenshots/png
