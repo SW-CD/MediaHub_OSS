@@ -483,7 +483,7 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Uploads a new entry to a specified database using multipart/form-data. The metadata part should be a JSON object containing the entry's timestamp, and any custom fields.\nThe 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.\n\nThis endpoint uses a hybrid model:\n- **Small files (\u003c= 8MB):** Processed synchronously. Returns ` + "`" + `201 Created` + "`" + ` with the full entry metadata.\n- **Large files (\u003e 8MB):** Processed asynchronously. Returns ` + "`" + `202 Accepted` + "`" + ` with a partial response. The client should poll ` + "`" + `GET /api/entry/meta` + "`" + ` until the ` + "`" + `status` + "`" + ` field is 'ready'.",
+                "description": "Uploads a new entry to a specified database using multipart/form-data. The metadata part should be a JSON object containing the entry's timestamp, and any custom fields.\nThe 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.\n\nThis endpoint uses a hybrid model:\n- **Small files (\u003c= Configured Limit):** Processed synchronously. Returns ` + "`" + `201 Created` + "`" + ` with the full entry metadata.\n- **Large files (\u003e Configured Limit):** Processed asynchronously. Returns ` + "`" + `202 Accepted` + "`" + ` with a partial response. The client should poll ` + "`" + `GET /api/entry/meta` + "`" + ` until the ` + "`" + `status` + "`" + ` field is 'ready'.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -714,9 +714,10 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves a raw entry file.",
+                "description": "Retrieves a raw entry file. Supports Content Negotiation via Accept header.",
                 "produces": [
-                    "application/octet-stream"
+                    "application/octet-stream",
+                    "application/json"
                 ],
                 "tags": [
                     "entry"
@@ -740,9 +741,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The raw file data",
+                        "description": "Base64 encoded file data (if Accept: application/json)",
                         "schema": {
-                            "type": "file"
+                            "$ref": "#/definitions/models.FileJSONResponse"
                         }
                     },
                     "400": {
@@ -850,9 +851,10 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves a 200x200 JPEG preview of an entry.",
+                "description": "Retrieves a 200x200 JPEG preview of an entry. Supports Content Negotiation via Accept header.",
                 "produces": [
-                    "image/jpeg"
+                    "image/jpeg",
+                    "application/json"
                 ],
                 "tags": [
                     "entry"
@@ -876,9 +878,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The JPEG preview image",
+                        "description": "Base64 encoded preview data (if Accept: application/json)",
                         "schema": {
-                            "type": "file"
+                            "$ref": "#/definitions/models.FileJSONResponse"
                         }
                     },
                     "400": {
@@ -1603,6 +1605,21 @@ const docTemplate = `{
         "models.Entry": {
             "type": "object",
             "additionalProperties": true
+        },
+        "models.FileJSONResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Base64 encoded string with data URI prefix",
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                }
+            }
         },
         "models.Housekeeping": {
             "type": "object",
