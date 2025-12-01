@@ -4,10 +4,10 @@
 
 Uploads a new file to a specific database using `multipart/form-data`. This allows for sending both JSON metadata (including custom fields) and the raw file binary in a single request.
 
-The backend validates the file's MIME type and intelligently detects the upload size to determine the processing strategy:
+The backend validates the file's MIME type and intelligently detects the upload size to determine the processing strategy based on the configured `max_sync_upload_size` (default: 8MB).
 
-  * **Small Files (In-Memory):** Are processed **synchronously** for storage and format conversion. However, **preview generation** is handled in the background to improve response times. Returns `201 Created` with the entry metadata. The `status` field will be `"processing"` if a preview is being generated, or `"ready"` if previews are disabled.
-  * **Large Files (On-Disk):** Are processed **asynchronously**. The backend secures the file for background processing and returns a `202 Accepted` status *immediately*. The client must then poll the `GET /api/entry/meta` endpoint until the entry's `status` field changes from `"processing"` to `"ready"`.
+  * **Small Files (In-Memory):** Files smaller than or equal to the configured threshold are processed **synchronously** for storage and format conversion. However, **preview generation** is handled in the background to improve response times. Returns `201 Created` with the entry metadata. The `status` field will be `"processing"` if a preview is being generated, or `"ready"` if previews are disabled.
+  * **Large Files (On-Disk):** Files larger than the configured threshold are processed **asynchronously**. The backend secures the file for background processing and returns a `202 Accepted` status *immediately*. The client must then poll the `GET /api/entry/meta` endpoint until the entry's `status` field changes from `"processing"` to `"ready"`.
 
 **Role Required: `CanCreate`**
 

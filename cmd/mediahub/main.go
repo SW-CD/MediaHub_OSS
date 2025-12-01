@@ -35,6 +35,7 @@ type CLIConfig struct {
 	FFmpegPath    string
 	FFprobePath   string
 	JWTSecret     string
+	MaxSyncUpload string // New flag for upload threshold
 }
 
 //go:embed all:frontend_embed/browser
@@ -79,6 +80,7 @@ func customUsage() {
 	fmt.Fprintf(os.Stderr, "  FDB_FFPROBE_PATH\t(see --ffprobe-path)\n")
 	fmt.Fprintf(os.Stderr, "  FDB_INIT_CONFIG\t(see --init_config)\n")
 	fmt.Fprintf(os.Stderr, "  FDB_JWT_SECRET\t(see --jwt-secret)\n")
+	fmt.Fprintf(os.Stderr, "  FDB_MAX_SYNC_UPLOAD\t(see --max-sync-upload)\n")
 }
 
 func main() {
@@ -108,6 +110,7 @@ func main() {
 	flag.StringVar(&cliCfg.FFmpegPath, "ffmpeg-path", "", "Path to ffmpeg executable. (Env: FDB_FFMPEG_PATH)")
 	flag.StringVar(&cliCfg.FFprobePath, "ffprobe-path", "", "Path to ffprobe executable. (Env: FDB_FFPROBE_PATH)")
 	flag.StringVar(&cliCfg.JWTSecret, "jwt-secret", "", "Secret key for signing JWTs. (Env: FDB_JWT_SECRET)")
+	flag.StringVar(&cliCfg.MaxSyncUpload, "max-sync-upload", "", "Max size for synchronous/in-memory uploads (e.g. '8MB'). (Env: FDB_MAX_SYNC_UPLOAD)")
 
 	var initConfigPath string // This variable will be filled by the flag
 	flag.StringVar(&initConfigPath, "init_config", initConfigPathDefault, "Path to a TOML config file for one-time initialization of users/databases. (Env: FDB_INIT_CONFIG)")
@@ -142,6 +145,12 @@ func main() {
 
 	// 3. Override with CLI flags and environment variables
 	overrideConfigFromEnvAndCLI(&cliCfg, cfg)
+
+	// 4. Validate and Parse Configuration (including size strings)
+	if err := cfg.ParseAndValidate(); err != nil {
+		fmt.Printf("Configuration error: %v\n", err)
+		os.Exit(1)
+	}
 
 	// JWT Secret Initialization Logic
 	// Priority 1: Use secret from flag/env
@@ -187,14 +196,14 @@ func main() {
 	userService := services.NewUserService(repo)
 
 	// Initialize Token Service
-	tokenService := auth.NewTokenService(cfg, userService, repo) // <-- NEW
+	tokenService := auth.NewTokenService(cfg, userService, repo)
 
 	databaseService := services.NewDatabaseService(repo, storageService)
 	entryService := services.NewEntryService(repo, storageService, cfg)
 	housekeepingService := services.NewHousekeepingService(repo, storageService)
 
 	// Initialize Auth Middleware (Hybrid)
-	authMiddleware := auth.NewMiddleware(userService, tokenService) // <-- UPDATED
+	authMiddleware := auth.NewMiddleware(userService, tokenService)
 
 	// Call Admin User Setup from UserService ---
 	if err := userService.InitializeAdminUser(cfg); err != nil {
@@ -226,7 +235,7 @@ func main() {
 	r := api.SetupRouter(h, authMiddleware, cfg, frontendFS)
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	logging.Log.Infof("Server starting on %s", serverAddr)
+	logging.Log.Infof("Server starting on %s (Max Sync Upload: %s)", serverAddr, cfg.Server.MaxSyncUploadSize)
 	if err := http.ListenAndServe(serverAddr, r); err != nil {
 		logging.Log.Fatalf("Failed to start server: %v", err)
 	}
@@ -265,6 +274,9 @@ func overrideConfigFromEnvAndCLI(cliCfg *CLIConfig, cfg *config.Config) {
 	if envJWTSecret := os.Getenv("FDB_JWT_SECRET"); envJWTSecret != "" {
 		cfg.JWTSecret = envJWTSecret
 	}
+	if envMaxSync := os.Getenv("FDB_MAX_SYNC_UPLOAD"); envMaxSync != "" {
+		cfg.Server.MaxSyncUploadSize = envMaxSync
+	}
 
 	// --- Load from CLI Flags SECOND (to override env) ---
 	if cliCfg.Password != "" {
@@ -287,6 +299,9 @@ func overrideConfigFromEnvAndCLI(cliCfg *CLIConfig, cfg *config.Config) {
 	}
 	if cliCfg.JWTSecret != "" {
 		cfg.JWTSecret = cliCfg.JWTSecret
+	}
+	if cliCfg.MaxSyncUpload != "" {
+		cfg.Server.MaxSyncUploadSize = cliCfg.MaxSyncUpload
 	}
 
 	// --- Set Defaults ---

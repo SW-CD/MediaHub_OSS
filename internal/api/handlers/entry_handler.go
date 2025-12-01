@@ -19,8 +19,8 @@ import (
 // @Description The 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.
 // @Description
 // @Description This endpoint uses a hybrid model:
-// @Description - **Small files (<= 8MB):** Processed synchronously. Returns `201 Created` with the full entry metadata.
-// @Description - **Large files (> 8MB):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
+// @Description - **Small files (<= Configured Limit):** Processed synchronously. Returns `201 Created` with the full entry metadata.
+// @Description - **Large files (> Configured Limit):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
 // @Tags entry
 // @Accept  mpfd
 // @Produce  json
@@ -46,12 +46,15 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Parse multipart form
 	// ---
-	// Use ParseMultipartForm
-	// This is the key that enables the (*os.File) type assertion.
-	// We set a max in-memory size (e.g., 8MB). Anything larger
-	// will be spooled to a temp file on disk by the http server.
+	// Use ParseMultipartForm with the configurable memory limit.
+	// This determines if files are held in memory (small) or spooled to disk (large).
 	// ---
-	if err := r.ParseMultipartForm(8 << 20); err != nil { // 8MB max in-memory
+	maxMemory := h.Cfg.MaxSyncUploadSizeBytes
+	if maxMemory <= 0 {
+		maxMemory = 8 << 20 // Safety fallback (8MB) if config somehow failed
+	}
+
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
 		logging.Log.Warnf("Failed to parse multipart form: %v", err)
 		respondWithError(w, http.StatusBadRequest, "Failed to parse multipart form.")
 		return

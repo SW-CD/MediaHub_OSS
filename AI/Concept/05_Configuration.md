@@ -9,6 +9,7 @@ User management is handled via API endpoints, with the initial admin user being 
 The server uses two types of configuration files:
 
   * **Base Configuration (`config.toml`)**: Loaded on every startup. This file defines the base settings for the server, such as the port and database paths.
+
   * **Initialization Configuration (`--init_config`)**: An optional file, specified by a flag, that is run *only once*. It is used to create users and databases that do not already exist, making it ideal for automated deployments.
 
 ### 2\. Command-Line Interface
@@ -16,11 +17,19 @@ The server uses two types of configuration files:
 The executable accepts the following flags:
 
   * `--help` or `help`: Prints a short description of the app's functionality and all available options.
+
   * `--port` (int): The port for the HTTP server. (Overrides `config.toml` and `IMS_PORT`).
+
   * `--log-level` (string): The logging level (`debug`, `info`, `warn`, `error`). (Overrides `config.toml` and `IMS_LOG_LEVEL`).
+
   * `--password` (string): The password for the 'admin' user (used on first run or with `--reset_pw`). (Overrides `IMS_PASSWORD`).
+
   * `--reset_pw` (bool): If `true`, resets the 'admin' password on startup to the one provided. (Overrides `IMS_RESET_PW`).
+
+  * `--max-sync-upload` (string): Max size for synchronous/in-memory uploads (e.g. "8MB"). Larger files are processed asynchronously on disk. (Overrides `config.toml`).
+
   * `--config_path` (string): Path to the base TOML configuration file. (Default: `config.toml`).
+
   * `--init_config` (string): Path to a TOML config file for one-time initialization of users/databases. (Default: `""`).
 
 ### 3\. Environment Variables
@@ -28,11 +37,19 @@ The executable accepts the following flags:
 If a CLI flag is not provided, the application will check for these environment variables:
 
   * `IMS_PORT`: See `--port`.
+
   * `IMS_LOG_LEVEL`: See `--log-level`.
+
   * `IMS_PASSWORD`: See `--password`.
+
   * `IMS_RESET_PW`: See `--reset_pw` (e.g., `IMS_RESET_PW=true`).
+
+  * `FDB_MAX_SYNC_UPLOAD`: See `--max-sync-upload`.
+
   * `DATABASE_PATH`: The path to the SQLite database file. (Overrides `config.toml`).
+
   * `STORAGE_ROOT`: The root directory where files will be stored. (Overrides `config.toml`).
+
   * `IMS_CONFIG_PATH`: See `--config_path`.
 
 ### 4\. Config File Initialization (`--init_config`)
@@ -40,10 +57,12 @@ If a CLI flag is not provided, the application will check for these environment 
 You can provide a TOML configuration file on startup using the `--init_config` flag. The server will read this file and **create any users or databases that do not already exist**.
 
   * This process **will not overwrite** existing users or databases.
+
   * After a successful run, the server will **attempt to overwrite the config file** to remove the plaintext `password` fields for security.
+
   * If this write fails (e.g., due to file permissions), the server will log a warning and continue, but you should **manually secure the file** to remove the passwords.
 
-**Example `config.toml`:**
+**Example `initconfig.toml`:**
 
 ```toml
 [[user]]

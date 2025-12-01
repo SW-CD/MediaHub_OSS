@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mediahub/internal/config" // <-- Added import
 	"mediahub/internal/models"
 	"mediahub/internal/services"
 	"mime/multipart"
@@ -37,6 +38,11 @@ func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *MockEntryService
 		UptimeSince: time.Now(),
 	})
 
+	// Create a dummy config to prevent panic in UploadEntry
+	dummyCfg := &config.Config{
+		MaxSyncUploadSizeBytes: 8 << 20, // 8MB default for tests
+	}
+
 	h := NewHandlers(
 		infoSvc,      // info
 		nil,          // user
@@ -44,7 +50,7 @@ func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *MockEntryService
 		mockDbSvc,    // database (for GetEntryMeta)
 		mockEntrySvc, // entry
 		nil,          // housekeeping
-		nil,          // cfg
+		dummyCfg,     // cfg <-- Passed valid config instead of nil
 	)
 
 	r := mux.NewRouter()
