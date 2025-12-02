@@ -457,3 +457,37 @@ Returns a report of actions taken.
   * **Status 401 - Unauthorized**: Authentication failed.
   * **Status 403 - Forbidden**: User lacks `CanDelete` role.
   * **Status 404 - Not Found**: Database 'MyAudioDatabase' not found.
+
+-----
+
+#### GET /api/database/export
+
+**New in v1.2**: streams the entire contents of a database (files and metadata) as a ZIP archive.
+**Performance Note**: This endpoint uses `io.Pipe` to stream data directly from disk to the HTTP response. It does **not** load the files into RAM, allowing for multi-gigabyte exports on low-memory devices.
+
+**Role Required: `CanView`** (Note: Might restrict to `IsAdmin` in future depending on policy, currently matches View access).
+
+##### Request
+
+`GET /api/database/export?name=$name`
+
+  * **name** (query param, required): The name of the database to export.
+
+##### Success Response
+
+**Status 200 - OK**
+
+  * **Content-Type:** `application/zip`
+  * **Content-Disposition:** `attachment; filename="MyAudioDatabase_export.zip"`
+  * **Body:** A binary ZIP stream containing:
+    * Folder structure: `YYYY/MM/ID` (matching storage).
+    * `_metadata.json`: A dump of the database configuration.
+    * `entries.json`: A dump of all entry metadata.
+
+##### Error Responses
+
+  * **Status 400 - Bad Request**: Missing 'name' query parameter.
+  * **Status 401 - Unauthorized**: Authentication failed.
+  * **Status 403 - Forbidden**: User lacks permissions.
+  * **Status 404 - Not Found**: Database not found.
+  * **Status 500 - Internal Server Error**: ZIP streaming failed.
