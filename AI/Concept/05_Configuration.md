@@ -1,6 +1,6 @@
 ## 🔧 Configuration and CLI
 
-The application uses the **Cobra** framework for CLI commands. Configuration is layered, with specific precedence rules to ensure flexibility across different deployment environments (Docker, Systemd, Local).
+The application uses the **Cobra** framework for command-line operations. Configuration is handled via a strict hierarchy to ensure flexibility across different deployment environments (Docker, Systemd, Local).
 
 ### 1. Configuration Precedence
 
@@ -13,36 +13,40 @@ The application resolves configuration values in the following order (highest pr
 
 ---
 
-### 2. CLI Commands & Flags
+### 2. Default Behavior (Server)
 
-The application is structured around subcommands.
+To maintain backward compatibility with v1.1, running the binary **without any subcommand** will start the HTTP API and Web Interface. All server-related flags are available at the root level.
 
-#### Root Command (Global Flags)
-These flags apply to **all** subcommands (`serve`, `recovery`, `migrate`).
+**Usage:**
+```bash
+# Start server with defaults (port 8080, config.toml)
+./mediahub
+
+# Start server with overrides
+./mediahub --port 9090 --log-level debug --max-sync-upload "50MB"
+```
+
+**Global & Server Flags:**
 
 | Flag | Env Variable | Description | Default |
 | :--- | :--- | :--- | :--- |
 | `--config_path` | `FDB_CONFIG_PATH` | Path to the base TOML configuration file. | `config.toml` |
 | `--log-level` | `FDB_LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warn`, `error`). | `info` |
-
-#### `serve` Command
-Runs the main HTTP API server and the embedded Angular web interface.
-
-```bash
-./mediahub serve [flags]
-```
-
-| Flag | Env Variable | Description | Default |
-| :--- | :--- | :--- | :--- |
 | `--port` | `FDB_PORT` | The HTTP port to bind to. | `8080` |
 | `--max-sync-upload` | `FDB_MAX_SYNC_UPLOAD` | RAM threshold for uploads (e.g., "8MB"). Larger files use disk. | `8MB` |
 | `--password` | `FDB_PASSWORD` | The password for the 'admin' user (used on first run or with reset). | `""` |
 | `--reset_pw` | `FDB_RESET_PW` | If `true`, resets the 'admin' password on startup to the one provided. | `false` |
 | `--init_config` | `FDB_INIT_CONFIG` | Path to a TOML config file for one-time initialization of users/databases. | `""` |
 
-#### `recovery` Command
+-----
 
-**New in v1.2**: Runs maintenance tasks to fix data inconsistencies (e.g., after a power loss or crash). Does not start the HTTP server.
+### 3\. Subcommands (Maintenance)
+
+New features in v1.2+ are accessed via explicit subcommands. These commands inherit global flags like `--config_path` and `--log-level`.
+
+#### `recovery`
+
+**New in v1.2**: Runs maintenance tasks to fix data inconsistencies (e.g., after a power loss or hard crash). **Does not start the HTTP server.**
 
 ```bash
 ./mediahub recovery [flags]
@@ -51,9 +55,10 @@ Runs the main HTTP API server and the embedded Angular web interface.
   * **Zombie Fix:** Scans all database tables for entries stuck in `status: "processing"` (caused by interrupted async uploads) and marks them as `error`.
   * **Integrity Check (Planned):** Verifies that file records in SQLite have corresponding files on disk.
 
-#### `migrate` Command
+#### `migrate`
 
-**New in v1.2**: Manually manages database schema versions. (Note: The `serve` command runs migrations automatically on startup, so this is rarely needed manually).
+**New in v1.2**: Manually manages database schema versions.
+*Note: The server automatically applies pending migrations on startup, so this is primarily for development or debugging.*
 
 ```bash
 ./mediahub migrate [status|up|down]
@@ -61,9 +66,9 @@ Runs the main HTTP API server and the embedded Angular web interface.
 
 -----
 
-### 3\. Base Configuration (`config.toml`)
+### 4\. Base Configuration (`config.toml`)
 
-On startup, the application looks for a `config.toml` file. This defines the persistent settings for the server.
+On startup, the application looks for a `config.toml` file (path configurable via `--config_path`).
 
 **Example `config.toml`:**
 
@@ -100,12 +105,12 @@ secret = "..."
 
 -----
 
-### 4\. One-Time Initialization (`--init_config`)
+### 5\. One-Time Initialization (`--init_config`)
 
 You can provide a *separate* TOML configuration file on startup using the `--init_config` flag (or `FDB_INIT_CONFIG` env var). The server will read this file and **create any users or databases that do not already exist**.
 
   * **Behavior:** It creates missing resources. It does **not** overwrite existing users or databases.
-  * **Security:** After a successful run, the server will **attempt to overwrite the init config file** to remove the plaintext `password` fields. If this fails (permissions), a warning is logged.
+  * **Security:** After a successful run, the server will **attempt to overwrite the init config file** to remove the plaintext `password` fields. If this fails (e.g., due to file permissions), a warning is logged.
 
 **Example Init Config (`my-init.toml`):**
 
@@ -154,9 +159,9 @@ custom_fields = [
 
 -----
 
-### 5\. Admin User Startup Logic
+### 6\. Admin User Startup Logic
 
-The application ensures an administrator account exists on every startup of the `serve` command.
+The application ensures an administrator account exists on every startup of the server. This logic is handled by the `UserService`.
 
 1.  **Check for 'admin' user:** The server queries the `users` table for a user with `username = 'admin'`.
 2.  **Case 1: 'admin' user does NOT exist (First Run)**
