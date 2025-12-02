@@ -2,7 +2,7 @@
 package repository
 
 import (
-	"encoding/json" // <-- ADDED
+	"encoding/json"
 	"mediahub/internal/models"
 	"testing"
 
@@ -17,7 +17,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	db := models.Database{
 		Name:        "SearchQueryTestDB",
 		ContentType: "image",
-		Config:      json.RawMessage("{}"), // <-- FIX: Initialize Config
+		Config:      json.RawMessage("{}"),
 		CustomFields: []models.CustomField{
 			{Name: "ml_score", Type: "REAL"},
 			{Name: "description", Type: "TEXT"},
@@ -30,12 +30,22 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 
 	// Create entries
-	// ---
-	// FIX: Added "status": "ready" to all test entries
-	// ---
-	entry1 := models.Entry{"timestamp": 1, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg", "filename": "", "status": "ready", "ml_score": 0.8, "description": "Red Car", "is_vehicle": true}
-	entry2 := models.Entry{"timestamp": 2, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg", "filename": "", "status": "ready", "ml_score": 0.95, "description": "Person Walking", "is_vehicle": false}
-	entry3 := models.Entry{"timestamp": 3, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg", "filename": "", "status": "ready", "ml_score": 0.5, "description": "Blue Car", "is_vehicle": true}
+	// --- UPDATED: Added distinct filenames and statuses ---
+	entry1 := models.Entry{
+		"timestamp": 1, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg",
+		"filename": "car_photo_01.jpg", "status": "ready",
+		"ml_score": 0.8, "description": "Red Car", "is_vehicle": true,
+	}
+	entry2 := models.Entry{
+		"timestamp": 2, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg",
+		"filename": "person_walking.jpg", "status": "processing", // Different status
+		"ml_score": 0.95, "description": "Person Walking", "is_vehicle": false,
+	}
+	entry3 := models.Entry{
+		"timestamp": 3, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg",
+		"filename": "car_photo_02.png", "status": "ready",
+		"ml_score": 0.5, "description": "Blue Car", "is_vehicle": true,
+	}
 	createTestEntry(t, service, db.Name, entry1)
 	createTestEntry(t, service, db.Name, entry2)
 	createTestEntry(t, service, db.Name, entry3)
@@ -133,8 +143,6 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	assert.Equal(t, 0.5, entries[0]["ml_score"])
 	assert.Equal(t, 0.8, entries[1]["ml_score"])
 	assert.Equal(t, 0.95, entries[2]["ml_score"])
-
-	// --- NEW TESTS for LIKE and != ---
 
 	// Test 7: LIKE operator (contains "Car")
 	req7 := models.SearchRequest{
@@ -236,7 +244,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 		Filter: &models.SearchFilter{
 			Field:    "is_vehicle",
 			Operator: ">",
-			Value:    0, // Even comparing to 0/1 shouldn't work with >
+			Value:    0,
 		},
 		Pagination: &pag,
 	}
@@ -244,5 +252,38 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	assert.Error(t, err, "Test 14 Failed: Expected error for > on BOOLEAN field")
 	if err != nil {
 		assert.Contains(t, err.Error(), "operator '>' is not allowed for field 'is_vehicle'")
+	}
+
+	// --- NEW TESTS: Standard Fields ---
+
+	// Test 15: Search by filename (LIKE)
+	// We have filenames: "car_photo_01.jpg", "person_walking.jpg", "car_photo_02.png"
+	req15 := models.SearchRequest{
+		Filter: &models.SearchFilter{
+			Field:    "filename",
+			Operator: "LIKE",
+			Value:    "photo",
+		},
+		Pagination: &pag,
+	}
+	entries, err = service.SearchEntries(db.Name, &req15, db.CustomFields)
+	assert.NoError(t, err)
+	assert.Len(t, entries, 2, "Test 15 Failed: Expected 2 entries with filename containing 'photo'")
+
+	// Test 16: Search by status (=)
+	// We have: ready, processing, ready
+	req16 := models.SearchRequest{
+		Filter: &models.SearchFilter{
+			Field:    "status",
+			Operator: "=",
+			Value:    "processing",
+		},
+		Pagination: &pag,
+	}
+	entries, err = service.SearchEntries(db.Name, &req16, db.CustomFields)
+	assert.NoError(t, err)
+	assert.Len(t, entries, 1, "Test 16 Failed: Expected 1 entry with status 'processing'")
+	if len(entries) == 1 {
+		assert.Equal(t, "processing", entries[0]["status"])
 	}
 }

@@ -75,7 +75,16 @@ func (s *Repository) SearchEntries(dbName string, req *models.SearchRequest, cus
 
 	// 1. Build Field Whitelist
 	allowedFields := map[string]bool{
-		"id": true, "timestamp": true, "width": true, "height": true, "filesize": true, "mime_type": true, "duration_sec": true, "channels": true,
+		"id":           true,
+		"timestamp":    true,
+		"width":        true,
+		"height":       true,
+		"filesize":     true,
+		"mime_type":    true,
+		"duration_sec": true,
+		"channels":     true,
+		"filename":     true,
+		"status":       true,
 	}
 	for _, cf := range customFields {
 		allowedFields[cf.Name] = true
@@ -275,6 +284,8 @@ func getFieldType(fieldName string, customFields []models.CustomField) string {
 		"mime_type":    "TEXT",
 		"duration_sec": "REAL",
 		"channels":     "INTEGER",
+		"filename":     "TEXT",
+		"status":       "TEXT",
 	}
 
 	if stdType, ok := standardTypes[fieldName]; ok {
@@ -291,7 +302,6 @@ func getFieldType(fieldName string, customFields []models.CustomField) string {
 	return "UNKNOWN" // Should not happen if field was whitelisted
 }
 
-// --- NEW HELPER: isOperatorAllowedForType ---
 // Checks if a given operator is suitable for a field type.
 func isOperatorAllowedForType(operator string, fieldType string) bool {
 	// LIKE is only for TEXT
