@@ -58,7 +58,6 @@ New features in v1.2+ are accessed via explicit subcommands. These commands inhe
 #### `migrate`
 
 **New in v1.2**: Manually manages database schema versions.
-*Note: The server automatically applies pending migrations on startup, so this is primarily for development or debugging.*
 
 ```bash
 ./mediahub migrate [status|up|down]

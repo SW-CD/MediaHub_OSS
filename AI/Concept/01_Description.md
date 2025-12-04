@@ -3,7 +3,7 @@
 This document describes the API and data layout of a robust, industrial-grade database for **files (images, audio, and other binary data)**. The database stores files directly as separate files in folders in the filesystem, and related metadata in SQLite.
 
 It is implemented in Go as a modular application. It exposes a **CLI (Command Line Interface)** for various operations:
-1.  **`serve`**: Runs the HTTP REST API server and the embedded Angular web interface.
+1.  **Default (No command)**: Runs the HTTP REST API server and the embedded Angular web interface.
 2.  **`recovery`**: Runs maintenance tasks to fix inconsistent states (e.g., after a power loss).
 3.  **`migrate`**: Manages database schema versions.
 
