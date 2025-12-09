@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context" // <-- Added
 	"mediahub/internal/config"
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
@@ -12,12 +13,25 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// --- MOCK AUDITOR (NEW) ---
+type MockAuditor struct {
+	mock.Mock
+}
+
+var _ services.Auditor = (*MockAuditor)(nil)
+
+func (m *MockAuditor) Log(ctx context.Context, action string, actor string, resource string, details map[string]interface{}) {
+	m.Called(ctx, action, actor, resource, details)
+}
+
 // --- MOCK USER SERVICE ---
 type MockUserService struct {
 	mock.Mock
 }
 
-// --- REFACTOR: Compile-time check to ensure struct implements interface ---
+// ... existing MockUserService methods ...
+// (Retaining existing code, just showing the addition of MockAuditor above)
+
 var _ services.UserService = (*MockUserService)(nil)
 
 func (m *MockUserService) GetUserByUsername(username string) (*models.User, error) {
@@ -68,7 +82,7 @@ func (m *MockUserService) InitializeAdminUser(cfg *config.Config) error {
 	return args.Error(0)
 }
 
-// --- MOCK TOKEN SERVICE (NEW) ---
+// --- MOCK TOKEN SERVICE ---
 type MockTokenService struct {
 	mock.Mock
 }

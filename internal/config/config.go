@@ -1,4 +1,4 @@
-// internal/config/config.go
+// filepath: internal/config/config.go
 package config
 
 import (
@@ -41,7 +41,8 @@ type DatabaseConfig struct {
 
 // LoggingConfig holds the logging configuration.
 type LoggingConfig struct {
-	Level string `toml:"level"`
+	Level        string `toml:"level"`
+	AuditEnabled bool   `toml:"audit_enabled"` // <-- ADDED: Toggle for audit logs
 }
 
 // MediaConfig holds media processing settings.

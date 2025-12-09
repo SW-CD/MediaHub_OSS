@@ -11,6 +11,14 @@ import (
 	"strings"
 )
 
+// Helper to get username from context
+func getUserFromContext(r *http.Request) string {
+	if user, ok := r.Context().Value("user").(*models.User); ok {
+		return user.Username
+	}
+	return "unknown"
+}
+
 // @Summary Create a new database
 // @Description Creates a new database with custom fields and a dedicated entry table.
 // @Tags database
@@ -24,7 +32,6 @@ import (
 // @Security BasicAuth
 // @Router /database [post]
 func (h *Handlers) CreateDatabase(w http.ResponseWriter, r *http.Request) {
-	// --- Use payload from models package ---
 	var payload models.DatabaseCreatePayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		logging.Log.Warnf("Failed to decode request body: %v", err)
@@ -41,14 +48,11 @@ func (h *Handlers) CreateDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Call service with the payload ---
 	createdDB, err := h.Database.CreateDatabase(payload)
 	if err != nil {
 		if errors.Is(err, services.ErrDependencies) {
-			// e.g., FFmpeg check failed
 			respondWithError(w, http.StatusBadRequest, err.Error())
 		} else if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			// This error comes from the repository
 			respondWithError(w, http.StatusConflict, "Database name already in use.")
 		} else if strings.Contains(err.Error(), "invalid database name") {
 			respondWithError(w, http.StatusBadRequest, err.Error())
@@ -58,6 +62,11 @@ func (h *Handlers) CreateDatabase(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Audit Log
+	h.Auditor.Log(r.Context(), "database.create", getUserFromContext(r), createdDB.Name, map[string]interface{}{
+		"content_type": createdDB.ContentType,
+	})
 
 	logging.Log.Infof("Database created successfully: %s", createdDB.Name)
 	respondWithJSON(w, http.StatusCreated, createdDB)
@@ -81,7 +90,6 @@ func (h *Handlers) GetDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Call DatabaseService ---
 	db, err := h.Database.GetDatabase(name)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Database not found.")
@@ -100,14 +108,12 @@ func (h *Handlers) GetDatabase(w http.ResponseWriter, r *http.Request) {
 // @Security BasicAuth
 // @Router /databases [get]
 func (h *Handlers) GetDatabases(w http.ResponseWriter, r *http.Request) {
-	// --- Call DatabaseService ---
 	dbs, err := h.Database.GetDatabases()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to retrieve databases.")
 		return
 	}
 
-	// Ensure an empty array `[]` is returned instead of `null` if no databases exist
 	if dbs == nil {
 		dbs = []models.Database{}
 	}
@@ -135,18 +141,15 @@ func (h *Handlers) UpdateDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Use payload from models package ---
 	var updates models.DatabaseUpdatePayload
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	// --- Call service with the payload ---
 	updatedDB, err := h.Database.UpdateDatabase(name, updates)
 	if err != nil {
 		if errors.Is(err, services.ErrDependencies) {
-			// e.g., FFmpeg check failed
 			respondWithError(w, http.StatusBadRequest, err.Error())
 		} else if err.Error() == "database not found" {
 			respondWithError(w, http.StatusNotFound, err.Error())
@@ -156,7 +159,9 @@ func (h *Handlers) UpdateDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return the full updated database object
+	// Audit Log
+	h.Auditor.Log(r.Context(), "database.update", getUserFromContext(r), name, nil)
+
 	respondWithJSON(w, http.StatusOK, updatedDB)
 }
 
@@ -178,10 +183,8 @@ func (h *Handlers) DeleteDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Call DatabaseService ---
 	if err := h.Database.DeleteDatabase(name); err != nil {
-		// Differentiate between "not found" and other errors
-		if strings.Contains(err.Error(), "not found") { // Improve error checking if possible
+		if strings.Contains(err.Error(), "not found") {
 			respondWithError(w, http.StatusNotFound, "Database not found.")
 		} else if strings.Contains(err.Error(), "invalid database name") {
 			respondWithError(w, http.StatusBadRequest, "Invalid database name.")
@@ -190,6 +193,9 @@ func (h *Handlers) DeleteDatabase(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Audit Log
+	h.Auditor.Log(r.Context(), "database.delete", getUserFromContext(r), name, nil)
 
 	logging.Log.Infof("Database deleted successfully: %s", name)
 	respondWithJSON(w, http.StatusOK, MessageResponse{

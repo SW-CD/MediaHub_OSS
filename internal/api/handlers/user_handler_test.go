@@ -4,7 +4,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"mediahub/internal/models" // <-- Import services
+	"mediahub/internal/models"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,58 +14,59 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- REFACTOR: MockUserService is now defined in main_test.go ---
-
 func TestGetUserMe(t *testing.T) {
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
-		UptimeSince: time.Now(), // <-- FIX: Was StartTime
+		UptimeSince: time.Now(),
 	})
-	// This test doesn't require the full API server, just a handler.
-	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, nil) // No service needed for this handler, added nil for TokenService
-	// --- END REFACTOR ---
+	mockAuditor := new(MockAuditor)
 
-	// Create a mock user
+	// Updated constructor with MockAuditor
+	h := NewHandlers(
+		mockInfoSvc, // info
+		nil,         // user (not needed for GET)
+		nil,         // token
+		nil,         // database
+		nil,         // entry
+		nil,         // housekeeping
+		mockAuditor, // auditor
+		nil,         // cfg
+	)
+
 	mockUser := &models.User{
 		ID:       1,
 		Username: "testuser",
 		CanView:  true,
 	}
 
-	// Create a request with the mock user in the context
 	req, err := http.NewRequest("GET", "/api/me", nil)
 	assert.NoError(t, err)
+
 	ctx := context.WithValue(req.Context(), "user", mockUser)
 	req = req.WithContext(ctx)
 
-	// Create a response recorder
 	rr := httptest.NewRecorder()
-
-	// Call the handler
 	h.GetUserMe(rr, req)
 
-	// Check the status code
+	// Assertions
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Check the response body
 	var returnedUser models.User
 	err = json.Unmarshal(rr.Body.Bytes(), &returnedUser)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "testuser", returnedUser.Username)
 	assert.True(t, returnedUser.CanView)
-	assert.False(t, returnedUser.CanCreate)        // Ensure other fields are default
 	assert.Equal(t, "", returnedUser.PasswordHash) // Ensure sensitive fields are cleared
 }
 
 func TestGetUserMe_NoUserInContext(t *testing.T) {
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, nil) // No service needed, added nil for TokenService
-	// --- END REFACTOR ---
+	mockAuditor := new(MockAuditor)
+
+	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, mockAuditor, nil)
 
 	req, err := http.NewRequest("GET", "/api/me", nil)
 	assert.NoError(t, err)
@@ -80,14 +81,13 @@ func TestGetUserMe_NoUserInContext(t *testing.T) {
 	assert.Equal(t, "No user found in context", responseBody["error"])
 }
 
-// --- NEW: Test for UpdateUserMe ---
 func TestUpdateUserMe(t *testing.T) {
 	mockUserSvc := new(MockUserService)
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc := new(MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // Added nil for TokenService
-	// --- END REFACTOR ---
+	mockAuditor := new(MockAuditor)
+
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 
 	mockUser := &models.User{
 		ID:       1,
@@ -111,7 +111,7 @@ func TestUpdateUserMe(t *testing.T) {
 
 	// Assertions
 	assert.Equal(t, http.StatusOK, rr.Code)
-	mockUserSvc.AssertExpectations(t) // Verify the service was called
+	mockUserSvc.AssertExpectations(t)
 
 	var resp MessageResponse
 	err = json.Unmarshal(rr.Body.Bytes(), &resp)

@@ -1,8 +1,9 @@
 # v1.2
 Features:
 - make the "large file" threshold configurable.
-- implement database schema versions to enable migrations in the future. (TODO)
-- implement a "recovery" command, for database consistency checks after, e.g., a server crash (TODO)
+- implement database schema versions to enable migrations in the future.
+- implement a "recovery" command, for database consistency checks after, e.g., a server crash
+- implement auditor logging, which has to be enabled explicitly
 - implement bulk delete and bulk download functionalities (TODO)
 Bug fixes:
 - fix swagger documentation not being up to date

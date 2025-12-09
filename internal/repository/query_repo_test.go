@@ -30,7 +30,6 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 
 	// Create entries
-	// --- UPDATED: Added distinct filenames and statuses ---
 	entry1 := models.Entry{
 		"timestamp": 1, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg",
 		"filename": "car_photo_01.jpg", "status": "ready",
@@ -38,7 +37,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entry2 := models.Entry{
 		"timestamp": 2, "width": 1, "height": 1, "filesize": 1, "mime_type": "image/jpeg",
-		"filename": "person_walking.jpg", "status": "processing", // Different status
+		"filename": "person_walking.jpg", "status": "processing",
 		"ml_score": 0.95, "description": "Person Walking", "is_vehicle": false,
 	}
 	entry3 := models.Entry{
@@ -69,7 +68,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 		assert.Equal(t, 0.95, entries[0]["ml_score"])
 	}
 
-	// Test 2: Nested query: (ml_score < 0.9) AND (description = "Blue Car")
+	// Test 2: Nested query
 	req2 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Operator: "and",
@@ -82,26 +81,26 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req2, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 1, "Test 2 Failed: Expected 1 entry for (ml_score < 0.9) AND (description = 'Blue Car')")
+	assert.Len(t, entries, 1)
 	if len(entries) == 1 {
 		assert.Equal(t, 0.5, entries[0]["ml_score"])
 		assert.Equal(t, "Blue Car", entries[0]["description"])
 	}
 
-	// Test 3: Complex nested: (ml_score > 0.9) OR (description = "Red Car")
+	// Test 3: Complex nested
 	req3 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Operator: "or",
 			Conditions: []*models.SearchFilter{
-				{Field: "ml_score", Operator: ">", Value: 0.9},          // entry2
-				{Field: "description", Operator: "=", Value: "Red Car"}, // entry1
+				{Field: "ml_score", Operator: ">", Value: 0.9},
+				{Field: "description", Operator: "=", Value: "Red Car"},
 			},
 		},
 		Pagination: &pag,
 	}
 	entries, err = service.SearchEntries(db.Name, &req3, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 3 Failed: Expected 2 entries for (ml_score > 0.9) OR (description = 'Red Car')")
+	assert.Len(t, entries, 2)
 
 	// Test 4: Invalid field
 	req4 := models.SearchRequest{
@@ -127,7 +126,10 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	_, err = service.SearchEntries(db.Name, &req5, db.CustomFields)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid or unsupported operator: CONTAINS")
+	// --- FIXED ASSERTION ---
+	// The repository now validates operators against types, so "CONTAINS" fails
+	// the isOperatorAllowedForType check before hitting the switch default.
+	assert.Contains(t, err.Error(), "operator 'CONTAINS' is not allowed")
 
 	// Test 6: Sort
 	req6 := models.SearchRequest{
@@ -144,7 +146,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	assert.Equal(t, 0.8, entries[1]["ml_score"])
 	assert.Equal(t, 0.95, entries[2]["ml_score"])
 
-	// Test 7: LIKE operator (contains "Car")
+	// Test 7: LIKE operator
 	req7 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "description",
@@ -155,9 +157,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req7, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 7 Failed: Expected 2 entries for description LIKE '%Car%'") // entry1, entry3
+	assert.Len(t, entries, 2)
 
-	// Test 8: != operator (ml_score != 0.8)
+	// Test 8: != operator
 	req8 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "ml_score",
@@ -168,9 +170,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req8, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 8 Failed: Expected 2 entries for ml_score != 0.8") // entry2, entry3
+	assert.Len(t, entries, 2)
 
-	// Test 9: != operator (description != "Person Walking")
+	// Test 9: != operator string
 	req9 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "description",
@@ -181,9 +183,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req9, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 9 Failed: Expected 2 entries for description != 'Person Walking'") // entry1, entry3
+	assert.Len(t, entries, 2)
 
-	// Test 10: LIKE operator on non-TEXT field (should fail validation)
+	// Test 10: LIKE on non-TEXT
 	req10 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "ml_score",
@@ -193,12 +195,10 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 		Pagination: &pag,
 	}
 	_, err = service.SearchEntries(db.Name, &req10, db.CustomFields)
-	assert.Error(t, err, "Test 10 Failed: Expected error for LIKE on non-TEXT field")
-	if err != nil {
-		assert.Contains(t, err.Error(), "operator 'LIKE' is not allowed for field 'ml_score'")
-	}
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "operator 'LIKE' is not allowed for field 'ml_score'")
 
-	// Test 11: > operator on TEXT field (should fail validation)
+	// Test 11: > on TEXT
 	req11 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "description",
@@ -208,12 +208,10 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 		Pagination: &pag,
 	}
 	_, err = service.SearchEntries(db.Name, &req11, db.CustomFields)
-	assert.Error(t, err, "Test 11 Failed: Expected error for > on TEXT field")
-	if err != nil {
-		assert.Contains(t, err.Error(), "operator '>' is not allowed for field 'description'")
-	}
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "operator '>' is not allowed for field 'description'")
 
-	// Test 12: = operator on BOOLEAN field (true)
+	// Test 12: = on BOOLEAN
 	req12 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "is_vehicle",
@@ -224,9 +222,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req12, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 12 Failed: Expected 2 entries for is_vehicle = true") // entry1, entry3
+	assert.Len(t, entries, 2)
 
-	// Test 13: != operator on BOOLEAN field (false -> means is_vehicle != 0 -> is_vehicle == 1)
+	// Test 13: != on BOOLEAN
 	req13 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "is_vehicle",
@@ -237,9 +235,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req13, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 13 Failed: Expected 2 entries for is_vehicle != false") // entry1, entry3
+	assert.Len(t, entries, 2)
 
-	// Test 14: > operator on BOOLEAN field (should fail validation)
+	// Test 14: > on BOOLEAN
 	req14 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "is_vehicle",
@@ -249,15 +247,10 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 		Pagination: &pag,
 	}
 	_, err = service.SearchEntries(db.Name, &req14, db.CustomFields)
-	assert.Error(t, err, "Test 14 Failed: Expected error for > on BOOLEAN field")
-	if err != nil {
-		assert.Contains(t, err.Error(), "operator '>' is not allowed for field 'is_vehicle'")
-	}
-
-	// --- NEW TESTS: Standard Fields ---
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "operator '>' is not allowed for field 'is_vehicle'")
 
 	// Test 15: Search by filename (LIKE)
-	// We have filenames: "car_photo_01.jpg", "person_walking.jpg", "car_photo_02.png"
 	req15 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "filename",
@@ -268,10 +261,9 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req15, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Test 15 Failed: Expected 2 entries with filename containing 'photo'")
+	assert.Len(t, entries, 2)
 
 	// Test 16: Search by status (=)
-	// We have: ready, processing, ready
 	req16 := models.SearchRequest{
 		Filter: &models.SearchFilter{
 			Field:    "status",
@@ -282,7 +274,7 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	entries, err = service.SearchEntries(db.Name, &req16, db.CustomFields)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 1, "Test 16 Failed: Expected 1 entry with status 'processing'")
+	assert.Len(t, entries, 1)
 	if len(entries) == 1 {
 		assert.Equal(t, "processing", entries[0]["status"])
 	}

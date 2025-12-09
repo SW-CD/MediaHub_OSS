@@ -19,17 +19,22 @@ func TestTriggerHousekeeping(t *testing.T) {
 	mockHKService := new(MockHousekeepingService)
 	// Mock InfoService for NewHandlers
 	mockInfoSvc := new(MockInfoService)
+	// Mock Auditor
+	mockAuditor := new(MockAuditor)
+
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
-		UptimeSince: time.Now(), // <-- FIX: Was StartTime
+		UptimeSince: time.Now(),
 	})
+
 	h := NewHandlers(
 		mockInfoSvc,   // info
 		nil,           // user
-		nil,           // token (Added)
+		nil,           // token
 		nil,           // database
 		nil,           // entry
 		mockHKService, // housekeeping
+		mockAuditor,   // auditor
 		nil,           // cfg
 	)
 

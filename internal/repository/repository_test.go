@@ -2,19 +2,36 @@
 package repository
 
 import (
-	"encoding/json" // <-- ADDED
+	"encoding/json"
 	"mediahub/internal/config"
+	"mediahub/internal/db/migrations" // Import embedded migrations
 	"mediahub/internal/models"
 	"os"
 	"testing"
 
+	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 )
+
+// applyTestMigrations applies all embedded migrations to the test DB.
+func applyTestMigrations(t *testing.T, repo *Repository) {
+	t.Helper()
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("Failed to set goose dialect: %v", err)
+	}
+	// "Up" applies all available migrations
+	if err := goose.Up(repo.DB, "."); err != nil {
+		t.Fatalf("Failed to apply test migrations: %v", err)
+	}
+}
 
 func setupTestDB(t *testing.T) (*Repository, func()) {
 	t.Helper()
 	const dbPath = "test_service.db"
 	const storageRoot = "test_service_storage"
+
+	// Clean up prior runs
 	os.Remove(dbPath)
 	os.RemoveAll(storageRoot)
 	os.MkdirAll(storageRoot, 0755)
@@ -25,18 +42,22 @@ func setupTestDB(t *testing.T) (*Repository, func()) {
 			StorageRoot: storageRoot,
 		},
 	}
-	service, err := NewRepository(dummyCfg)
+
+	repo, err := NewRepository(dummyCfg)
 	if err != nil {
-		t.Fatalf("Failed to create new service: %v", err)
+		t.Fatalf("Failed to create new repository: %v", err)
 	}
 
+	// --- CRITICAL FIX: Apply Migrations ---
+	applyTestMigrations(t, repo)
+
 	cleanup := func() {
-		service.Close()
+		repo.Close()
 		os.Remove(dbPath)
 		os.RemoveAll(storageRoot)
 	}
 
-	return service, cleanup
+	return repo, cleanup
 }
 
 // TestNewRepository tests the creation of a new database service.
@@ -44,7 +65,7 @@ func TestNewRepository(t *testing.T) {
 	service, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	// Verify that the tables were created.
+	// Verify that the tables were created by the migration
 	tables := []string{"databases", "users"}
 	for _, table := range tables {
 		var name string
@@ -64,7 +85,7 @@ func TestDatabaseCRUD(t *testing.T) {
 	db := models.Database{
 		Name:        "TestDB",
 		ContentType: "image",
-		Config:      json.RawMessage("{}"), // <-- FIX: Initialize Config
+		Config:      json.RawMessage("{}"),
 		CustomFields: []models.CustomField{
 			{Name: "latitude", Type: "REAL"},
 			{Name: "longitude", Type: "REAL"},
@@ -115,7 +136,7 @@ func TestEntryCRUD(t *testing.T) {
 	db := models.Database{
 		Name:        "EntryTestDB",
 		ContentType: "image",
-		Config:      json.RawMessage("{}"), // <-- FIX: Initialize Config
+		Config:      json.RawMessage("{}"),
 		CustomFields: []models.CustomField{
 			{Name: "sensor_id", Type: "TEXT"},
 			{Name: "ml_score", Type: "REAL"},
@@ -126,9 +147,6 @@ func TestEntryCRUD(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create Entry
-	// ---
-	// FIX: Added "status": "ready"
-	// ---
 	entry := models.Entry{
 		"timestamp":   1234567890,
 		"width":       1024,
@@ -136,7 +154,7 @@ func TestEntryCRUD(t *testing.T) {
 		"filesize":    512000,
 		"mime_type":   "image/png",
 		"filename":    "test_image.png",
-		"status":      "ready", // <-- ADDED
+		"status":      "ready",
 		"sensor_id":   "test-sensor-123",
 		"ml_score":    0.95,
 		"description": "A test entry",
@@ -188,7 +206,7 @@ func TestCustomFieldIndexing(t *testing.T) {
 	db := models.Database{
 		Name:        "IndexTestDB",
 		ContentType: "image",
-		Config:      json.RawMessage("{}"), // <-- FIX: Initialize Config
+		Config:      json.RawMessage("{}"),
 		CustomFields: []models.CustomField{
 			{Name: "indexed_field", Type: "TEXT"},
 		},
@@ -210,9 +228,6 @@ func createTestEntry(t *testing.T, service *Repository, dbName string, entry mod
 	assert.NoError(t, err)
 	defer tx.Rollback()
 
-	// ---
-	// FIX: Manually set status if test didn't provide it, to prevent NOT NULL error
-	// ---
 	if _, ok := entry["status"]; !ok {
 		entry["status"] = "ready"
 	}

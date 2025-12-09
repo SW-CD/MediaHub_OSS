@@ -2,11 +2,23 @@
 package services
 
 import (
+	"context"
 	"mediahub/internal/config"
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
 	"mime/multipart"
 )
+
+// Auditor defines the interface for recording security-relevant events.
+type Auditor interface {
+	// Log records an event.
+	// ctx: context to trace request IDs (if available)
+	// action: what happened (e.g., "database.create", "entry.delete")
+	// actor: who did it (username)
+	// resource: what was affected (e.g., "MyImageDB", "Entry:101")
+	// details: structured metadata about the event
+	Log(ctx context.Context, action string, actor string, resource string, details map[string]interface{})
+}
 
 // InfoService defines the interface for the info service.
 type InfoService interface {
@@ -32,21 +44,15 @@ type DatabaseService interface {
 	CreateDatabase(payload models.DatabaseCreatePayload) (*models.Database, error)
 	UpdateDatabase(name string, updates models.DatabaseUpdatePayload) (*models.Database, error)
 	DeleteDatabase(name string) error
-	// --- MOVED: GetEntry, GetEntries, and SearchEntries have been moved to EntryService ---
 }
 
 // EntryService defines the interface for the entry service.
 type EntryService interface {
-	// --- UPDATED SIGNATURE ---
 	CreateEntry(dbName string, metadataStr string, file multipart.File, header *multipart.FileHeader) (interface{}, int, error)
-	// --- END UPDATE ---
-
 	DeleteEntry(dbName string, id int64) error
 	UpdateEntry(dbName string, id int64, updates models.Entry) (models.Entry, error)
 	GetEntryFile(dbName string, id int64) (string, string, string, error)
 	GetEntryPreview(dbName string, id int64) (string, error)
-
-	// --- ADDED from DatabaseService ---
 	GetEntry(dbName string, id int64, customFields []models.CustomField) (models.Entry, error)
 	GetEntries(dbName string, limit, offset int, order string, tstart, tend int64, customFields []models.CustomField) ([]models.Entry, error)
 	SearchEntries(dbName string, req *models.SearchRequest, customFields []models.CustomField) ([]models.Entry, error)
