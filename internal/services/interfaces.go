@@ -50,6 +50,7 @@ type DatabaseService interface {
 type EntryService interface {
 	CreateEntry(dbName string, metadataStr string, file multipart.File, header *multipart.FileHeader) (interface{}, int, error)
 	DeleteEntry(dbName string, id int64) error
+	DeleteEntries(dbName string, ids []int64) (int, int64, error)
 	UpdateEntry(dbName string, id int64, updates models.Entry) (models.Entry, error)
 	GetEntryFile(dbName string, id int64) (string, string, string, error)
 	GetEntryPreview(dbName string, id int64) (string, error)

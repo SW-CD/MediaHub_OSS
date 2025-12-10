@@ -76,6 +76,7 @@ func addDatabaseRoutes(r *mux.Router, h *handlers.Handlers, am *auth.Middleware)
 	deleteRouter.Use(am.RoleMiddleware("CanDelete"))
 	deleteRouter.HandleFunc("/database", h.DeleteDatabase).Methods("DELETE")
 	deleteRouter.HandleFunc("/database/housekeeping", h.TriggerHousekeeping).Methods("POST")
+	deleteRouter.HandleFunc("/database/entries/delete", h.DeleteEntries).Methods("POST")
 }
 
 // addEntryRoutes configures routes related to entry management.

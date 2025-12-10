@@ -4,6 +4,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mediahub/internal/logging"
 	"mediahub/internal/models"
 	"mediahub/internal/services"
@@ -201,4 +202,59 @@ func (h *Handlers) DeleteDatabase(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, MessageResponse{
 		Message: "Database '" + name + "' and all its contents were successfully deleted.",
 	})
+}
+
+// @Summary Bulk delete entries
+// @Description Deletes multiple entries in a single atomic transaction.
+// @Tags database
+// @Accept json
+// @Produce json
+// @Param name query string true "Database Name"
+// @Param body body models.BulkDeleteRequest true "List of Entry IDs to delete"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse "Missing name or empty ID list"
+// @Failure 404 {object} ErrorResponse "Database not found"
+// @Failure 500 {object} ErrorResponse "Transaction failed"
+// @Security BasicAuth
+// @Router /database/entries/delete [post]
+func (h *Handlers) DeleteEntries(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		respondWithError(w, http.StatusBadRequest, "Missing required query parameter: name")
+		return
+	}
+
+	var req models.BulkDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid JSON body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		respondWithError(w, http.StatusBadRequest, "No IDs provided for deletion")
+		return
+	}
+
+	// Call Service
+	count, spaceFreed, err := h.Entry.DeleteEntries(name, req.IDs)
+	if err != nil {
+		// Basic error handling; could be improved with specific error types
+		respondWithError(w, http.StatusInternalServerError, "Failed to delete entries")
+		return
+	}
+
+	// Audit Log
+	h.Auditor.Log(r.Context(), "entry.bulk_delete", getUserFromContext(r), name, map[string]interface{}{
+		"count": count,
+		"ids":   req.IDs,
+	})
+
+	response := map[string]interface{}{
+		"database_name":     name,
+		"deleted_count":     count,
+		"space_freed_bytes": spaceFreed,
+		"message":           fmt.Sprintf("Successfully deleted %d entries.", count),
+	}
+
+	respondWithJSON(w, http.StatusOK, response)
 }
