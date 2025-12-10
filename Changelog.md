@@ -11,6 +11,7 @@ Features:
 - implement a "recovery" command, for database consistency checks after, e.g., a server crash
 - implement auditor logging, which has to be enabled explicitly
 - implement bulk delete and bulk download functionalities (TODO)
+- 
 Bug fixes:
 - fix swagger documentation not being up to date
 - fix filename and status fields not being whitelisted in the search endpoint
