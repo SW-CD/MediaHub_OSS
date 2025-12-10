@@ -37,6 +37,7 @@ To maintain backward compatibility with v1.1, running the binary **without any s
 | `--password` | `FDB_PASSWORD` | The password for the 'admin' user (used on first run or with reset). | `""` |
 | `--reset_pw` | `FDB_RESET_PW` | If `true`, resets the 'admin' password on startup to the one provided. | `false` |
 | `--init_config` | `FDB_INIT_CONFIG` | Path to a TOML config file for one-time initialization of users/databases. | `""` |
+| `--audit-enabled` | `FDB_AUDIT_ENABLED` | Enables detailed audit logging for security events. | `false` |
 
 -----
 

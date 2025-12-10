@@ -131,10 +131,10 @@
 
 **Goal:** Execute multiple deletions in one transaction for performance.
 
-1.  **API Handler (`internal/api/handlers/entry_handler.go`):**
-      * New Endpoint: `POST /api/entry/bulk-delete`.
-      * Payload: `{"database_name": "...", "ids": [101, 102, 103]}`.
-2.  **Repository Logic:**
+1.  **API Handler:**
+      * New Endpoint: `POST /api/database/entries/delete?name=MyImageDB`.
+      * Payload: `{"ids": [101, 102, 103]}`.
+2.  **Logic:**
       * Add `DeleteEntries(dbName string, ids []int64) error`.
       * **Optimization:**
           * Start Transaction.
@@ -146,16 +146,17 @@
 
 ### Step 7: Streaming Export
 
-**Goal:** Low-memory ZIP export for large datasets.
+**Goal:** Low-memory ZIP export for multiple entries.
 
-1.  **API Handler (`internal/api/handlers/database_handler.go`):**
-      * New Endpoint: `GET /api/database/export?name=MyAudioDB`.
+1.  **API Handler:**
+      * New Endpoint: `POST /api/database/entries/export?name=MyAudioDB`.
       * Headers: `Content-Type: application/zip`, `Content-Disposition: attachment`.
+      * Payload: `{"ids": [101, 102, 103]}`
 2.  **Implementation Pattern:**
       * Use `io.Pipe()`.
       * **Goroutine:**
           * Create `zip.NewWriter(pipeWriter)`.
-          * Query all entries from DB (using `rows.Next()` to stream results, do not load all into slice).
+          * Query chosen entries from DB (using `rows.Next()` to stream results, do not load all into slice).
           * For each entry:
               * Open file on disk (`storageService`).
               * Create zip entry.
