@@ -1,3 +1,9 @@
+# v2.x
+Breaking changes
+- timestamps switched from second to millisecond precision
+- housekeeping logs to be debug logs instead of info
+- user roles to be set on database level
+
 # v1.2
 Features:
 - make the "large file" threshold configurable.
