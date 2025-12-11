@@ -59,6 +59,13 @@ definitions:
       refresh_token:
         type: string
     type: object
+  models.BulkDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
   models.CustomField:
     properties:
       name:
@@ -112,6 +119,13 @@ definitions:
     type: object
   models.Entry:
     additionalProperties: true
+    type: object
+  models.ExportRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
     type: object
   models.FileJSONResponse:
     properties:
@@ -246,7 +260,7 @@ info:
     url: https://www.swcd.lu
   description: This is a sample server for a file store.
   title: SWCD MediaHub-API
-  version: 1.1.0
+  version: 1.2.0
 paths:
   /database:
     delete:
@@ -445,6 +459,90 @@ paths:
       security:
       - BasicAuth: []
       summary: Get entries from a database (basic)
+      tags:
+      - database
+  /database/entries/delete:
+    post:
+      consumes:
+      - application/json
+      description: Deletes multiple entries in a single atomic transaction.
+      parameters:
+      - description: Database Name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: List of Entry IDs to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.BulkDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing name or empty ID list
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Transaction failed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Bulk delete entries
+      tags:
+      - database
+  /database/entries/export:
+    post:
+      consumes:
+      - application/json
+      description: Streams a ZIP archive containing the files and metadata (CSV) for
+        the specified entries.
+      parameters:
+      - description: Database Name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: List of Entry IDs to export
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ExportRequest'
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: ZIP Archive
+          schema:
+            type: file
+        "400":
+          description: Missing name or empty ID list
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Export entries as ZIP
       tags:
       - database
   /database/entries/search:
