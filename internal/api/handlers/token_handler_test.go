@@ -7,52 +7,13 @@ import (
 	"errors"
 	"mediahub/internal/models"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTokenHandlerTestAPI(t *testing.T) (*httptest.Server, *MockTokenService, *MockUserService, func()) {
-	t.Helper()
-
-	mockTokenSvc := new(MockTokenService)
-	mockUserSvc := new(MockUserService)
-	mockInfoSvc := new(MockInfoService)
-	mockAuditor := new(MockAuditor) // <-- New
-
-	mockInfoSvc.On("GetInfo").Return(models.Info{
-		Version:     "test",
-		UptimeSince: time.Now(),
-	})
-
-	h := NewHandlers(
-		mockInfoSvc,
-		mockUserSvc,
-		mockTokenSvc,
-		nil,
-		nil,
-		nil,
-		mockAuditor, // <-- Inject
-		nil,
-	)
-
-	r := mux.NewRouter()
-	r.HandleFunc("/api/token", h.GetToken).Methods("POST")
-	r.HandleFunc("/api/token/refresh", h.RefreshToken).Methods("POST")
-	r.HandleFunc("/logout", h.Logout).Methods("POST")
-
-	server := httptest.NewServer(r)
-	cleanup := func() {
-		server.Close()
-	}
-
-	return server, mockTokenSvc, mockUserSvc, cleanup
-}
-
 func TestGetToken_InvalidUser(t *testing.T) {
+	// Use setup from main_test.go
 	server, _, mockUser, cleanup := setupTokenHandlerTestAPI(t)
 	defer cleanup()
 

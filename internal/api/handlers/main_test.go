@@ -2,260 +2,234 @@
 package handlers
 
 import (
-	"context" // <-- Added
 	"mediahub/internal/config"
 	"mediahub/internal/models"
-	"mediahub/internal/repository"
-	"mediahub/internal/services"
-	"mediahub/internal/services/auth" // Import auth for TokenService interface
-	"mime/multipart"
+	"mediahub/internal/services/mocks"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/mock"
 )
 
-// --- MOCK AUDITOR (NEW) ---
-type MockAuditor struct {
-	mock.Mock
-}
+func setupDBHandlerTestAPI(t *testing.T) (*httptest.Server, *mocks.MockDatabaseService, *mocks.MockInfoService, *mocks.MockAuditor, func()) {
+	t.Helper()
 
-var _ services.Auditor = (*MockAuditor)(nil)
+	mockDBService := new(mocks.MockDatabaseService)
+	mockInfoService := new(mocks.MockInfoService)
+	mockAuditor := new(mocks.MockAuditor)
+	mockEntryService := new(mocks.MockEntryService)
 
-func (m *MockAuditor) Log(ctx context.Context, action string, actor string, resource string, details map[string]interface{}) {
-	m.Called(ctx, action, actor, resource, details)
-}
+	dummyCfg := &config.Config{}
 
-// --- MOCK USER SERVICE ---
-type MockUserService struct {
-	mock.Mock
-}
+	mockInfoService.On("GetInfo").Return(models.Info{
+		Version:     "test",
+		UptimeSince: time.Now(),
+	})
 
-// ... existing MockUserService methods ...
-// (Retaining existing code, just showing the addition of MockAuditor above)
+	h := NewHandlers(
+		mockInfoService,
+		nil,
+		nil,
+		mockDBService,
+		mockEntryService,
+		nil,
+		mockAuditor,
+		dummyCfg,
+	)
 
-var _ services.UserService = (*MockUserService)(nil)
+	r := mux.NewRouter()
+	r.HandleFunc("/database", h.CreateDatabase).Methods("POST")
+	r.HandleFunc("/database", h.UpdateDatabase).Methods("PUT")
+	r.HandleFunc("/databases", h.GetDatabases).Methods("GET")
+	r.HandleFunc("/database", h.GetDatabase).Methods("GET")
+	r.HandleFunc("/database/entries/delete", h.DeleteEntries).Methods("POST")
 
-func (m *MockUserService) GetUserByUsername(username string) (*models.User, error) {
-	args := m.Called(username)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	server := httptest.NewServer(r)
+	cleanup := func() {
+		server.Close()
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+
+	return server, mockDBService, mockInfoService, mockAuditor, cleanup
 }
-func (m *MockUserService) GetUserByID(id int) (*models.User, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+
+func setupDBHandlerTestAPI_Full(t *testing.T) (*httptest.Server, *mocks.MockDatabaseService, *mocks.MockEntryService, *mocks.MockInfoService, *mocks.MockAuditor, func()) {
+	t.Helper()
+
+	mockDBService := new(mocks.MockDatabaseService)
+	mockEntryService := new(mocks.MockEntryService)
+	mockInfoService := new(mocks.MockInfoService)
+	mockAuditor := new(mocks.MockAuditor)
+	dummyCfg := &config.Config{}
+
+	mockInfoService.On("GetInfo").Return(models.Info{
+		Version:     "test",
+		UptimeSince: time.Now(),
+	})
+
+	h := NewHandlers(
+		mockInfoService,
+		nil,
+		nil,
+		mockDBService,
+		mockEntryService,
+		nil,
+		mockAuditor,
+		dummyCfg,
+	)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/database", h.CreateDatabase).Methods("POST")
+	r.HandleFunc("/database", h.UpdateDatabase).Methods("PUT")
+	r.HandleFunc("/databases", h.GetDatabases).Methods("GET")
+	r.HandleFunc("/database", h.GetDatabase).Methods("GET")
+	r.HandleFunc("/database/entries/delete", h.DeleteEntries).Methods("POST")
+
+	server := httptest.NewServer(r)
+	cleanup := func() {
+		server.Close()
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+
+	return server, mockDBService, mockEntryService, mockInfoService, mockAuditor, cleanup
 }
-func (m *MockUserService) GetUsers() ([]models.User, error) {
-	args := m.Called()
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+
+func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *mocks.MockEntryService, *mocks.MockDatabaseService, *mocks.MockAuditor, func()) {
+	t.Helper()
+
+	mockEntrySvc := new(mocks.MockEntryService)
+	mockDbSvc := new(mocks.MockDatabaseService)
+	mockAuditor := new(mocks.MockAuditor)
+
+	infoSvc := new(mocks.MockInfoService)
+	infoSvc.On("GetInfo").Return(models.Info{
+		Version:     "test",
+		UptimeSince: time.Now(),
+	})
+
+	dummyCfg := &config.Config{
+		MaxSyncUploadSizeBytes: 8 << 20,
 	}
-	return args.Get(0).([]models.User), args.Error(1)
-}
-func (m *MockUserService) UpdateUserPassword(username, password string) error {
-	args := m.Called(username, password)
-	return args.Error(0)
-}
-func (m *MockUserService) CreateUser(cArgs repository.UserCreateArgs) (*models.User, error) {
-	args := m.Called(cArgs)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+
+	h := NewHandlers(
+		infoSvc,
+		nil,
+		nil,
+		mockDbSvc,
+		mockEntrySvc,
+		nil,
+		mockAuditor,
+		dummyCfg,
+	)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/entry", h.UploadEntry).Methods("POST")
+	r.HandleFunc("/entry/meta", h.GetEntryMeta).Methods("GET")
+	r.HandleFunc("/entry/file", h.GetEntry).Methods("GET")
+	r.HandleFunc("/entry/preview", h.GetEntryPreview).Methods("GET")
+	r.HandleFunc("/database/entries/export", h.ExportEntries).Methods("POST")
+
+	server := httptest.NewServer(r)
+
+	cleanup := func() {
+		server.Close()
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+
+	return server, mockEntrySvc, mockDbSvc, mockAuditor, cleanup
 }
-func (m *MockUserService) UpdateUser(id int, req models.User, newPassword *string) (*models.User, error) {
-	args := m.Called(id, req, newPassword)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+
+func setupAdminTest(t *testing.T) (*httptest.ResponseRecorder, *http.Request, *mocks.MockUserService, *mocks.MockInfoService, *mocks.MockAuditor) {
+	mockUserSvc := new(mocks.MockUserService)
+	mockInfoSvc := new(mocks.MockInfoService)
+	mockAuditor := new(mocks.MockAuditor)
+	rr := httptest.NewRecorder()
+	return rr, httptest.NewRequest("GET", "/", nil), mockUserSvc, mockInfoSvc, mockAuditor
+}
+
+func setupTokenHandlerTestAPI(t *testing.T) (*httptest.Server, *mocks.MockTokenService, *mocks.MockUserService, func()) {
+	t.Helper()
+
+	mockTokenSvc := new(mocks.MockTokenService)
+	mockUserSvc := new(mocks.MockUserService)
+	mockInfoSvc := new(mocks.MockInfoService)
+	mockAuditor := new(mocks.MockAuditor)
+
+	mockInfoSvc.On("GetInfo").Return(models.Info{
+		Version:     "test",
+		UptimeSince: time.Now(),
+	})
+
+	h := NewHandlers(
+		mockInfoSvc,
+		mockUserSvc,
+		mockTokenSvc,
+		nil,
+		nil,
+		nil,
+		mockAuditor,
+		nil,
+	)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/api/token", h.GetToken).Methods("POST")
+	r.HandleFunc("/api/token/refresh", h.RefreshToken).Methods("POST")
+	r.HandleFunc("/logout", h.Logout).Methods("POST")
+
+	server := httptest.NewServer(r)
+	cleanup := func() {
+		server.Close()
 	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserService) DeleteUser(id int) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-func (m *MockUserService) InitializeAdminUser(cfg *config.Config) error {
-	args := m.Called(cfg)
-	return args.Error(0)
+
+	return server, mockTokenSvc, mockUserSvc, cleanup
 }
 
-// --- MOCK TOKEN SERVICE ---
-type MockTokenService struct {
-	mock.Mock
-}
+func setupSearchTestAPI(t *testing.T) (*httptest.Server, *mocks.MockDatabaseService, *mocks.MockEntryService, func()) {
+	t.Helper()
 
-// Ensure MockTokenService implements auth.TokenService
-var _ auth.TokenService = (*MockTokenService)(nil)
+	mockDBService := new(mocks.MockDatabaseService)
+	mockEntryService := new(mocks.MockEntryService)
+	mockAuditor := new(mocks.MockAuditor)
+	dummyCfg := &config.Config{}
 
-func (m *MockTokenService) GenerateTokens(user *models.User) (string, string, error) {
-	args := m.Called(user)
-	return args.String(0), args.String(1), args.Error(2)
-}
+	infoSvc := new(mocks.MockInfoService)
+	infoSvc.On("GetInfo").Return(models.Info{
+		Version:     "test",
+		UptimeSince: time.Now(),
+	})
+	h := NewHandlers(
+		infoSvc,
+		nil,
+		nil,
+		mockDBService,
+		mockEntryService,
+		nil,
+		mockAuditor,
+		dummyCfg,
+	)
 
-func (m *MockTokenService) ValidateAccessToken(tokenString string) (*models.User, error) {
-	args := m.Called(tokenString)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	r := mux.NewRouter()
+	r.HandleFunc("/database/entries/search", h.SearchEntries).Methods("POST")
+
+	server := httptest.NewServer(r)
+	cleanup := func() {
+		server.Close()
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+
+	return server, mockDBService, mockEntryService, cleanup
 }
 
-func (m *MockTokenService) ValidateRefreshToken(tokenString string) (*models.User, error) {
-	args := m.Called(tokenString)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockTokenService) Logout(refreshToken string) error {
-	args := m.Called(refreshToken)
-	return args.Error(0)
-}
-
-// --- MOCK DATABASE SERVICE ---
-type MockDatabaseService struct {
-	mock.Mock
-}
-
-var _ services.DatabaseService = (*MockDatabaseService)(nil)
-
-func (m *MockDatabaseService) GetDatabase(name string) (*models.Database, error) {
-	args := m.Called(name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Database), args.Error(1)
-}
-func (m *MockDatabaseService) GetDatabases() ([]models.Database, error) {
-	args := m.Called()
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Database), args.Error(1)
-}
-func (m *MockDatabaseService) CreateDatabase(payload models.DatabaseCreatePayload) (*models.Database, error) {
-	args := m.Called(payload)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Database), args.Error(1)
-}
-func (m *MockDatabaseService) UpdateDatabase(name string, updates models.DatabaseUpdatePayload) (*models.Database, error) {
-	args := m.Called(name, updates)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Database), args.Error(1)
-}
-func (m *MockDatabaseService) DeleteDatabase(name string) error {
-	args := m.Called(name)
-	return args.Error(0)
-}
-
-// --- MOCK ENTRY SERVICE ---
-type MockEntryService struct {
-	mock.Mock
-}
-
-var _ services.EntryService = (*MockEntryService)(nil)
-
-func (m *MockEntryService) CreateEntry(dbName string, metadataStr string, file multipart.File, header *multipart.FileHeader) (interface{}, int, error) {
-	args := m.Called(dbName, metadataStr, file, header)
-	if args.Get(0) == nil {
-		return nil, args.Int(1), args.Error(2)
-	}
-	return args.Get(0), args.Int(1), args.Error(2)
-}
-
-func (m *MockEntryService) DeleteEntry(dbName string, id int64) error {
-	args := m.Called(dbName, id)
-	return args.Error(0)
-}
-func (m *MockEntryService) UpdateEntry(dbName string, id int64, updates models.Entry) (models.Entry, error) {
-	args := m.Called(dbName, id, updates)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(models.Entry), args.Error(1)
-}
-func (m *MockEntryService) GetEntryFile(dbName string, id int64) (string, string, string, error) {
-	args := m.Called(dbName, id)
-	return args.String(0), args.String(1), args.String(2), args.Error(3)
-}
-func (m *MockEntryService) GetEntryPreview(dbName string, id int64) (string, error) {
-	args := m.Called(dbName, id)
-	return args.String(0), args.Error(1)
-}
-func (m *MockEntryService) GetEntry(dbName string, id int64, customFields []models.CustomField) (models.Entry, error) {
-	args := m.Called(dbName, id, customFields)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(models.Entry), args.Error(1)
-}
-func (m *MockEntryService) GetEntries(dbName string, limit, offset int, order string, tstart, tend int64, customFields []models.CustomField) ([]models.Entry, error) {
-	args := m.Called(dbName, limit, offset, order, tstart, tend, customFields)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Entry), args.Error(1)
-}
-func (m *MockEntryService) SearchEntries(dbName string, req *models.SearchRequest, customFields []models.CustomField) ([]models.Entry, error) {
-	args := m.Called(dbName, req, customFields)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Entry), args.Error(1)
-}
-
-// --- MOCK HOUSEKEEPING SERVICE ---
-type MockHousekeepingService struct {
-	mock.Mock
-}
-
-var _ services.HousekeepingService = (*MockHousekeepingService)(nil)
-
-func (m *MockHousekeepingService) Start() {
-	m.Called()
-}
-func (m *MockHousekeepingService) Stop() {
-	m.Called()
-}
-func (m *MockHousekeepingService) TriggerHousekeeping(dbName string) (*models.HousekeepingReport, error) {
-	args := m.Called(dbName)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.HousekeepingReport), args.Error(1)
-}
-
-// --- MOCK INFO SERVICE ---
-type MockInfoService struct {
-	mock.Mock
-}
-
-var _ services.InfoService = (*MockInfoService)(nil)
-
-func (m *MockInfoService) GetInfo() models.Info {
-	args := m.Called()
-	return args.Get(0).(models.Info)
-}
-
-// --- MOCK STORAGE SERVICE ---
-type MockStorageService struct {
-	mock.Mock
-}
-
-func (m *MockStorageService) DeleteEntryFile(dbName string, timestamp, entryID int64) error {
-	args := m.Called(dbName, timestamp, entryID)
-	return args.Error(0)
-}
-
-func (m *MockStorageService) DeletePreviewFile(dbName string, timestamp, entryID int64) error {
-	args := m.Called(dbName, timestamp, entryID)
-	return args.Error(0)
+func AuditLogMatcher(action string, dbName string) interface{} {
+	return mock.MatchedBy(func(args []interface{}) bool {
+		if len(args) < 4 {
+			return false
+		}
+		if args[1] != action {
+			return false
+		}
+		if args[3] != dbName {
+			return false
+		}
+		return true
+	})
 }

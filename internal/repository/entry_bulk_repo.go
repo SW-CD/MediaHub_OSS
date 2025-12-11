@@ -3,6 +3,7 @@ package repository
 
 import (
 	"fmt"
+	"mediahub/internal/models"
 
 	"github.com/Masterminds/squirrel"
 )
@@ -97,4 +98,42 @@ func (s *Repository) DeleteEntries(dbName string, ids []int64) ([]DeletedEntryMe
 	}
 
 	return deletedMeta, nil
+}
+
+// GetEntriesByID retrieves a list of entries matching the provided IDs.
+func (s *Repository) GetEntriesByID(dbName string, ids []int64, customFields []models.CustomField) ([]models.Entry, error) {
+	if !SafeNameRegex.MatchString(dbName) {
+		return nil, fmt.Errorf("invalid database name: %s", dbName)
+	}
+	if len(ids) == 0 {
+		return []models.Entry{}, nil
+	}
+
+	tableName := fmt.Sprintf("entries_%s", dbName)
+
+	query := s.Builder.Select("*").
+		From(fmt.Sprintf("\"%s\"", tableName)).
+		Where(squirrel.Eq{"id": ids})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
+
+	rows, err := s.DB.Query(sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]models.Entry, 0)
+	for rows.Next() {
+		entry, err := scanEntry(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan entry: %w", err)
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
 }

@@ -88,6 +88,11 @@ type BulkDeleteRequest struct {
 	IDs []int64 `json:"ids"`
 }
 
+// ExportRequest defines the payload for bulk export.
+type ExportRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
 // Entry represents the metadata for a single entry stored in the system.
 // It uses a map to hold custom fields, allowing for dynamic properties.
 type Entry map[string]interface{}

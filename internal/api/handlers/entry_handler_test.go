@@ -6,65 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mediahub/internal/config"
 	"mediahub/internal/models"
 	"mediahub/internal/services"
 	"mime/multipart"
 	"net/http"
-	"net/http/httptest"
 	"net/textproto"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// setupEntryHandlerTestAPI creates a new test server for entry handlers.
-func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *MockEntryService, *MockDatabaseService, *MockAuditor, func()) {
-	t.Helper()
-
-	mockEntrySvc := new(MockEntryService)
-	mockDbSvc := new(MockDatabaseService)
-	mockAuditor := new(MockAuditor)
-
-	infoSvc := new(MockInfoService)
-	infoSvc.On("GetInfo").Return(models.Info{
-		Version:     "test",
-		UptimeSince: time.Now(),
-	})
-
-	dummyCfg := &config.Config{
-		MaxSyncUploadSizeBytes: 8 << 20, // 8MB default for tests
-	}
-
-	h := NewHandlers(
-		infoSvc,
-		nil,
-		nil,
-		mockDbSvc,
-		mockEntrySvc,
-		nil,
-		mockAuditor, // <-- Inject Mock
-		dummyCfg,
-	)
-
-	r := mux.NewRouter()
-	r.HandleFunc("/entry", h.UploadEntry).Methods("POST")
-	r.HandleFunc("/entry/meta", h.GetEntryMeta).Methods("GET")
-	r.HandleFunc("/entry/file", h.GetEntry).Methods("GET")
-	r.HandleFunc("/entry/preview", h.GetEntryPreview).Methods("GET")
-
-	server := httptest.NewServer(r)
-
-	cleanup := func() {
-		server.Close()
-	}
-
-	return server, mockEntrySvc, mockDbSvc, mockAuditor, cleanup
-}
+// NOTE: setupEntryHandlerTestAPI is now in main_test.go
 
 func TestUploadEntry_Success(t *testing.T) {
 	server, mockEntrySvc, _, mockAuditor, cleanup := setupEntryHandlerTestAPI(t)

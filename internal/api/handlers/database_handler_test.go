@@ -4,57 +4,16 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"mediahub/internal/config"
 	"mediahub/internal/models"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// setupDBHandlerTestAPI creates a new test server for database handlers.
-func setupDBHandlerTestAPI(t *testing.T) (*httptest.Server, *MockDatabaseService, *MockInfoService, *MockAuditor, func()) {
-	t.Helper()
-
-	mockDBService := new(MockDatabaseService)
-	mockInfoService := new(MockInfoService)
-	mockAuditor := new(MockAuditor)
-	dummyCfg := &config.Config{}
-
-	mockInfoService.On("GetInfo").Return(models.Info{
-		Version:     "test",
-		UptimeSince: time.Now(),
-	})
-	h := NewHandlers(
-		mockInfoService,
-		nil,
-		nil,
-		mockDBService,
-		nil,
-		nil,
-		mockAuditor,
-		dummyCfg,
-	)
-
-	r := mux.NewRouter()
-	r.HandleFunc("/database", h.CreateDatabase).Methods("POST")
-	r.HandleFunc("/database", h.UpdateDatabase).Methods("PUT")
-	r.HandleFunc("/databases", h.GetDatabases).Methods("GET")
-	r.HandleFunc("/database", h.GetDatabase).Methods("GET")
-
-	server := httptest.NewServer(r)
-	cleanup := func() {
-		server.Close()
-	}
-
-	return server, mockDBService, mockInfoService, mockAuditor, cleanup
-}
-
 func TestDatabaseAPI(t *testing.T) {
+	// Use the shared setup from main_test.go
 	server, mockDB, _, mockAuditor, cleanup := setupDBHandlerTestAPI(t)
 	defer cleanup()
 
@@ -141,13 +100,12 @@ func TestDatabaseAPI(t *testing.T) {
 
 	mockDB.On("UpdateDatabase", "APITestDB", updatePayload).Return(&finalUpdatedDBModel, nil).Once()
 
-	// --- FIX: Audit Log Expectation to allow nil details ---
 	mockAuditor.On("Log",
 		mock.Anything,
 		"database.update",
 		mock.Anything,
 		"APITestDB",
-		mock.Anything, // Accepts nil or map[string]interface{}(nil)
+		mock.Anything,
 	).Return().Once()
 
 	req, _ := http.NewRequest("PUT", server.URL+"/database?name=APITestDB", bytes.NewReader(payloadBytes))
@@ -163,4 +121,50 @@ func TestDatabaseAPI(t *testing.T) {
 	resp, err = http.Get(server.URL + "/databases")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestDeleteEntries(t *testing.T) {
+	// Use the FULL setup that includes the EntryService mock
+	server, _, mockEntryService, _, mockAuditor, cleanup := setupDBHandlerTestAPI_Full(t)
+	defer cleanup()
+
+	// 1. Success Case
+	t.Run("Success", func(t *testing.T) {
+		reqBody := `{"ids": [101, 102]}`
+		req, _ := http.NewRequest("POST", server.URL+"/database/entries/delete?name=TestDB", bytes.NewReader([]byte(reqBody)))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Mock Service
+		mockEntryService.On("DeleteEntries", "TestDB", []int64{101, 102}).
+			Return(2, int64(2048), nil).Once()
+
+		// Mock Auditor
+		mockAuditor.On("Log", mock.Anything, "entry.bulk_delete", mock.Anything, "TestDB", mock.MatchedBy(func(d map[string]interface{}) bool {
+			// json unmarshal of numbers might be float64 in tests sometimes, but here we passed struct args
+			return d["count"] == 2
+		})).Return().Once()
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var respBody map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&respBody)
+		// Checking float64 because JSON decodes numbers as floats
+		assert.Equal(t, float64(2), respBody["deleted_count"])
+	})
+
+	// 2. Validation Failure (Empty List)
+	t.Run("EmptyList", func(t *testing.T) {
+		reqBody := `{"ids": []}`
+		req, _ := http.NewRequest("POST", server.URL+"/database/entries/delete?name=TestDB", bytes.NewReader([]byte(reqBody)))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		// Ensure mock was NOT called
+		mockEntryService.AssertNotCalled(t, "DeleteEntries")
+	})
 }

@@ -3,6 +3,7 @@ package services
 
 import (
 	"context"
+	"io"
 	"mediahub/internal/config"
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
@@ -50,7 +51,11 @@ type DatabaseService interface {
 type EntryService interface {
 	CreateEntry(dbName string, metadataStr string, file multipart.File, header *multipart.FileHeader) (interface{}, int, error)
 	DeleteEntry(dbName string, id int64) error
+
+	// Bulk Operations
 	DeleteEntries(dbName string, ids []int64) (int, int64, error)
+	ExportEntries(ctx context.Context, dbName string, ids []int64, w io.Writer) error
+
 	UpdateEntry(dbName string, id int64, updates models.Entry) (models.Entry, error)
 	GetEntryFile(dbName string, id int64) (string, string, string, error)
 	GetEntryPreview(dbName string, id int64) (string, error)

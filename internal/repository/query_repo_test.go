@@ -126,9 +126,6 @@ func TestSearchEntries_QueryBuilder(t *testing.T) {
 	}
 	_, err = service.SearchEntries(db.Name, &req5, db.CustomFields)
 	assert.Error(t, err)
-	// --- FIXED ASSERTION ---
-	// The repository now validates operators against types, so "CONTAINS" fails
-	// the isOperatorAllowedForType check before hitting the switch default.
 	assert.Contains(t, err.Error(), "operator 'CONTAINS' is not allowed")
 
 	// Test 6: Sort

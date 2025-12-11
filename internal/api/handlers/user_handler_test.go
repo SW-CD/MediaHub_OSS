@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"mediahub/internal/models"
+	"mediahub/internal/services/mocks" // Import shared mocks
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,23 +16,23 @@ import (
 )
 
 func TestGetUserMe(t *testing.T) {
-	mockInfoSvc := new(MockInfoService)
+	// Setup Mocks
+	mockInfoSvc := new(mocks.MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
 		UptimeSince: time.Now(),
 	})
-	mockAuditor := new(MockAuditor)
+	mockAuditor := new(mocks.MockAuditor)
 
-	// Updated constructor with MockAuditor
 	h := NewHandlers(
-		mockInfoSvc, // info
-		nil,         // user (not needed for GET)
-		nil,         // token
-		nil,         // database
-		nil,         // entry
-		nil,         // housekeeping
-		mockAuditor, // auditor
-		nil,         // cfg
+		mockInfoSvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		mockAuditor,
+		nil,
 	)
 
 	mockUser := &models.User{
@@ -58,13 +59,13 @@ func TestGetUserMe(t *testing.T) {
 
 	assert.Equal(t, "testuser", returnedUser.Username)
 	assert.True(t, returnedUser.CanView)
-	assert.Equal(t, "", returnedUser.PasswordHash) // Ensure sensitive fields are cleared
+	assert.Equal(t, "", returnedUser.PasswordHash)
 }
 
 func TestGetUserMe_NoUserInContext(t *testing.T) {
-	mockInfoSvc := new(MockInfoService)
+	mockInfoSvc := new(mocks.MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	mockAuditor := new(MockAuditor)
+	mockAuditor := new(mocks.MockAuditor)
 
 	h := NewHandlers(mockInfoSvc, nil, nil, nil, nil, nil, mockAuditor, nil)
 
@@ -82,10 +83,10 @@ func TestGetUserMe_NoUserInContext(t *testing.T) {
 }
 
 func TestUpdateUserMe(t *testing.T) {
-	mockUserSvc := new(MockUserService)
-	mockInfoSvc := new(MockInfoService)
+	mockUserSvc := new(mocks.MockUserService)
+	mockInfoSvc := new(mocks.MockInfoService)
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	mockAuditor := new(MockAuditor)
+	mockAuditor := new(mocks.MockAuditor)
 
 	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 

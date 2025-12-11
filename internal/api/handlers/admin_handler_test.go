@@ -7,7 +7,6 @@ import (
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -15,15 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-// setupAdminTest creates the common mocks and recorder for admin tests
-func setupAdminTest(t *testing.T) (*httptest.ResponseRecorder, *http.Request, *MockUserService, *MockInfoService, *MockAuditor) {
-	mockUserSvc := new(MockUserService)
-	mockInfoSvc := new(MockInfoService)
-	mockAuditor := new(MockAuditor)
-	rr := httptest.NewRecorder()
-	return rr, httptest.NewRequest("GET", "/", nil), mockUserSvc, mockInfoSvc, mockAuditor
-}
 
 func TestGetUsers(t *testing.T) {
 	rr, req, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
@@ -35,13 +25,13 @@ func TestGetUsers(t *testing.T) {
 	}
 	mockUserSvc.On("GetUsers").Return(mockUsers, nil)
 
-	// Mock InfoService for NewHandlers
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
 		UptimeSince: time.Now(),
 	})
 
 	// Create handler and serve
+	// Note: We reconstruct the handler here because setupAdminTest only returns mocks/recorder
 	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.GetUsers(rr, req)
 
