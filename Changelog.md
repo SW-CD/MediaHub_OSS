@@ -1,3 +1,9 @@
+# v2.x
+Breaking changes
+- timestamps switched from second to millisecond precision
+- housekeeping logs to be debug logs instead of info
+- user roles to be set on database level
+
 # v1.2
 Features:
 - make the "large file" threshold configurable.
@@ -5,6 +11,7 @@ Features:
 - implement a "recovery" command, for database consistency checks after, e.g., a server crash
 - implement auditor logging, which has to be enabled explicitly
 - implement bulk delete and bulk download functionalities (TODO)
+- 
 Bug fixes:
 - fix swagger documentation not being up to date
 - fix filename and status fields not being whitelisted in the search endpoint
