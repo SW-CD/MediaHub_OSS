@@ -1,11 +1,10 @@
-// filepath: internal/services/entry_export.go
+// internal/services/entry_export.go
 package services
 
 import (
 	"archive/zip"
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mediahub/internal/logging"
@@ -17,15 +16,14 @@ import (
 
 // ExportEntries streams selected entries as a ZIP archive containing a CSV index and file folders.
 func (s *entryService) ExportEntries(ctx context.Context, dbName string, ids []int64, w io.Writer) error {
-	// 1. Fetch Database details (for custom fields)
+	// 1. Fetch Database details (needed for custom field definitions)
 	db, err := s.Repo.GetDatabase(dbName)
 	if err != nil {
 		return fmt.Errorf("database not found: %w", err)
 	}
 
 	// 2. Fetch Entry Metadata
-	// For export, we fetch all metadata at once. If this list becomes massive (millions),
-	// we might need cursor-based pagination, but for "selected IDs" in a frontend, this is fine.
+	// Fetching all metadata at once. Suitable for "selected IDs" export.
 	entries, err := s.Repo.GetEntriesByID(dbName, ids, db.CustomFields)
 	if err != nil {
 		return fmt.Errorf("failed to fetch entries: %w", err)
@@ -39,47 +37,28 @@ func (s *entryService) ExportEntries(ctx context.Context, dbName string, ids []i
 	zipWriter := zip.NewWriter(w)
 	defer zipWriter.Close()
 
-	// 4. Write _metadata.json (Database Config)
-	if err := s.writeDBMetadataToZip(zipWriter, db); err != nil {
-		logging.Log.Errorf("Export: Failed to write _metadata.json: %v", err)
-		return err
-	}
-
-	// 5. Write entries.csv
+	// 4. Write entries.csv
 	if err := s.writeCSVToZip(zipWriter, db, entries); err != nil {
 		logging.Log.Errorf("Export: Failed to write entries.csv: %v", err)
 		return err
 	}
 
-	// 6. Stream Files
+	// 5. Stream Files
 	for _, entry := range entries {
-		// Check for context cancellation (client disconnect)
+		// Check for context cancellation (e.g., client disconnect)
 		if ctx.Err() != nil {
 			logging.Log.Warnf("Export cancelled by client context: %v", ctx.Err())
 			return ctx.Err()
 		}
 
 		if err := s.writeFileToZip(zipWriter, db.Name, entry); err != nil {
-			// Log error but continue exporting other files
+			// Log error but continue exporting other files to avoid total failure on one missing file
 			id, _ := entry["id"]
 			logging.Log.Warnf("Export: Failed to add file for entry %v: %v", id, err)
 		}
 	}
 
 	return nil
-}
-
-// writeDBMetadataToZip adds the database configuration to the zip.
-func (s *entryService) writeDBMetadataToZip(zw *zip.Writer, db *models.Database) error {
-	f, err := zw.Create("_metadata.json")
-	if err != nil {
-		return err
-	}
-
-	// Pretty print JSON
-	encoder := json.NewEncoder(f)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(db)
 }
 
 // writeCSVToZip generates the CSV index inside the zip.
@@ -89,7 +68,7 @@ func (s *entryService) writeCSVToZip(zw *zip.Writer, db *models.Database, entrie
 		return err
 	}
 
-	// Handle BOM for Excel compatibility (Optional, but usually helpful)
+	// Handle BOM for Excel compatibility
 	f.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	csvWriter := csv.NewWriter(f)
@@ -140,7 +119,6 @@ func (s *entryService) writeCSVToZip(zw *zip.Writer, db *models.Database, entrie
 
 		// 2. Type Specific Fields
 		if db.ContentType == "image" {
-			// Careful with type assertions, SQLite drivers can return different int types
 			w := toInt64(entry["width"])
 			h := toInt64(entry["height"])
 			row = append(row, strconv.FormatInt(w, 10))
@@ -172,11 +150,11 @@ func (s *entryService) writeFileToZip(zw *zip.Writer, dbName string, entry model
 	timestamp := entry["timestamp"].(int64)
 	filename, ok := entry["filename"].(string)
 	if !ok || filename == "" {
-		// Fallback if filename is missing (shouldn't happen for valid entries)
+		// Fallback if filename is missing
 		filename = fmt.Sprintf("%d.bin", id)
 	}
 
-	// Determine physical path
+	// Determine physical path on disk
 	srcPath, err := s.Storage.GetEntryPath(dbName, timestamp, id)
 	if err != nil {
 		return err
@@ -194,8 +172,7 @@ func (s *entryService) writeFileToZip(zw *zip.Writer, dbName string, entry model
 	t := time.Unix(timestamp, 0)
 	zipPath := fmt.Sprintf("%s/%s/%d_%s", t.Format("2006"), t.Format("01"), id, filename)
 
-	// Create zip entry
-	// We use CreateHeader to preserve modification time
+	// Create zip entry using FileInfoHeader to preserve modification time
 	info, err := srcFile.Stat()
 	if err != nil {
 		return err
@@ -212,7 +189,7 @@ func (s *entryService) writeFileToZip(zw *zip.Writer, dbName string, entry model
 		return err
 	}
 
-	// Stream copy
+	// Stream copy content
 	_, err = io.Copy(dstFile, srcFile)
 	return err
 }
