@@ -1,11 +1,9 @@
 /* frontend/src/app/components/entry-list/entry-list.component.css */
-/* RENAMED: from image-list.component.css */
-
 .image-list-container {
   display: flex;
   flex-direction: column;
   height: 100%;
-  position: relative; /* For the floating action button */
+  position: relative; 
 }
 
 /* --- Header Bar & View Toggle --- */
@@ -107,7 +105,7 @@
   flex-grow: 1;
   overflow-y: auto;
   /* Add padding at the bottom to avoid FAB overlap */
-  padding-bottom: 5rem;
+  padding-bottom: 6rem; /* Increased for action bar */
 }
 
 /* --- Pagination --- */
@@ -159,19 +157,70 @@
 }
 
 
-/* --- Floating Action Button (FAB) --- */
-.upload-fab {
+/* --- Floating Actions Wrapper --- */
+.floating-actions-wrapper {
   position: absolute;
   bottom: 2rem;
   right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  z-index: 50; /* Ensure on top */
+}
+
+/* Upload FAB */
+.upload-fab {
   width: 56px;
   height: 56px;
   border-radius: 50%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s;
   padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-
 .upload-fab:hover {
   transform: scale(1.05);
+}
+
+/* Selection Actions Bar */
+.selection-actions {
+  background-color: var(--content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 2rem; /* Pill shape */
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.selection-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
 }

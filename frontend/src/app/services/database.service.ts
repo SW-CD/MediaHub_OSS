@@ -13,9 +13,6 @@ export interface DatabaseUpdatePayload {
   housekeeping?: any;
 }
 
-/**
- * Manages all API interactions related to databases and entries.
- */
 @Injectable({
   providedIn: 'root',
 })
@@ -58,8 +55,6 @@ export class DatabaseService {
     } else if (error.status === 0) {
       errorMessage = 'Network error or backend unreachable. Check CORS or server status.';
     } else if (error.status === 401) {
-      // 401s are mostly handled by the interceptor now, but if they bubble up here,
-      // it means refresh failed.
       errorMessage = 'Authentication failed or session expired. Please log in again.';
       isAuthError = true;
     } else if (error.status === 403) {
@@ -192,6 +187,31 @@ export class DatabaseService {
     );
   }
 
+  // --- NEW: Bulk Actions ---
+
+  public bulkDeleteEntries(dbName: string, ids: number[]): Observable<any> {
+    const params = new HttpParams().set('name', dbName);
+    return this.http.post(`${this.apiUrl}/database/entries/delete`, { ids }, { params }).pipe(
+      tap(() => {
+        this.notificationService.showSuccess(`Successfully deleted ${ids.length} entries.`);
+        this.triggerImageListRefresh();
+      }),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  public bulkExportEntries(dbName: string, ids: number[]): Observable<Blob> {
+    const params = new HttpParams().set('name', dbName);
+    return this.http.post(`${this.apiUrl}/database/entries/export`, { ids }, { 
+      params,
+      responseType: 'blob' // Important for file download
+    }).pipe(
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  // --- End Bulk Actions ---
+
   public uploadEntry(dbName: string, metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, file: File): Observable<void> {
     const params = new HttpParams().set('database_name', dbName);
 
@@ -204,7 +224,6 @@ export class DatabaseService {
       observe: 'response'
     }).pipe(
       tap(response => {
-        // Case 1: Synchronous Creation (201)
         if (response.status === 201) {
           const entry = response.body as Entry;
           this.notificationService.showSuccess('Entry uploaded successfully.');
@@ -217,7 +236,6 @@ export class DatabaseService {
           this.triggerImageListRefresh();
         }
         
-        // Case 2: Asynchronous Accepted (202)
         if (response.status === 202) {
           const partialEntry = response.body as PartialEntryResponse;
           this.addProcessingEntry(partialEntry.id);
@@ -246,8 +264,6 @@ export class DatabaseService {
       .set('database_name', dbName)
       .set('id', entryId.toString());
 
-    // Explicitly request */* (or a binary type) to avoid the backend sending JSON base64
-    // which happens if the browser sends Accept: application/json by default.
     return this.http.get(`${this.apiUrl}/entry/file`, {
         params,
         responseType: 'blob',
@@ -303,14 +319,10 @@ export class DatabaseService {
   }
 
   private pollForEntryStatus(dbName: string, entryId: number): void {
-    // Poll every 2 seconds, starting after 2 seconds
     timer(2000, 2000).pipe(
       switchMap(() => this.getEntryMeta(dbName, entryId)),
-      // Continue polling while status is 'processing'
       filter(entry => entry.status !== 'processing'),
-      // Take the first non-processing status (ready or error)
       take(1),
-      // Safety: Stop polling after 30 attempts (60 seconds)
       take(30),
       finalize(() => {
         if (this.processingEntriesSubject.value.includes(entryId)) {

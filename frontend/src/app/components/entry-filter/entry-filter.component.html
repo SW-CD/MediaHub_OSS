@@ -1,0 +1,60 @@
+<div class="filter-bar">
+  <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+    <div class="filter-controls">
+      
+      <!-- Standard Filters -->
+      <div class="form-group">
+        <label for="tstart" class="form-label">Start Date</label>
+        <input id="tstart" type="datetime-local" formControlName="tstart" class="form-control">
+      </div>
+      <div class="form-group">
+        <label for="tend" class="form-label">End Date</label>
+        <input id="tend" type="datetime-local" formControlName="tend" class="form-control">
+      </div>
+      <div class="form-group limit-group">
+        <label for="limitPerPage" class="form-label">Per Page</label>
+        <input id="limitPerPage" type="number" formControlName="limitPerPage" class="form-control">
+        <div *ngIf="filterForm.get('limitPerPage')?.invalid && (filterForm.get('limitPerPage')?.dirty || filterForm.get('limitPerPage')?.touched)" class="form-error">
+          Limit required (min 1).
+        </div>
+      </div>
+
+      <!-- Custom Dynamic Filters -->
+      <div formArrayName="customFilters" class="custom-filters-array">
+        <div *ngFor="let group of customFilters.controls; let i = index" [formGroupName]="i" class="custom-filter-row">
+          
+          <select formControlName="field" class="form-control">
+            <option value="">-- Select Field --</option>
+            <option *ngFor="let field of availableFilters" [value]="field.name">{{ field.name }}</option>
+          </select>
+          
+          <select formControlName="operator" class="form-control">
+            <ng-container *ngIf="getSelectedFieldType(i) as fieldType">
+              <option *ngFor="let op of getOperatorsForFieldType(fieldType)" [value]="op === 'LIKE' ? 'LIKE' : op">
+                {{ op === 'LIKE' ? 'contains' : op }}
+              </option>
+            </ng-container>
+            <ng-container *ngIf="!getSelectedFieldType(i)">
+              <option value="=">=</option>
+              <option value="!=">!=</option>
+            </ng-container>
+          </select>
+          
+          <input type="text" formControlName="value" placeholder="Value" class="form-control">
+          
+          <button type="button" class="btn-remove" (click)="removeCustomFilter(i)" title="Remove Filter">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="filter-actions">
+        <button type="button" class="btn-link" (click)="addCustomFilter()">+ Add Filter</button>
+        <button type="submit" class="btn btn-primary" [disabled]="filterForm.invalid || isLoading">Apply</button>
+      </div>
+    </div>
+  </form>
+</div>

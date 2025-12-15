@@ -29,54 +29,12 @@
 
   <ng-container *ngIf="dbName; else noDbSelected">
 
-    <div class="filter-bar">
-      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
-        <div class="filter-controls">
-          <div class="form-group">
-            <label for="tstart" class="form-label">Start Date</label>
-            <input id="tstart" type="datetime-local" formControlName="tstart" class="form-control">
-          </div>
-          <div class="form-group">
-            <label for="tend" class="form-label">End Date</label>
-            <input id="tend" type="datetime-local" formControlName="tend" class="form-control">
-          </div>
-          <div class="form-group limit-group">
-            <label for="limitPerPage" class="form-label">Per Page</label>
-            <input id="limitPerPage" type="number" formControlName="limitPerPage" class="form-control">
-             <div *ngIf="filterForm.get('limitPerPage')?.invalid && (filterForm.get('limitPerPage')?.dirty || filterForm.get('limitPerPage')?.touched)" class="form-error">
-                 Limit required (min 1).
-             </div>
-          </div>
-          <div formArrayName="customFilters" class="custom-filters-array">
-            <div *ngFor="let group of customFilters.controls; let i = index" [formGroupName]="i" class="custom-filter-row">
-              <select formControlName="field" class="form-control">
-                <option value="">-- Select Field --</option>
-                <option *ngFor="let field of availableFilters" [value]="field.name">{{ field.name }}</option>
-              </select>
-              <select formControlName="operator" class="form-control">
-                 <ng-container *ngIf="getSelectedFieldType(i) as fieldType">
-                    <option *ngFor="let op of getOperatorsForFieldType(fieldType)" [value]="op === 'LIKE' ? 'LIKE' : op">
-                        {{ op === 'LIKE' ? 'contains' : op }}
-                    </option>
-                 </ng-container>
-                 <ng-container *ngIf="!getSelectedFieldType(i)">
-                    <option value="=">=</option>
-                    <option value="!=">!=</option>
-                 </ng-container>
-              </select>
-              <input type="text" formControlName="value" placeholder="Value" class="form-control">
-              <button type="button" class="btn-remove" (click)="removeCustomFilter(i)" title="Remove Filter">
-                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
-              </button>
-            </div>
-          </div>
-          <div class="filter-actions">
-            <button type="button" class="btn-link" (click)="addCustomFilter()">+ Add Filter</button>
-            <button type="submit" class="btn btn-primary" [disabled]="filterForm.invalid">Apply</button>
-          </div>
-        </div>
-      </form>
-    </div>
+    <!-- REFACTORED: Use the new EntryFilterComponent -->
+    <app-entry-filter
+      [availableFilters]="availableFilters"
+      [isLoading]="isLoading"
+      (filterApplied)="onFilterApplied($event)">
+    </app-entry-filter>
 
     <div class="content-area">
       <div *ngIf="isLoading" class="state-message">
@@ -92,25 +50,27 @@
             [tableColumns]="tableColumns"
             [user]="currentUser"
             [dbName]="dbName"
+            [selectedIds]="selectedEntryIds"
             (entryClicked)="openDetailModal($event)"
             (editClicked)="openEditModal($event)"
-            (deleteClicked)="openDeleteConfirm($event)">
+            (deleteClicked)="openDeleteConfirm($event)"
+            (toggleSelection)="toggleSelection($event)">
           </app-entry-list-view>
 
           <app-entry-grid
             *ngIf="viewMode === 'grid'"
             [entries]="entriesToShow"
             [dbName]="dbName"
-            (entryClicked)="openDetailModal($event)">
+            [selectedIds]="selectedEntryIds"
+            (entryClicked)="openDetailModal($event)"
+            (toggleSelection)="toggleSelection($event)">
           </app-entry-grid>
           
           <div class="pagination-controls" *ngIf="currentPage > 1 || hasNextPage">
             <button (click)="prevPage()" *ngIf="currentPage > 1" class="btn btn-secondary">
               &larr; Previous
             </button>
-            
             <span class="page-indicator">Page {{ currentPage }}</span>
-            
             <button (click)="nextPage()" *ngIf="hasNextPage" class="btn btn-secondary">
               Next &rarr;
             </button>
@@ -126,13 +86,38 @@
       </ng-container>
     </div>
 
-    <button
-      *ngIf="user.can_create"
-      class="btn btn-primary upload-fab"
-      (click)="openUploadModal()"
-      title="Upload New Entry">
-      <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-    </button>
+    <!-- FLOATING ACTIONS -->
+    <div class="floating-actions-wrapper">
+      <div class="selection-actions" *ngIf="selectedEntryIds.size > 0">
+        <span class="selection-count">{{ selectedEntryIds.size }} selected</span>
+        <button class="btn btn-secondary btn-sm" (click)="clearSelection()">Cancel</button>
+        
+        <button 
+          *ngIf="user.can_delete"
+          class="btn btn-danger btn-icon" 
+          (click)="onBulkDelete()"
+          [disabled]="isBulkProcessing"
+          title="Delete Selected">
+          <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+        </button>
+
+        <button 
+          class="btn btn-primary btn-icon"
+          (click)="onBulkDownload()"
+          [disabled]="isBulkProcessing"
+          title="Download Selected">
+          <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+      </div>
+
+      <button
+        *ngIf="user.can_create"
+        class="btn btn-primary upload-fab"
+        (click)="openUploadModal()"
+        title="Upload New Entry">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+    </div>
 
   </ng-container>
 
@@ -141,5 +126,4 @@
       <p>Please select a database from the sidebar to view its entries.</p>
     </div>
   </ng-template>
-
 </div>

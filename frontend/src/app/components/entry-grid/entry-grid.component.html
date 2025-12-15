@@ -3,9 +3,18 @@
   <div 
     *ngFor="let entry of entries; trackBy: trackById" 
     class="grid-card"
-    (click)="onEntryClick(entry)"
-    [title]="getEntryTitle(entry)">
+    [class.selected]="isSelected(entry)"
+    (click)="onEntryClick(entry)">
     
+    <!-- SELECTION CHECKBOX (Overlay) -->
+    <div class="selection-overlay" (click)="onCheckboxClick(entry, $event)">
+      <div class="checkbox-circle" [class.checked]="isSelected(entry)">
+        <svg *ngIf="isSelected(entry)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+      </div>
+    </div>
+
     <div class="grid-card-preview">
       <ng-container [ngSwitch]="entry.status">
         
@@ -28,40 +37,30 @@
 
         <!-- Case 3: Ready (Normal State) -->
         <ng-container *ngSwitchCase="'ready'">
-          
-          <!-- Sub-case 3A: No load error detected yet -->
           <img *ngIf="!failedImageIds.has(entry.id)"
                [secureSrc]="getPreviewUrl(entry)" 
                (imageError)="onImageError(entry.id)"
                class="grid-card-img" 
                alt="Preview for {{entry.id}}"/>
 
-          <!-- Sub-case 3B: Load error (404) detected -->
           <div *ngIf="failedImageIds.has(entry.id)" class="grid-card-placeholder">
-             <!-- "No Preview" Icon (Camera off / Image slash) -->
              <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
             </svg>
             <span>NO PREVIEW</span>
           </div>
-
         </ng-container>
 
-        <!-- Default Case (Treat as Ready for safety) -->
+        <!-- Default Case -->
         <ng-container *ngSwitchDefault>
            <img *ngIf="!failedImageIds.has(entry.id)"
                [secureSrc]="getPreviewUrl(entry)" 
                (imageError)="onImageError(entry.id)"
                class="grid-card-img" 
-               alt="Preview for {{entry.id}}"/>
-            
+               alt="Preview"/>
             <div *ngIf="failedImageIds.has(entry.id)" class="grid-card-placeholder">
-              <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
-              </svg>
-             <span>NO PREVIEW</span>
+              <span>NO PREVIEW</span>
            </div>
         </ng-container>
 

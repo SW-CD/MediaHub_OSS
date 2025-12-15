@@ -3,6 +3,11 @@
   <table class="table">
     <thead>
       <tr>
+        <!-- NEW SELECTION COLUMN -->
+        <th class="select-col">
+          <!-- Optional 'Select All' for page could go here -->
+        </th>
+
         <th *ngFor="let col of tableColumns; trackBy: trackByColumn" 
             [class.actions-col]="col === 'actions'"
             [class.preview-col]="col === 'Preview'">
@@ -11,7 +16,17 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let entry of entries; trackBy: trackById">
+      <tr *ngFor="let entry of entries; trackBy: trackById"
+          [class.selected-row]="isSelected(entry)">
+        
+        <!-- NEW SELECTION CHECKBOX -->
+        <td class="select-cell">
+          <input type="checkbox" 
+                 [checked]="isSelected(entry)" 
+                 (click)="onCheckboxClick(entry, $event)"
+                 class="form-checkbox">
+        </td>
+
         <td *ngFor="let col of tableColumns; trackBy: trackByColumn" 
             [class.actions-cell]="col === 'actions'"
             [class.preview-cell]="col === 'Preview'">

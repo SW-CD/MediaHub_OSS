@@ -142,6 +142,48 @@ describe('DatabaseService', () => {
     });
   });
 
+  // --- NEW: Bulk Action Tests ---
+
+  describe('bulkDeleteEntries', () => {
+    it('should send a POST request to delete multiple entries', (done) => {
+      const dbName = 'TestDB1';
+      const idsToDelete = [101, 102, 103];
+
+      service.bulkDeleteEntries(dbName, idsToDelete).subscribe(() => {
+        expect(mockNotificationService.showSuccess).toHaveBeenCalledWith('Successfully deleted 3 entries.');
+        done();
+      });
+
+      const req = httpMock.expectOne(r => r.url === '/api/database/entries/delete' && r.params.get('name') === dbName);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ ids: idsToDelete });
+      
+      req.flush({ database_name: dbName, deleted_count: 3, message: 'Deleted' });
+    });
+  });
+
+  describe('bulkExportEntries', () => {
+    it('should send a POST request and return a Blob', (done) => {
+      const dbName = 'TestDB1';
+      const idsToExport = [201, 202];
+      const mockBlob = new Blob(['zip content'], { type: 'application/zip' });
+
+      service.bulkExportEntries(dbName, idsToExport).subscribe(blob => {
+        expect(blob).toEqual(mockBlob);
+        done();
+      });
+
+      const req = httpMock.expectOne(r => r.url === '/api/database/entries/export' && r.params.get('name') === dbName);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.responseType).toBe('blob'); // Crucial check
+      expect(req.request.body).toEqual({ ids: idsToExport });
+
+      req.flush(mockBlob);
+    });
+  });
+
+  // --- End Bulk Action Tests ---
+
   describe('uploadEntry', () => {
     const dbName = 'TestDB1';
     const file = new File([''], 'test.png', { type: 'image/png' });
@@ -153,54 +195,39 @@ describe('DatabaseService', () => {
       const req = httpMock.expectOne(r => r.url === '/api/entry');
       expect(req.request.method).toBe('POST');
       
-      // Return 201 with Ready status
       req.flush({ id: 100, status: 'ready' }, { status: 201, statusText: 'Created' });
 
-      // Expect NO polling request (getEntryMeta)
       httpMock.expectNone('/api/entry/meta');
     });
 
     it('should handle 201 Created with Processing status (Triggers Polling)', fakeAsync(() => {
-      // 1. Trigger Upload
       service.uploadEntry(dbName, metadata, file).subscribe();
 
       const req = httpMock.expectOne(r => r.url === '/api/entry');
-      // Return 201 but with 'processing' status (e.g. generating preview)
       req.flush({ id: 101, status: 'processing' }, { status: 201, statusText: 'Created' });
 
-      // 2. Advance time to trigger polling (timer starts after 2000ms)
       tick(2000);
 
-      // 3. Expect the polling request
       const pollReq = httpMock.expectOne(r => r.url === '/api/entry/meta' && r.params.get('id') === '101');
       expect(pollReq.request.method).toBe('GET');
       
-      // Return 'ready' to stop polling
       pollReq.flush({ id: 101, status: 'ready' });
 
-      // 4. Ensure success toast for completion is shown
-      // UPDATED: The implementation emits "Entry uploaded successfully." immediately,
-      // but does NOT emit a second success message on polling completion.
       expect(mockNotificationService.showSuccess).toHaveBeenCalledWith('Entry uploaded successfully.');
       
-      discardPeriodicTasks(); // Clean up timer
+      discardPeriodicTasks();
     }));
 
     it('should handle 202 Accepted (Async/Large File) and trigger polling', fakeAsync(() => {
-      // 1. Trigger Upload
       service.uploadEntry(dbName, metadata, file).subscribe();
 
       const req = httpMock.expectOne(r => r.url === '/api/entry');
-      // Return 202 Accepted
       req.flush({ id: 102, status: 'processing' }, { status: 202, statusText: 'Accepted' });
 
-      // 2. Expect Info notification
       expect(mockNotificationService.showInfo).toHaveBeenCalledWith(jasmine.stringMatching(/processing/));
 
-      // 3. Advance time
       tick(2000);
 
-      // 4. Expect polling request
       const pollReq = httpMock.expectOne(r => r.url === '/api/entry/meta' && r.params.get('id') === '102');
       pollReq.flush({ id: 102, status: 'ready' });
 

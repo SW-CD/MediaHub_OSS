@@ -25,18 +25,19 @@ export class EntryListViewComponent implements OnChanges {
   @Input() tableColumns: string[] = [];
   @Input() user: User | null = null;
   @Input() dbName: string | null = null;
+  // --- SELECTION INPUTS ---
+  @Input() selectedIds = new Set<number>();
 
   @Output() entryClicked = new EventEmitter<Entry>();
   @Output() editClicked = new EventEmitter<Entry>();
   @Output() deleteClicked = new EventEmitter<Entry>();
+  @Output() toggleSelection = new EventEmitter<{ entry: Entry, event: MouseEvent }>();
 
-  // Track IDs of entries where the preview image failed to load (404)
   public failedImageIds = new Set<number>();
 
   constructor(private databaseService: DatabaseService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If the database or the list of entries changes, reset the error tracking
     if (changes['dbName'] || changes['entries']) {
       this.failedImageIds.clear();
     }
@@ -59,9 +60,16 @@ export class EntryListViewComponent implements OnChanges {
     this.deleteClicked.emit(entry);
   }
 
-  /**
-   * Called by the SecureImageDirective when the image fails to load.
-   */
+  // Handle selection checkbox click
+  public onCheckboxClick(entry: Entry, event: MouseEvent): void {
+    event.stopPropagation();
+    this.toggleSelection.emit({ entry, event });
+  }
+
+  public isSelected(entry: Entry): boolean {
+    return this.selectedIds.has(entry.id);
+  }
+
   public onImageError(entryId: number): void {
     this.failedImageIds.add(entryId);
   }
