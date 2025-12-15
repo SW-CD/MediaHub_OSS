@@ -112,6 +112,37 @@ The server will start, typically on `http://localhost:8080`.
 
 -----
 
+## 🛠️ Maintenance Commands
+
+In addition to the web server, the binary includes several maintenance tools accessible via subcommands.
+
+### Database Recovery
+
+If the server crashes during a file upload, some entries may get stuck in a "processing" state. The recovery command scans the database and fixes these inconsistencies.
+
+```bash
+# Runs the integrity check and fixes stuck entries (does not start the web server)
+./mediahub recovery
+```
+
+### Database Migrations
+
+You can manually manage the database schema versions using the `migrate` command. This is useful for upgrading the database structure explicitly.
+
+```bash
+# Check current migration status
+./mediahub migrate status
+
+# Apply all pending migrations (Up)
+./mediahub migrate up
+
+# Rollback the last migration (Down)
+# Use with care and a backup of the database! This can permanently remove data!
+./mediahub migrate down
+```
+
+-----
+
 ## 🔧 Configuration
 
 The application is configured using a hierarchy of settings. Any value set by a **command-line flag** will override a value set by an **environment variable**, which in turn overrides any value set in the **`config.toml` file**.
@@ -134,6 +165,7 @@ storage_root = "storage_root" # The root directory where files will be stored
 
 [logging]
 level = "info" # The logging level (debug, info, warn, error)
+audit_enabled = false # (v1.2+) Set to true to enable detailed audit logging. False saves I/O.
 
 [media]
 # Optional: Path to the FFmpeg executable.
@@ -143,6 +175,13 @@ ffmpeg_path = ""
 # Optional: Path to the FFprobe executable.
 # If empty, the server will check near ffmpeg_path, then the system PATH.
 ffprobe_path = ""
+
+[jwt]
+  # Javascript Web Token settings, no need to change those in most cases.
+  access_duration_min = 5
+  refresh_duration_hours = 24
+  # If empty, a random secret is generated on startup and saved here automatically.
+  secret = "" 
 ```
 
 ### 2\. Flags & Environment Variables (Overrides)
@@ -150,14 +189,16 @@ ffprobe_path = ""
 You can override any setting from the `config.toml` file using environment variables or command-line flags.
 
 | Flag | Environment Variable | Description | Default |
-| --- | --- | --- | --- |
+| :--- | :--- | :--- | :--- |
 | `--port` | `FDB_PORT` | Overrides `server.port` from `config.toml`. | `8080` |
 | `--log-level` | `FDB_LOG_LEVEL` | Overrides `logging.level` from `config.toml`. | `info` |
+| `--audit-enabled` | `FDB_AUDIT_ENABLED` | Enables detailed audit logging for security events. | `false` |
 | `--database-path` | `FDB_DATABASE_PATH` | Overrides `database.path` from `config.toml`. | `mediahub.db` |
 | `--storage-root` | `FDB_STORAGE_ROOT` | Overrides `database.storage_root` from `config.toml`. | `storage_root` |
 | `--ffmpeg-path` | `FDB_FFMPEG_PATH` | Overrides `media.ffmpeg_path` from `config.toml`. | `""` |
 | `--ffprobe-path` | `FDB_FFPROBE_PATH` | Overrides `media.ffprobe_path` from `config.toml`. | `""` |
 | `--max-sync-upload` | `FDB_MAX_SYNC_UPLOAD` | Overrides `server.max_sync_upload_size`. Sets memory threshold (e.g. "4MB", "1GB"). | `8MB` |
+| `--jwt-secret` | `FDB_JWT_SECRET` | Overrides `jwt.secret`. Manually sets the signing key. | `""` |
 | `--config_path` | `FDB_CONFIG_PATH` | Path to the base TOML configuration file. | `config.toml` |
 | `--password` | `FDB_PASSWORD` | The password for the 'admin' user (used on first run or with `--reset_pw`). | `""` |
 | `--reset_pw` | `FDB_RESET_PW` | If `true`, resets the 'admin' password on startup to the one provided. | `false` |
