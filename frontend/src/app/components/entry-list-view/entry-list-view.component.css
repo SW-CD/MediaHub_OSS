@@ -17,6 +17,8 @@
 .select-cell {
   text-align: center;
   vertical-align: middle;
+  /* Prevent accidental selection of the checkbox cell content */
+  user-select: none;
 }
 
 /* Row selected state */
@@ -27,6 +29,10 @@
   background-color: rgba(66, 153, 225, 0.2);
 }
 
+/* ADDED: Prevent text selection highlighting on rows to avoid flickering artifacts during Shift+Click */
+.table tbody tr {
+  user-select: none;
+}
 
 .preview-col {
   width: 70px; /* Fixed width for preview column */

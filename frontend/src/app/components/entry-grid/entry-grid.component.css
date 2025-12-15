@@ -4,6 +4,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1.5rem;
+  /* Prevent native text selection on the grid to avoid blue highlights during shift-click */
+  user-select: none;
 }
 
 .grid-card {

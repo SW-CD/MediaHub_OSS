@@ -63,6 +63,12 @@ export class EntryListViewComponent implements OnChanges {
   // Handle selection checkbox click
   public onCheckboxClick(entry: Entry, event: MouseEvent): void {
     event.stopPropagation();
+    
+    // UPDATED: Blur the checkbox to remove the persistent focus ring (blue outline)
+    if (event.target instanceof HTMLElement) {
+      event.target.blur();
+    }
+
     this.toggleSelection.emit({ entry, event });
   }
 

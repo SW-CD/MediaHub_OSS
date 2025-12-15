@@ -13,7 +13,7 @@ import { EntryDetailModalComponent } from '../entry-detail-modal/entry-detail-mo
 import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
 import { isMimeTypeAllowed } from '../../utils/mime-types';
-import { AvailableFilter, FilterChangedEvent } from '../entry-filter/entry-filter.component'; // Import from child
+import { AvailableFilter, FilterChangedEvent } from '../entry-filter/entry-filter.component';
 
 @Component({
   selector: 'app-entry-list',
@@ -43,7 +43,6 @@ export class EntryListComponent implements OnInit, OnDestroy {
   public imagesPerPage = 24;
   public hasNextPage = false;
   
-  // Track current filter to apply it when paging
   private currentFilterConditions: SearchFilter | undefined;
 
   // --- SELECTION STATE ---
@@ -111,13 +110,10 @@ export class EntryListComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Called by the Child Component (EntryFilter) when the user clicks Apply.
-   */
   onFilterApplied(event: FilterChangedEvent): void {
     this.currentFilterConditions = event.filter;
     this.imagesPerPage = event.limit;
-    this.currentPage = 1; // Reset to page 1 on new filter
+    this.currentPage = 1;
     this.manualFetchTrigger$.next();
   }
 
@@ -142,7 +138,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
     this.currentPage = 1; 
     this.hasNextPage = false;
     this.clearSelection();
-    this.currentFilterConditions = undefined; // Reset filters on DB change
+    this.currentFilterConditions = undefined;
 
     this.isLoading = !!name; 
 
@@ -189,11 +185,23 @@ export class EntryListComponent implements OnInit, OnDestroy {
     this.availableFilters = filters;
   }
 
-  // --- SELECTION LOGIC (Unchanged) ---
+  // --- SELECTION LOGIC ---
 
   toggleSelection(event: { entry: Entry, event: MouseEvent }): void {
     const { entry, event: mouseEvent } = event;
     const entryId = entry.id;
+
+    // 1. Clear native text selection to prevent artifacts.
+    // UPDATED: Removed mouseEvent.preventDefault() to allow checkbox input to update visually immediately.
+    if (mouseEvent.shiftKey) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+      }
+    }
+
+    // 2. Create a NEW Set instance to trigger OnPush change detection in children
+    const newSelection = new Set(this.selectedEntryIds);
 
     if (mouseEvent.shiftKey && this.lastSelectedEntryId !== null) {
       const lastIndex = this.entriesToShow.findIndex(e => e.id === this.lastSelectedEntryId);
@@ -202,27 +210,33 @@ export class EntryListComponent implements OnInit, OnDestroy {
       if (lastIndex !== -1 && currentIndex !== -1) {
         const start = Math.min(lastIndex, currentIndex);
         const end = Math.max(lastIndex, currentIndex);
+        // Select range
         for (let i = start; i <= end; i++) {
-          this.selectedEntryIds.add(this.entriesToShow[i].id);
+          newSelection.add(this.entriesToShow[i].id);
         }
       }
     } else {
-      if (this.selectedEntryIds.has(entryId)) {
-        this.selectedEntryIds.delete(entryId);
+      // Toggle single
+      if (newSelection.has(entryId)) {
+        newSelection.delete(entryId);
         this.lastSelectedEntryId = null;
       } else {
-        this.selectedEntryIds.add(entryId);
+        newSelection.add(entryId);
         this.lastSelectedEntryId = entryId;
       }
     }
+
+    // 3. Reassign to trigger update
+    this.selectedEntryIds = newSelection;
   }
 
   clearSelection(): void {
-    this.selectedEntryIds.clear();
+    // Create a NEW Set instance so Child Components (OnPush) detect the change
+    this.selectedEntryIds = new Set<number>();
     this.lastSelectedEntryId = null;
   }
 
-  // --- BULK ACTIONS (Unchanged) ---
+  // --- BULK ACTIONS ---
 
   onBulkDownload(): void {
     if (!this.dbName || this.selectedEntryIds.size === 0) return;
@@ -266,7 +280,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
       });
   }
 
-  // --- UI Setup & Modals (Unchanged) ---
+  // --- UI Setup & Modals ---
 
   private setupTableColumns(db: Database): void {
     let standardColumns = ['id', 'timestamp', 'filename', 'mime_type', 'filesize', 'status'];

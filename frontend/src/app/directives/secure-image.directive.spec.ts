@@ -56,9 +56,10 @@ describe('SecureImageDirective', () => {
   it('should emit imageError and remove loading class on failure', () => {
     const req = httpMock.expectOne('/api/test/image');
     
+    // UPDATED: Spy on console.error to prevent the expected error from cluttering the test output
+    spyOn(console, 'error');
+
     // Simulate 404
-    // FIX: We must pass a Blob or null as the body because responseType is 'blob'.
-    // Passing a string triggers "Automatic conversion to Blob is not supported".
     req.flush(null, { status: 404, statusText: 'Not Found' });
 
     fixture.detectChanges();
@@ -67,6 +68,8 @@ describe('SecureImageDirective', () => {
     expect(component.onError).toHaveBeenCalled();
     // Should not have loading class
     expect(imgEl.nativeElement.classList.contains('loading-image')).toBeFalse();
+    // Verify the error was actually logged (internally), but it won't show in the terminal now
+    expect(console.error).toHaveBeenCalled(); 
   });
 
   it('should revoke URL when src changes', () => {
@@ -88,8 +91,6 @@ describe('SecureImageDirective', () => {
     // 3. New Request
     const req2 = httpMock.expectOne('/api/test/image2');
     
-    // FIX: Revocation happens inside the 'next' callback of the subscription,
-    // which only runs AFTER the new image is successfully loaded (to prevent flickering).
     req2.flush(new Blob(['data2']));
     fixture.detectChanges();
 
