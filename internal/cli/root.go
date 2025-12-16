@@ -262,6 +262,12 @@ func runServer() error {
 	}
 	defer repo.Close()
 
+	// --- Conditional Auto-migrate on startup ---
+	if err := repo.EnsureSchemaBootstrapped(); err != nil {
+		logging.Log.Errorf("Failed to bootstrap database: %v", err)
+		return err
+	}
+
 	if err := repo.ValidateSchema(); err != nil {
 		logging.Log.Error("---------------------------------------------------------------")
 		logging.Log.Errorf("CRITICAL DATABASE ERROR: %v", err)

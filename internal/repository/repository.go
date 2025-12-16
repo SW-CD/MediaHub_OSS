@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"mediahub/internal/config"
 	"mediahub/internal/db/migrations" // Import the embedded migrations
+	"mediahub/internal/logging"       // Import logging
 	"regexp"
 	"strconv"
 	"strings"
@@ -76,6 +77,41 @@ func (s *Repository) BeginTx() (*Tx, error) {
 		return nil, err
 	}
 	return &Tx{tx}, nil
+}
+
+// EnsureSchemaBootstrapped checks if the database is fresh (no migration table).
+// If it is fresh, it applies all migrations automatically.
+// If it contains existing data/migrations, it does nothing.
+func (s *Repository) EnsureSchemaBootstrapped() error {
+	// 1. Check if the goose_db_version table exists
+	var count int
+	query := "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='goose_db_version'"
+	if err := s.DB.QueryRow(query).Scan(&count); err != nil {
+		return fmt.Errorf("failed to check for migration table: %w", err)
+	}
+
+	// 2. If table exists, this is an existing database. Do not auto-migrate.
+	if count > 0 {
+		logging.Log.Debug("Existing database detected (migration table found). Skipping auto-bootstrap.")
+		return nil
+	}
+
+	// 3. If table is missing, this is a new database. Bootstrap it.
+	logging.Log.Info("Fresh database detected. Bootstrapping schema...")
+
+	// Configure Goose to use the embedded filesystem
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	// Apply all "Up" migrations
+	if err := goose.Up(s.DB, "."); err != nil {
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	logging.Log.Info("Database bootstrapping complete.")
+	return nil
 }
 
 // ValidateSchema checks if the database schema is up to date with the binary.
