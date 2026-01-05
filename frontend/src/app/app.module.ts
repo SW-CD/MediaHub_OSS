@@ -30,11 +30,12 @@ import { UserFormComponent } from './components/user-form/user-form.component';
 import { IntervalPickerComponent } from './components/interval-picker/interval-picker.component';
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
+import { EntryFilterComponent } from './components/entry-filter/entry-filter.component'; // <-- NEW
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
 import { SecureImageDirective } from './directives/secure-image.directive';
-import { FileDragDropDirective } from './directives/file-drag-drop.directive'; // <-- NEW
+import { FileDragDropDirective } from './directives/file-drag-drop.directive';
 
 // Interceptor
 import { JwtInterceptor } from './interceptors/jwt.interceptor';
@@ -58,6 +59,7 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     AdminUserListComponent,
     ChangePasswordModalComponent,
     UserFormComponent,
+    EntryFilterComponent // <-- NEW
   ],
   imports: [
     BrowserModule,
@@ -72,7 +74,7 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     EntryListViewComponent,
     SecureImageDirective,
     FormatBytesPipe,
-    FileDragDropDirective // <-- NEW
+    FileDragDropDirective
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }

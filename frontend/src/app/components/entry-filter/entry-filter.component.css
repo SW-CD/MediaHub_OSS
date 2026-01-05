@@ -1,0 +1,72 @@
+/* frontend/src/app/components/entry-filter/entry-filter.component.css */
+
+.filter-bar {
+  background-color: var(--content-bg);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Reusing global form styles, but refining layout */
+.form-group {
+  margin-bottom: 0; /* Override default for this row */
+}
+
+.limit-group {
+  max-width: 100px; 
+}
+
+.custom-filters-array {
+  display: contents; /* Treat children as if they were direct children of flex container */
+}
+
+.custom-filter-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center; 
+  flex-basis: 100%; /* Force new line on small screens if needed */
+}
+
+@media (min-width: 1024px) {
+  .custom-filter-row {
+    flex-basis: auto; 
+  }
+}
+
+.custom-filter-row .form-control {
+  min-width: 120px;
+}
+
+.filter-actions {
+  margin-left: auto; 
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.25rem; /* Align with inputs */
+}
+
+/* Button override */
+.btn-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0.5rem; 
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.btn-remove:hover {
+  color: var(--button-danger-bg);
+  background-color: var(--item-bg-hover);
+}

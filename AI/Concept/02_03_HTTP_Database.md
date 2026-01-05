@@ -457,3 +457,96 @@ Returns a report of actions taken.
   * **Status 401 - Unauthorized**: Authentication failed.
   * **Status 403 - Forbidden**: User lacks `CanDelete` role.
   * **Status 404 - Not Found**: Database 'MyAudioDatabase' not found.
+
+-----
+
+#### POST /api/database/entries/export
+
+**New in v1.2**: Streams a ZIP archive containing the files and metadata for a specific set of entries.
+**Performance Note**: This endpoint uses `io.Pipe` to stream data directly from disk to the HTTP response. It does **not** load the file binaries into RAM, allowing for multi-gigabyte exports on low-memory devices.
+
+**Role Required: `CanView`**
+
+##### Request
+
+`POST /api/database/entries/export?name=$name`
+
+* **name** (query param, required): The name of the database to export from.
+
+##### Request Body
+
+```json
+{
+    "ids": [10232, 10233, 10234, 10500]
+}
+```
+
+  * **ids** (array of integers, required): The list of unique entry IDs to include in the export.
+
+##### Success Response
+
+**Status 200 - OK**
+
+  * **Content-Type:** `application/zip`
+  * **Content-Disposition:** `attachment; filename="MyAudioDatabase_export.zip"`
+  * **Body:** A binary ZIP stream containing:
+      * **Folder structure:** `YYYY/MM/ID.ext` (Files are organized by date, similar to storage).
+      * **`entries.csv`:** A single CSV file containing all metadata for the exported entries.
+          * **Standard Columns:** `id`, `filename`, `timestamp` (ISO8601), `filesize`, `mime_type`, `status`.
+          * **Type-Specific Columns:** `width`, `height` (Image) or `duration_sec`, `channels` (Audio).
+          * **Custom Columns:** One column for each custom field defined in the database.
+
+##### Error Responses
+
+  * **Status 400 - Bad Request**: Missing 'name' query parameter or empty 'ids' list.
+  * **Status 401 - Unauthorized**: Authentication failed.
+  * **Status 403 - Forbidden**: User lacks `CanView` role.
+  * **Status 404 - Not Found**: Database not found.
+  * **Status 500 - Internal Server Error**: ZIP streaming failed.
+
+-----
+
+#### POST /api/database/entries/delete
+
+**New in v1.2**: Deletes multiple entries in a single atomic transaction. This is significantly more efficient than deleting entries one by one, as it updates the database statistics (entry count and disk space) only once.
+
+**Role Required: `CanDelete`**
+
+##### Request
+
+`POST /api/database/entries/delete?name=$name`
+
+* **name** (query param, required): The name of the database.
+
+##### Request Body
+
+```json
+{
+    "ids": [10232, 10233, 10234, 10500]
+}
+```
+
+  * **ids** (array of integers, required): The list of unique entry IDs to delete.
+
+##### Success Response
+
+**Status 200 - OK**
+
+Returns a summary of the operation.
+
+```json
+{
+    "database_name": "MyAudioDatabase",
+    "deleted_count": 4,
+    "space_freed_bytes": 15000000,
+    "message": "Successfully deleted 4 entries."
+}
+```
+
+##### Error Responses
+
+  * **Status 400 - Bad Request**: Missing 'name' param, invalid JSON, or empty 'ids' list.
+  * **Status 401 - Unauthorized**: Authentication failed.
+  * **Status 403 - Forbidden**: User lacks `CanDelete` role.
+  * **Status 404 - Not Found**: Database not found.
+  * **Status 500 - Internal Server Error**: Transaction failed.

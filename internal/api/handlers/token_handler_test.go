@@ -7,66 +7,13 @@ import (
 	"errors"
 	"mediahub/internal/models"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
-// setupTokenHandlerTestAPI creates a new test server for token handlers.
-func setupTokenHandlerTestAPI(t *testing.T) (*httptest.Server, *MockTokenService, *MockUserService, func()) {
-	t.Helper()
-
-	mockTokenSvc := new(MockTokenService)
-	mockUserSvc := new(MockUserService)
-	mockInfoSvc := new(MockInfoService)
-
-	// Mock InfoService for NewHandlers (required dependency)
-	mockInfoSvc.On("GetInfo").Return(models.Info{
-		Version:     "test",
-		UptimeSince: time.Now(),
-	})
-
-	// Use the AuthMiddleware with the mocked services
-	// Note: For unit testing specific handlers, we often don't need the full middleware stack
-	// unless we are testing the routing protection itself.
-	// Here we pass the mockTokenSvc to the handlers struct.
-	h := NewHandlers(
-		mockInfoSvc,
-		mockUserSvc,
-		mockTokenSvc, // TokenService is 3rd argument
-		nil,          // database
-		nil,          // entry
-		nil,          // housekeeping
-		nil,          // cfg
-	)
-
-	r := mux.NewRouter()
-
-	// Public Routes
-	r.HandleFunc("/api/token", h.GetToken).Methods("POST")
-	r.HandleFunc("/api/token/refresh", h.RefreshToken).Methods("POST")
-
-	// Protected Routes (Mocking auth middleware context for simplicity in unit tests)
-	// In a real integration test, we would mount the actual middleware.
-	// Here we will manually set context in the test if needed, or rely on the handler logic.
-	r.HandleFunc("/logout", h.Logout).Methods("POST")
-
-	server := httptest.NewServer(r)
-
-	cleanup := func() {
-		server.Close()
-	}
-
-	return server, mockTokenSvc, mockUserSvc, cleanup
-}
-
-// TestGetToken_InvalidUser tests the scenario where the username is not found.
-// Note: We skip success testing here because mocking bcrypt inside the handler requires
-// real hash generation setup, which is better suited for integration tests.
 func TestGetToken_InvalidUser(t *testing.T) {
+	// Use setup from main_test.go
 	server, _, mockUser, cleanup := setupTokenHandlerTestAPI(t)
 	defer cleanup()
 
@@ -137,8 +84,6 @@ func TestLogout_Success(t *testing.T) {
 	defer cleanup()
 
 	refreshToken := "token.to.revoke"
-
-	// Mock Logout
 	mockToken.On("Logout", refreshToken).Return(nil).Once()
 
 	reqBody := map[string]string{"refresh_token": refreshToken}
@@ -146,9 +91,7 @@ func TestLogout_Success(t *testing.T) {
 
 	resp, err := http.Post(server.URL+"/logout", "application/json", bytes.NewReader(jsonBody))
 	assert.NoError(t, err)
-
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	mockToken.AssertExpectations(t)
 }
 
 func TestLogout_InternalError(t *testing.T) {

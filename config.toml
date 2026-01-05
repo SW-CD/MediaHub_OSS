@@ -1,6 +1,7 @@
 [server]
   host = "0.0.0.0"
   port = 8080
+  max_sync_upload_size = "8MB" # Threshold for switching from synchronous (RAM) to asynchronous (Disk) processing
 
 [database]
   path = "mediahub.db"
@@ -8,6 +9,8 @@
 
 [logging]
   level = "info"
+  audit_enabled = false # (v1.2+) Set to true to enable detailed audit logging. False saves I/O.
+
 
 [jwt]
   access_duration_min = 5

@@ -1,55 +1,129 @@
-## 🔧 Configuration and Startup
+## 🔧 Configuration and CLI
 
-The application is configured via command-line (CLI) flags, environment variables, and TOML configuration files. CLI flags take precedence over environment variables, which in turn override values loaded from the `config.toml` file.
+The application uses the **Cobra** framework for command-line operations. Configuration is handled via a strict hierarchy to ensure flexibility across different deployment environments (Docker, Systemd, Local).
 
-User management is handled via API endpoints, with the initial admin user being provisioned at startup by the `UserService`.
+### 1. Configuration Precedence
 
-### 1\. Configuration Files
+The application resolves configuration values in the following order (highest priority first):
 
-The server uses two types of configuration files:
+1.  **CLI Flags** (e.g., `--port 9090`)
+2.  **Environment Variables** (e.g., `FDB_PORT=9090`)
+3.  **Base Configuration File** (`config.toml`)
+4.  **Application Defaults** (Hardcoded safety defaults)
 
-  * **Base Configuration (`config.toml`)**: Loaded on every startup. This file defines the base settings for the server, such as the port and database paths.
-  * **Initialization Configuration (`--init_config`)**: An optional file, specified by a flag, that is run *only once*. It is used to create users and databases that do not already exist, making it ideal for automated deployments.
+---
 
-### 2\. Command-Line Interface
+### 2. Default Behavior (Server)
 
-The executable accepts the following flags:
+To maintain backward compatibility with v1.1, running the binary **without any subcommand** will start the HTTP API and Web Interface. All server-related flags are available at the root level.
 
-  * `--help` or `help`: Prints a short description of the app's functionality and all available options.
-  * `--port` (int): The port for the HTTP server. (Overrides `config.toml` and `IMS_PORT`).
-  * `--log-level` (string): The logging level (`debug`, `info`, `warn`, `error`). (Overrides `config.toml` and `IMS_LOG_LEVEL`).
-  * `--password` (string): The password for the 'admin' user (used on first run or with `--reset_pw`). (Overrides `IMS_PASSWORD`).
-  * `--reset_pw` (bool): If `true`, resets the 'admin' password on startup to the one provided. (Overrides `IMS_RESET_PW`).
-  * `--config_path` (string): Path to the base TOML configuration file. (Default: `config.toml`).
-  * `--init_config` (string): Path to a TOML config file for one-time initialization of users/databases. (Default: `""`).
+**Usage:**
+```bash
+# Start server with defaults (port 8080, config.toml)
+./mediahub
 
-### 3\. Environment Variables
+# Start server with overrides
+./mediahub --port 9090 --log-level debug --max-sync-upload "50MB"
+```
 
-If a CLI flag is not provided, the application will check for these environment variables:
+**Global & Server Flags:**
 
-  * `IMS_PORT`: See `--port`.
-  * `IMS_LOG_LEVEL`: See `--log-level`.
-  * `IMS_PASSWORD`: See `--password`.
-  * `IMS_RESET_PW`: See `--reset_pw` (e.g., `IMS_RESET_PW=true`).
-  * `DATABASE_PATH`: The path to the SQLite database file. (Overrides `config.toml`).
-  * `STORAGE_ROOT`: The root directory where files will be stored. (Overrides `config.toml`).
-  * `IMS_CONFIG_PATH`: See `--config_path`.
+| Flag | Env Variable | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `--config_path` | `FDB_CONFIG_PATH` | Path to the base TOML configuration file. | `config.toml` |
+| `--log-level` | `FDB_LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warn`, `error`). | `info` |
+| `--port` | `FDB_PORT` | The HTTP port to bind to. | `8080` |
+| `--max-sync-upload` | `FDB_MAX_SYNC_UPLOAD` | RAM threshold for uploads (e.g., "8MB"). Larger files use disk. | `8MB` |
+| `--password` | `FDB_PASSWORD` | The password for the 'admin' user (used on first run or with reset). | `""` |
+| `--reset_pw` | `FDB_RESET_PW` | If `true`, resets the 'admin' password on startup to the one provided. | `false` |
+| `--init_config` | `FDB_INIT_CONFIG` | Path to a TOML config file for one-time initialization of users/databases. | `""` |
+| `--audit-enabled` | `FDB_AUDIT_ENABLED` | Enables detailed audit logging for security events. | `false` |
 
-### 4\. Config File Initialization (`--init_config`)
+-----
 
-You can provide a TOML configuration file on startup using the `--init_config` flag. The server will read this file and **create any users or databases that do not already exist**.
+### 3\. Subcommands (Maintenance)
 
-  * This process **will not overwrite** existing users or databases.
-  * After a successful run, the server will **attempt to overwrite the config file** to remove the plaintext `password` fields for security.
-  * If this write fails (e.g., due to file permissions), the server will log a warning and continue, but you should **manually secure the file** to remove the passwords.
+New features in v1.2+ are accessed via explicit subcommands. These commands inherit global flags like `--config_path` and `--log-level`.
+
+#### `recovery`
+
+**New in v1.2**: Runs maintenance tasks to fix data inconsistencies (e.g., after a power loss or hard crash). **Does not start the HTTP server.**
+
+```bash
+./mediahub recovery [flags]
+```
+
+  * **Zombie Fix:** Scans all database tables for entries stuck in `status: "processing"` (caused by interrupted async uploads) and marks them as `error`.
+  * **Integrity Check (Planned):** Verifies that file records in SQLite have corresponding files on disk.
+
+#### `migrate`
+
+**New in v1.2**: Manually manages database schema versions.
+
+```bash
+./mediahub migrate [status|up|down]
+```
+
+-----
+
+### 4\. Base Configuration (`config.toml`)
+
+On startup, the application looks for a `config.toml` file (path configurable via `--config_path`).
 
 **Example `config.toml`:**
+
+```toml
+[server]
+host = "0.0.0.0"   # The host address to bind to
+port = 8080        # Default port (can be overridden by flag/env)
+max_sync_upload_size = "8MB" # Threshold for switching from RAM to Disk processing
+
+[database]
+path = "mediahub.db"      # Path to the SQLite database file
+storage_root = "storage_root" # Root directory for file storage
+
+[logging]
+level = "info" # Logging level
+# audit_enabled = false # (v1.2+) Enable SQL audit logging (Commercial) or specific Audit file (OSS)
+
+[media]
+# Optional: Path to the FFmpeg executable.
+# If empty, the server will check the system PATH.
+ffmpeg_path = ""
+
+# Optional: Path to the FFprobe executable.
+# If empty, the server will check near ffmpeg_path, then the system PATH.
+ffprobe_path = ""
+
+[jwt]
+# Token expiration settings
+access_duration_min = 5
+refresh_duration_hours = 24
+# Secret is auto-generated and saved here if missing
+secret = "..."
+```
+
+-----
+
+### 5\. One-Time Initialization (`--init_config`)
+
+You can provide a *separate* TOML configuration file on startup using the `--init_config` flag (or `FDB_INIT_CONFIG` env var). The server will read this file and **create any users or databases that do not already exist**.
+
+  * **Behavior:** It creates missing resources. It does **not** overwrite existing users or databases.
+  * **Security:** After a successful run, the server will **attempt to overwrite the init config file** to remove the plaintext `password` fields. If this fails (e.g., due to file permissions), a warning is logged.
+
+**Example Init Config (`my-init.toml`):**
 
 ```toml
 [[user]]
 name = "Viewer"
 roles = ["CanView"]
 password = "StrongPassword"
+
+[[user]]
+name = "MaxMustermann"
+roles = ["CanView", "CanCreate", "CanEdit", "CanDelete"]
+password = "DifferentPassword"
 
 [[database]]
 name = "ImageDB1"
@@ -60,25 +134,44 @@ housekeeping = {
     disk_space = "100G",
     max_age = "365d"
 }
+# Custom metadata schema
 custom_fields = [
     {name = "latitude", type = "REAL"},
-    {name = "longitude", type = "REAL"}
+    {name = "longitude", type = "REAL"},
+    {name = "ml_score", type = "REAL"},
+    {name = "sensor_id", type = "TEXT"},
+    {name = "description", type = "TEXT"}
+]
+
+[[database]]
+name = "Audio_Archive"
+content_type = "audio"
+config = { create_previews = true, auto_conversion = "flac" }
+housekeeping = {
+    interval = "24h",
+    disk_space = "500G",
+    max_age = "0" # Disable age-based cleanup
+}
+custom_fields = [
+    {name = "source", type = "TEXT"}
 ]
 ```
 
-### 5\. Admin User Startup Logic
+-----
 
-The application follows a specific sequence on startup to ensure an administrator account exists. This logic is now handled by the `UserService`.
+### 6\. Admin User Startup Logic
+
+The application ensures an administrator account exists on every startup of the server. This logic is handled by the `UserService`.
 
 1.  **Check for 'admin' user:** The server queries the `users` table for a user with `username = 'admin'`.
 2.  **Case 1: 'admin' user does NOT exist (First Run)**
-      * The server retrieves the password from `--password`, `IMS_PASSWORD`, or generates a random 10-character string if neither is set.
-      * The random password will be printed to the console (e.g., `INFO: No admin user found. Created 'admin' with password: 'aXbY12cZ34'`).
+      * The server retrieves the password from `--password`, `FDB_PASSWORD`, or generates a **random 10-character string** if neither is set.
+      * The random password is **printed to the console**.
       * A new user is created with `username: 'admin'`, the securely hashed password, and all roles set to `true`.
 3.  **Case 2: 'admin' user exists**
-      * The server checks for `--reset_pw=true` or `IMS_RESET_PW=true`.
+      * The server checks for `--reset_pw=true` (or `FDB_RESET_PW=true`).
       * **If reset is true:**
-          * The server *requires* a password to be provided via `--password` or `IMS_PASSWORD`. If neither is set, the server will exit with an error.
-          * The existing 'admin' user's `password_hash` is updated with the new, securely hashed password.
+          * The server *requires* a password via `--password` or `FDB_PASSWORD`. If missing, it exits with an error.
+          * The existing 'admin' password is updated.
       * **If reset is false (default):**
-          * No action is taken. The 'admin' user's existing password remains unchanged.
+          * No action is taken.

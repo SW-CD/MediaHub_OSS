@@ -323,6 +323,135 @@ const docTemplate = `{
                 }
             }
         },
+        "/database/entries/delete": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Deletes multiple entries in a single atomic transaction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "Bulk delete entries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Database Name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "List of Entry IDs to delete",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.BulkDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing name or empty ID list",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Database not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Transaction failed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/database/entries/export": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Streams a ZIP archive containing the files and metadata (CSV) for the specified entries.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "Export entries as ZIP",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Database Name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "List of Entry IDs to export",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ZIP Archive",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing name or empty ID list",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Database not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/database/entries/search": {
             "post": {
                 "security": [
@@ -483,7 +612,7 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Uploads a new entry to a specified database using multipart/form-data. The metadata part should be a JSON object containing the entry's timestamp, and any custom fields.\nThe 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.\n\nThis endpoint uses a hybrid model:\n- **Small files (\u003c= 8MB):** Processed synchronously. Returns ` + "`" + `201 Created` + "`" + ` with the full entry metadata.\n- **Large files (\u003e 8MB):** Processed asynchronously. Returns ` + "`" + `202 Accepted` + "`" + ` with a partial response. The client should poll ` + "`" + `GET /api/entry/meta` + "`" + ` until the ` + "`" + `status` + "`" + ` field is 'ready'.",
+                "description": "Uploads a new entry to a specified database using multipart/form-data. The metadata part should be a JSON object containing the entry's timestamp, and any custom fields.\nThe 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.\n\nThis endpoint uses a hybrid model:\n- **Small files (\u003c= Configured Limit):** Processed synchronously. Returns ` + "`" + `201 Created` + "`" + ` with the full entry metadata.\n- **Large files (\u003e Configured Limit):** Processed asynchronously. Returns ` + "`" + `202 Accepted` + "`" + ` with a partial response. The client should poll ` + "`" + `GET /api/entry/meta` + "`" + ` until the ` + "`" + `status` + "`" + ` field is 'ready'.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -714,9 +843,10 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves a raw entry file.",
+                "description": "Retrieves a raw entry file. Supports Content Negotiation via Accept header.",
                 "produces": [
-                    "application/octet-stream"
+                    "application/octet-stream",
+                    "application/json"
                 ],
                 "tags": [
                     "entry"
@@ -740,9 +870,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The raw file data",
+                        "description": "Base64 encoded file data (if Accept: application/json)",
                         "schema": {
-                            "type": "file"
+                            "$ref": "#/definitions/models.FileJSONResponse"
                         }
                     },
                     "400": {
@@ -850,9 +980,10 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves a 200x200 JPEG preview of an entry.",
+                "description": "Retrieves a 200x200 JPEG preview of an entry. Supports Content Negotiation via Accept header.",
                 "produces": [
-                    "image/jpeg"
+                    "image/jpeg",
+                    "application/json"
                 ],
                 "tags": [
                     "entry"
@@ -876,9 +1007,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The JPEG preview image",
+                        "description": "Base64 encoded preview data (if Accept: application/json)",
                         "schema": {
-                            "type": "file"
+                            "$ref": "#/definitions/models.FileJSONResponse"
                         }
                     },
                     "400": {
@@ -1523,6 +1654,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.BulkDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "models.CustomField": {
             "type": "object",
             "properties": {
@@ -1603,6 +1745,32 @@ const docTemplate = `{
         "models.Entry": {
             "type": "object",
             "additionalProperties": true
+        },
+        "models.ExportRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "models.FileJSONResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Base64 encoded string with data URI prefix",
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                }
+            }
         },
         "models.Housekeeping": {
             "type": "object",
@@ -1802,7 +1970,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.1.0",
+	Version:          "1.2.0",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{"http"},

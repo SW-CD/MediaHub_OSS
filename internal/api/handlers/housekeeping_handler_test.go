@@ -6,6 +6,7 @@ import (
 	"errors"
 	"mediahub/internal/models"
 	"mediahub/internal/services"
+	"mediahub/internal/services/mocks"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,22 +16,27 @@ import (
 )
 
 func TestTriggerHousekeeping(t *testing.T) {
-	// Mock HousekeepingService
-	mockHKService := new(MockHousekeepingService)
-	// Mock InfoService for NewHandlers
-	mockInfoSvc := new(MockInfoService)
+	// 1. Setup Mocks
+	mockHKService := new(mocks.MockHousekeepingService)
+	mockInfoSvc := new(mocks.MockInfoService)
+	mockAuditor := new(mocks.MockAuditor)
+
+	// --- FIX: Add expectation for GetInfo called by NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
-		UptimeSince: time.Now(), // <-- FIX: Was StartTime
+		UptimeSince: time.Now(),
 	})
+
+	// 2. Initialize Handler
 	h := NewHandlers(
-		mockInfoSvc,   // info
-		nil,           // user
-		nil,           // token (Added)
-		nil,           // database
-		nil,           // entry
-		mockHKService, // housekeeping
-		nil,           // cfg
+		mockInfoSvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		mockHKService,
+		mockAuditor,
+		nil,
 	)
 
 	t.Run("Successful housekeeping run", func(t *testing.T) {
@@ -57,8 +63,6 @@ func TestTriggerHousekeeping(t *testing.T) {
 	})
 
 	t.Run("Database not found", func(t *testing.T) {
-		// Mock the service call to return a not found error
-		// Use standard service error
 		mockHKService.On("TriggerHousekeeping", "NotFoundDB").Return(nil, services.ErrNotFound).Once()
 
 		req, _ := http.NewRequest("POST", "/database/housekeeping?name=NotFoundDB", nil)
@@ -71,7 +75,6 @@ func TestTriggerHousekeeping(t *testing.T) {
 	})
 
 	t.Run("Database not found (string error)", func(t *testing.T) {
-		// Mock the service call to return a not found error
 		mockHKService.On("TriggerHousekeeping", "NotFoundDB").Return(nil, errors.New("database not found")).Once()
 
 		req, _ := http.NewRequest("POST", "/database/housekeeping?name=NotFoundDB", nil)
@@ -90,7 +93,6 @@ func TestTriggerHousekeeping(t *testing.T) {
 		h.TriggerHousekeeping(rr, req)
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		// No service call expected
 		mockHKService.AssertNotCalled(t, "TriggerHousekeeping")
 	})
 }

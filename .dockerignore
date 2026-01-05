@@ -19,8 +19,8 @@ frontend/.editorconfig
 
 # --- Backend (Go) ---
 # Don't send locally compiled binaries
-mediahub
-mediahub.exe
+mediahub_linux_x86_64
+*.exe
 *.test
 *.out
 # If you use a vendor folder locally but want fresh downloads in Docker:

@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"mediahub/internal/models"
-	"mediahub/internal/repository" // <-- Import services
+	"mediahub/internal/repository"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -16,16 +15,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// setupAdminTest creates a handler with a mocked UserService
-func setupAdminTest(t *testing.T) (*httptest.ResponseRecorder, *http.Request, *MockUserService, *MockInfoService) {
-	mockUserSvc := new(MockUserService)
-	mockInfoSvc := new(MockInfoService)
-	rr := httptest.NewRecorder()
-	return rr, httptest.NewRequest("GET", "/", nil), mockUserSvc, mockInfoSvc
-}
-
 func TestGetUsers(t *testing.T) {
-	rr, req, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, req, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 
 	// Mock service response
 	mockUsers := []models.User{
@@ -34,17 +25,14 @@ func TestGetUsers(t *testing.T) {
 	}
 	mockUserSvc.On("GetUsers").Return(mockUsers, nil)
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{
 		Version:     "test",
-		UptimeSince: time.Now(), // <-- FIX: Was StartTime
+		UptimeSince: time.Now(),
 	})
-	// --- END REFACTOR ---
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	// Note: We reconstruct the handler here because setupAdminTest only returns mocks/recorder
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.GetUsers(rr, req)
 
 	// Assertions
@@ -62,7 +50,7 @@ func TestGetUsers(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 
 	// Mock service response
 	createArgs := repository.UserCreateArgs{
@@ -77,18 +65,14 @@ func TestCreateUser(t *testing.T) {
 	}
 	mockUserSvc.On("CreateUser", createArgs).Return(mockReturnUser, nil)
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	body := `{"username":"newuser", "password":"password", "can_view":true}`
 	req, _ := http.NewRequest("POST", "/user", strings.NewReader(body))
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.CreateUser(rr, req)
 
 	// Assertions
@@ -103,23 +87,19 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestCreateUser_Conflict(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 
 	// Mock service response
 	mockUserSvc.On("CreateUser", mock.Anything).Return(nil, repository.ErrUserExists)
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	body := `{"username":"existinguser", "password":"password"}`
 	req, _ := http.NewRequest("POST", "/user", strings.NewReader(body))
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.CreateUser(rr, req)
 
 	// Assertions
@@ -133,7 +113,7 @@ func TestCreateUser_Conflict(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 	userID := 1
 
 	// Mock service response
@@ -161,18 +141,14 @@ func TestUpdateUser(t *testing.T) {
 
 	mockUserSvc.On("UpdateUser", userID, expectedUpdateModel, &newPassword).Return(updatedUser, nil).Once()
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	body := `{"can_view":false, "can_edit":true, "password":"newpass"}`
 	req, _ := http.NewRequest("PATCH", "/user?id=1", strings.NewReader(body))
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.UpdateUser(rr, req)
 
 	// Assertions
@@ -188,7 +164,7 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestUpdateUser_LastAdmin(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 	adminID := 1
 
 	// Mock service response
@@ -207,18 +183,14 @@ func TestUpdateUser_LastAdmin(t *testing.T) {
 
 	mockUserSvc.On("UpdateUser", adminID, expectedUpdateModel, (*string)(nil)).Return(nil, errors.New("cannot remove the last admin's admin role")).Once()
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	body := `{"is_admin":false}` // Attempt to remove admin
 	req, _ := http.NewRequest("PATCH", "/user?id=1", strings.NewReader(body))
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.UpdateUser(rr, req)
 
 	// Assertions
@@ -232,22 +204,19 @@ func TestUpdateUser_LastAdmin(t *testing.T) {
 }
 
 func TestDeleteUser(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 	userID := 2
 
 	// Mock service response
 	mockUserSvc.On("DeleteUser", userID).Return(nil).Once()
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	req, _ := http.NewRequest("DELETE", "/user?id=2", nil)
 
 	// Create handler and serve
-	// --- Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.DeleteUser(rr, req)
 
 	// Assertions
@@ -261,23 +230,19 @@ func TestDeleteUser(t *testing.T) {
 }
 
 func TestDeleteUser_LastAdmin(t *testing.T) {
-	rr, _, mockUserSvc, mockInfoSvc := setupAdminTest(t)
+	rr, _, mockUserSvc, mockInfoSvc, mockAuditor := setupAdminTest(t)
 	adminID := 1
 
 	// Mock service response
 	mockUserSvc.On("DeleteUser", adminID).Return(errors.New("cannot delete the last admin user")).Once()
 
-	// --- REFACTOR: Mock InfoService for NewHandlers ---
 	mockInfoSvc.On("GetInfo").Return(models.Info{})
-	// --- END REFACTOR ---
 
 	// Create request
 	req, _ := http.NewRequest("DELETE", "/user?id=1", nil)
 
 	// Create handler and serve
-	// --- REFACTOR: Pass mockUserSvc as services.UserService interface ---
-	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, nil) // <-- Added nil for TokenService
-	// --- END REFACTOR ---
+	h := NewHandlers(mockInfoSvc, mockUserSvc, nil, nil, nil, nil, mockAuditor, nil)
 	h.DeleteUser(rr, req)
 
 	// Assertions

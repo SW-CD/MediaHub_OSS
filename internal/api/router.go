@@ -60,6 +60,7 @@ func addDatabaseRoutes(r *mux.Router, h *handlers.Handlers, am *auth.Middleware)
 	viewRouter.HandleFunc("/databases", h.GetDatabases).Methods("GET")
 	viewRouter.HandleFunc("/database/entries", h.QueryEntries).Methods("GET")
 	viewRouter.HandleFunc("/database/entries/search", h.SearchEntries).Methods("POST")
+	viewRouter.HandleFunc("/database/entries/export", h.ExportEntries).Methods("POST")
 
 	// Sub-router for endpoints requiring 'CanCreate' permissions
 	createRouter := r.PathPrefix("").Subrouter()
@@ -76,6 +77,7 @@ func addDatabaseRoutes(r *mux.Router, h *handlers.Handlers, am *auth.Middleware)
 	deleteRouter.Use(am.RoleMiddleware("CanDelete"))
 	deleteRouter.HandleFunc("/database", h.DeleteDatabase).Methods("DELETE")
 	deleteRouter.HandleFunc("/database/housekeeping", h.TriggerHousekeeping).Methods("POST")
+	deleteRouter.HandleFunc("/database/entries/delete", h.DeleteEntries).Methods("POST")
 }
 
 // addEntryRoutes configures routes related to entry management.

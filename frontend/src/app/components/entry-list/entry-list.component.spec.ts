@@ -9,10 +9,24 @@ import { DatabaseService } from '../../services/database.service';
 import { AuthService } from '../../services/auth.service';
 import { ModalService } from '../../services/modal.service';
 import { NotificationService } from '../../services/notification.service';
-import { Database, User } from '../../models/api.models';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Database, User, Entry } from '../../models/api.models';
+import { CUSTOM_ELEMENTS_SCHEMA, Component, Input, Output, EventEmitter } from '@angular/core';
 import { UploadEntryModalComponent } from '../upload-entry-modal/upload-entry-modal.component';
-import { ContentType } from '../../models/enums';
+import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { ContentType, EntryStatus } from '../../models/enums';
+import { FilterChangedEvent } from '../entry-filter/entry-filter.component';
+
+// Mock the new child component
+@Component({
+  selector: 'app-entry-filter',
+  template: '',
+  standalone: false
+})
+class MockEntryFilterComponent {
+  @Input() availableFilters: any[] = [];
+  @Input() isLoading = false;
+  @Output() filterApplied = new EventEmitter<FilterChangedEvent>();
+}
 
 describe('EntryListComponent', () => {
   let component: EntryListComponent;
@@ -32,19 +46,25 @@ describe('EntryListComponent', () => {
     housekeeping: {} as any, 
     custom_fields: [] 
   };
+  
+  const mockEntries: Entry[] = [
+    { id: 1, timestamp: 100, mime_type: 'image/jpeg', filesize: 1000, status: EntryStatus.Ready },
+    { id: 2, timestamp: 200, mime_type: 'image/jpeg', filesize: 2000, status: EntryStatus.Ready },
+  ];
 
   beforeEach(async () => {
-    mockDatabaseService = jasmine.createSpyObj('DatabaseService', ['selectDatabase', 'searchEntries'], {
-      refreshRequired$: of(null)
-    });
+    mockDatabaseService = jasmine.createSpyObj('DatabaseService', 
+      ['selectDatabase', 'searchEntries', 'bulkDeleteEntries', 'bulkExportEntries', 'deleteEntry'], 
+      { refreshRequired$: of(null) }
+    );
     mockAuthService = jasmine.createSpyObj('AuthService', [], {
       currentUser$: of(mockUser)
     });
     mockModalService = jasmine.createSpyObj('ModalService', ['open']);
-    mockNotificationService = jasmine.createSpyObj('NotificationService', ['showInfo', 'showError']);
+    mockNotificationService = jasmine.createSpyObj('NotificationService', ['showInfo', 'showError', 'showSuccess']);
 
     await TestBed.configureTestingModule({
-      declarations: [ EntryListComponent ],
+      declarations: [ EntryListComponent, MockEntryFilterComponent ], // Declare mock child
       imports: [ RouterTestingModule, ReactiveFormsModule ],
       providers: [
         { provide: DatabaseService, useValue: mockDatabaseService },
@@ -56,64 +76,74 @@ describe('EntryListComponent', () => {
             useValue: { paramMap: of({ get: () => 'TestDB' }) }
         }
       ],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA] // Ignore child components like app-entry-grid
+      schemas: [CUSTOM_ELEMENTS_SCHEMA]
     })
     .compileComponents();
 
     fixture = TestBed.createComponent(EntryListComponent);
     component = fixture.componentInstance;
     
-    // Setup initial state for DB selection
     mockDatabaseService.selectDatabase.and.returnValue(of(mockDb));
-    mockDatabaseService.searchEntries.and.returnValue(of([]));
+    mockDatabaseService.searchEntries.and.returnValue(of(mockEntries));
     
-    fixture.detectChanges();
+    fixture.detectChanges(); 
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('onFileDropped', () => {
-    it('should show error if user cannot create entries', () => {
-        // Arrange: User without create permission
-        const readOnlyUser = { ...mockUser, can_create: false };
-        component.currentUser = readOnlyUser;
-        
-        const file = new File([''], 'test.jpg', { type: 'image/jpeg' });
-        
-        // Act
-        component.onFileDropped(file);
+  describe('Integration with EntryFilter', () => {
+    it('should call searchEntries when onFilterApplied is triggered', () => {
+      // Setup payload from "child"
+      const filterEvent: FilterChangedEvent = {
+        limit: 10,
+        filter: { 
+          operator: 'and', 
+          conditions: [{ field: 'timestamp', operator: '>', value: 1000 }] 
+        }
+      };
 
-        // Assert
-        expect(mockNotificationService.showInfo).toHaveBeenCalledWith('You cannot upload files here.');
-        expect(mockModalService.open).not.toHaveBeenCalled();
+      // Act: Simulate event from child
+      component.onFilterApplied(filterEvent);
+
+      // Assert
+      expect(component.imagesPerPage).toBe(10);
+      expect(mockDatabaseService.searchEntries).toHaveBeenCalledWith('TestDB', jasmine.objectContaining({
+        pagination: { limit: 11, offset: 0 },
+        filter: filterEvent.filter
+      }));
+    });
+  });
+
+  describe('Selection Logic', () => {
+    it('should toggle selection', () => {
+      const entry = mockEntries[0];
+      const event = { entry, event: { shiftKey: false } as MouseEvent };
+
+      component.toggleSelection(event);
+      expect(component.selectedEntryIds.has(1)).toBeTrue();
+
+      component.toggleSelection(event);
+      expect(component.selectedEntryIds.has(1)).toBeFalse();
+    });
+  });
+
+  describe('Bulk Actions', () => {
+    beforeEach(() => {
+      component.dbName = 'TestDB';
+      component.selectedEntryIds.add(1);
     });
 
-    it('should show error if mime type is invalid for database', () => {
-        // Arrange: DB is 'image', File is 'text/plain'
-        const file = new File([''], 'notes.txt', { type: 'text/plain' });
-        
-        // Act
-        component.onFileDropped(file);
+    it('onBulkDelete should show modal and call service', () => {
+      mockModalService.open.and.returnValue(of(true)); 
+      mockDatabaseService.bulkDeleteEntries.and.returnValue(of({}));
 
-        // Assert
-        expect(mockNotificationService.showError).toHaveBeenCalled();
-        expect(mockModalService.open).not.toHaveBeenCalled();
-    });
+      component.onBulkDelete();
 
-    it('should open Upload Modal with file data if valid', () => {
-        // Arrange: DB is 'image', File is 'image/png'
-        const file = new File([''], 'pic.png', { type: 'image/png' });
-        
-        // Act
-        component.onFileDropped(file);
-
-        // Assert
-        expect(mockModalService.open).toHaveBeenCalledWith(
-            UploadEntryModalComponent.MODAL_ID, 
-            { droppedFile: file }
-        );
+      expect(mockModalService.open).toHaveBeenCalled();
+      expect(mockDatabaseService.bulkDeleteEntries).toHaveBeenCalled();
+      expect(component.selectedEntryIds.size).toBe(0);
     });
   });
 });

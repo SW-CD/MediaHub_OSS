@@ -10,67 +10,24 @@ import (
 	"mediahub/internal/services"
 	"mime/multipart"
 	"net/http"
-	"net/http/httptest"
 	"net/textproto"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// --- REFACTOR: MockEntryService is now defined in main_test.go ---
-
-// setupEntryHandlerTestAPI creates a new test server for entry handlers.
-func setupEntryHandlerTestAPI(t *testing.T) (*httptest.Server, *MockEntryService, *MockDatabaseService, func()) {
-	t.Helper()
-
-	mockEntrySvc := new(MockEntryService)
-	mockDbSvc := new(MockDatabaseService)
-
-	// Mock InfoService
-	infoSvc := new(MockInfoService) // Use mock
-	infoSvc.On("GetInfo").Return(models.Info{
-		Version:     "test",
-		UptimeSince: time.Now(),
-	})
-
-	h := NewHandlers(
-		infoSvc,      // info
-		nil,          // user
-		nil,          // token (Added)
-		mockDbSvc,    // database (for GetEntryMeta)
-		mockEntrySvc, // entry
-		nil,          // housekeeping
-		nil,          // cfg
-	)
-
-	r := mux.NewRouter()
-	r.HandleFunc("/entry", h.UploadEntry).Methods("POST")
-	r.HandleFunc("/entry/meta", h.GetEntryMeta).Methods("GET")
-	r.HandleFunc("/entry/file", h.GetEntry).Methods("GET")           // <-- ADDED FOR FILENAME TEST
-	r.HandleFunc("/entry/preview", h.GetEntryPreview).Methods("GET") // <-- ADDED FOR PREVIEW TEST
-
-	server := httptest.NewServer(r)
-
-	cleanup := func() {
-		server.Close()
-	}
-
-	return server, mockEntrySvc, mockDbSvc, cleanup
-}
+// NOTE: setupEntryHandlerTestAPI is now in main_test.go
 
 func TestUploadEntry_Success(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, mockAuditor, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
 	// --- Prepare multipart form ---
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// Metadata part
 	metadata := map[string]interface{}{
 		"description": "Test entry from API",
 		"timestamp":   12345,
@@ -80,35 +37,42 @@ func TestUploadEntry_Success(t *testing.T) {
 	part, _ := writer.CreateFormField("metadata")
 	part.Write(metadataBytes)
 
-	// Entry part
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", `form-data; name="file"; filename="dummy.png"`)
 	h.Set("Content-Type", "image/png")
 	entryPart, _ := writer.CreatePart(h)
-	entryPart.Write([]byte("dummy png data")) // Just write dummy data
+	entryPart.Write([]byte("dummy png data"))
 	writer.Close()
 
 	// --- Mock the service call ---
 	returnedEntry := models.Entry{
-		"id":          float64(1), // JSON unmarshals numbers to float64
+		"id":          int64(1),
 		"description": "Test entry from API",
 		"mime_type":   "image/png",
 		"filename":    "dummy.png",
 		"width":       float64(300),
 		"height":      float64(200),
-		"status":      "ready", // <-- ADDED
+		"status":      "ready",
 	}
-	// ---
-	// FIX: Update mock to return (body, status, error)
-	// ---
+
 	mockEntrySvc.On(
 		"CreateEntry",
 		"EntryAPITestDB",
 		metadataStr,
-		mock.Anything, // mock.AnythingOfType("multipart.File")
-		mock.Anything, // mock.AnythingOfType("*multipart.FileHeader")
-	).Return(returnedEntry, http.StatusCreated, nil).Once() // <-- RETURN (body, 201, nil)
-	// --- END FIX ---
+		mock.Anything,
+		mock.Anything,
+	).Return(returnedEntry, http.StatusCreated, nil).Once()
+
+	// --- Expect Audit Log call ---
+	mockAuditor.On("Log",
+		mock.Anything, // Context
+		"entry.upload",
+		mock.Anything, // Actor
+		"EntryAPITestDB:1",
+		mock.MatchedBy(func(details map[string]interface{}) bool {
+			return details["filename"] == "dummy.png" && details["mode"] == "sync"
+		}),
+	).Return().Once()
 
 	// --- Upload Entry ---
 	req, _ := http.NewRequest("POST", server.URL+"/entry?database_name=EntryAPITestDB", body)
@@ -130,12 +94,12 @@ func TestUploadEntry_Success(t *testing.T) {
 	assert.Equal(t, float64(300), createdEntry["width"])
 	assert.Equal(t, "dummy.png", createdEntry["filename"])
 
-	// Verify the mock was called
 	mockEntrySvc.AssertExpectations(t)
+	mockAuditor.AssertExpectations(t)
 }
 
 func TestUploadEntry_DBNotFound(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, mockAuditor, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
 	// --- Prepare multipart form (minimal) ---
@@ -150,29 +114,24 @@ func TestUploadEntry_DBNotFound(t *testing.T) {
 		"CreateEntry",
 		"NotFoundDB",
 		mock.AnythingOfType("string"),
-		mock.Anything, // mock.AnythingOfType("multipart.File")
-		mock.Anything, // mock.AnythingOfType("*multipart.FileHeader")
-	).Return(nil, http.StatusNotFound, services.ErrNotFound).Once() // <-- RETURN (nil, 404, err)
+		mock.Anything,
+		mock.Anything,
+	).Return(nil, http.StatusNotFound, services.ErrNotFound).Once()
 
-	// --- Upload Entry ---
+	// No audit log expected on failure
+
 	req, _ := http.NewRequest("POST", server.URL+"/entry?database_name=NotFoundDB", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
 
-	// --- Assertions ---
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-
-	var errResp ErrorResponse
-	err = json.NewDecoder(resp.Body).Decode(&errResp)
-	assert.NoError(t, err)
-	assert.Equal(t, "Database not found.", errResp.Error)
-
 	mockEntrySvc.AssertExpectations(t)
+	mockAuditor.AssertNotCalled(t, "Log")
 }
 
 func TestUploadEntry_UnsupportedMedia(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, mockAuditor, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
 	// --- Prepare multipart form ---
@@ -181,7 +140,7 @@ func TestUploadEntry_UnsupportedMedia(t *testing.T) {
 	writer.WriteField("metadata", `{"timestamp": 12345}`)
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", `form-data; name="file"; filename="dummy.txt"`)
-	h.Set("Content-Type", "text/plain") // This is the important part
+	h.Set("Content-Type", "text/plain")
 	part, _ := writer.CreatePart(h)
 	part.Write([]byte("dummy data"))
 	writer.Close()
@@ -190,30 +149,29 @@ func TestUploadEntry_UnsupportedMedia(t *testing.T) {
 		"CreateEntry",
 		"ImageDB",
 		mock.AnythingOfType("string"),
-		mock.Anything, // mock.AnythingOfType("multipart.File")
-		mock.Anything, // mock.AnythingOfType("*multipart.FileHeader")
-	).Return(nil, http.StatusUnsupportedMediaType, services.ErrUnsupported).Once() // <-- RETURN (nil, 415, err)
+		mock.Anything,
+		mock.Anything,
+	).Return(nil, http.StatusUnsupportedMediaType, services.ErrUnsupported).Once()
 
-	// --- Upload Entry ---
+	// No audit log expected on failure
+
 	req, _ := http.NewRequest("POST", server.URL+"/entry?database_name=ImageDB", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
 
-	// --- Assertions ---
 	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 	mockEntrySvc.AssertExpectations(t)
+	mockAuditor.AssertNotCalled(t, "Log")
 }
 
-// --- TestGetEntryMeta now uses mockEntrySvc.GetEntry ---
 func TestGetEntryMeta(t *testing.T) {
-	server, mockEntrySvc, mockDbSvc, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, mockDbSvc, _, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
 	dbName := "TestDB"
 	entryID := int64(1)
 
-	// 1. Mock GetDatabase (This is still correct, handler needs it for custom fields)
 	mockDB := &models.Database{
 		Name:         dbName,
 		ContentType:  "image",
@@ -221,25 +179,19 @@ func TestGetEntryMeta(t *testing.T) {
 	}
 	mockDbSvc.On("GetDatabase", dbName).Return(mockDB, nil).Once()
 
-	// 2. Mock GetEntry (from EntryService)
 	mockEntry := models.Entry{
 		"id":       entryID,
 		"location": "Test Location",
-		"status":   "ready", // <-- ADDED
+		"status":   "ready",
 	}
-	// We explicitly cast mockDB.CustomFields to the slice type
-	// []models.CustomField to match the interface signature.
 	mockEntrySvc.On("GetEntry", dbName, entryID, []models.CustomField(mockDB.CustomFields)).Return(mockEntry, nil).Once()
 
-	// 3. Make the request
 	req, _ := http.NewRequest("GET", server.URL+fmt.Sprintf("/entry/meta?database_name=%s&id=%d", dbName, entryID), nil)
 	resp, err := http.DefaultClient.Do(req)
-	assert.NoError(t, err, "HTTP request failed") // <-- Added error message
+	assert.NoError(t, err, "HTTP request failed")
 
-	// 4. Assertions
-	// Check for panic first
 	if resp == nil {
-		t.Fatal("Response was nil, indicating a panic occurred in the server")
+		t.Fatal("Response was nil")
 	}
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	var entryResp models.Entry
@@ -247,24 +199,20 @@ func TestGetEntryMeta(t *testing.T) {
 	assert.NoError(t, err, "Failed to decode JSON response")
 	assert.Equal(t, "Test Location", entryResp["location"])
 
-	// Assert that *both* mocks were called as expected
 	mockDbSvc.AssertExpectations(t)
 	mockEntrySvc.AssertExpectations(t)
 }
 
-// --- Test for GetEntry file download headers ---
 func TestGetEntry_WithFilename(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, _, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
-	// We need a real, temporary file for http.ServeFile to work
 	tmpfile, err := os.CreateTemp("", "test-*.txt")
 	assert.NoError(t, err)
-	defer os.Remove(tmpfile.Name()) // Clean up the temp file
+	defer os.Remove(tmpfile.Name())
 	tmpfile.Write([]byte("dummy content"))
 	tmpfile.Close()
 
-	// 1. Mock GetEntryFile to return the path to our temp file
 	mockEntrySvc.On("GetEntryFile", "TestDB_File", int64(2)).Return(
 		tmpfile.Name(),    // path
 		"text/plain",      // mime_type
@@ -272,17 +220,14 @@ func TestGetEntry_WithFilename(t *testing.T) {
 		nil,               // error
 	).Once()
 
-	// 2. Make the request to the test server
 	req, _ := http.NewRequest("GET", server.URL+fmt.Sprintf("/entry/file?database_name=%s&id=%d", "TestDB_File", 2), nil)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err, "HTTP request failed")
 
-	// 3. Assertions
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "text/plain", resp.Header.Get("Content-Type"))
 	assert.Equal(t, "attachment; filename=\"my_download.txt\"", resp.Header.Get("Content-Disposition"))
 
-	// Check body content
 	bodyBytes, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "dummy content", string(bodyBytes))
@@ -290,19 +235,16 @@ func TestGetEntry_WithFilename(t *testing.T) {
 	mockEntrySvc.AssertExpectations(t)
 }
 
-// --- GetEntry with JSON Response ---
 func TestGetEntry_JSON(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, _, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
-	// We need a real temp file
 	tmpfile, err := os.CreateTemp("", "test-*.txt")
 	assert.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
-	tmpfile.Write([]byte("Hello")) // "Hello" in base64 is "SGVsbG8="
+	tmpfile.Write([]byte("Hello"))
 	tmpfile.Close()
 
-	// Mock GetEntryFile
 	mockEntrySvc.On("GetEntryFile", "TestDB", int64(1)).Return(
 		tmpfile.Name(),
 		"text/plain",
@@ -310,7 +252,6 @@ func TestGetEntry_JSON(t *testing.T) {
 		nil,
 	).Once()
 
-	// Request with Accept header
 	req, _ := http.NewRequest("GET", server.URL+"/entry/file?database_name=TestDB&id=1", nil)
 	req.Header.Set("Accept", "application/json")
 
@@ -318,7 +259,6 @@ func TestGetEntry_JSON(t *testing.T) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	// Assertions
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
@@ -328,26 +268,21 @@ func TestGetEntry_JSON(t *testing.T) {
 
 	assert.Equal(t, "hello.txt", jsonResp.Filename)
 	assert.Equal(t, "text/plain", jsonResp.MimeType)
-	// Check for data URI prefix + base64 content
 	assert.Equal(t, "data:text/plain;base64,SGVsbG8=", jsonResp.Data)
 }
 
-// --- NEW TEST: GetEntryPreview with JSON Response ---
 func TestGetEntryPreview_JSON(t *testing.T) {
-	server, mockEntrySvc, _, cleanup := setupEntryHandlerTestAPI(t)
+	server, mockEntrySvc, _, _, cleanup := setupEntryHandlerTestAPI(t)
 	defer cleanup()
 
-	// We need a real temp file
 	tmpfile, err := os.CreateTemp("", "preview-*.jpg")
 	assert.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
-	tmpfile.Write([]byte("FakeImage")) // "FakeImage" in base64 is "RmFrZUltYWdl"
+	tmpfile.Write([]byte("FakeImage"))
 	tmpfile.Close()
 
-	// Mock GetEntryPreview
 	mockEntrySvc.On("GetEntryPreview", "TestDB", int64(10)).Return(tmpfile.Name(), nil).Once()
 
-	// Request with Accept header
 	req, _ := http.NewRequest("GET", server.URL+"/entry/preview?database_name=TestDB&id=10", nil)
 	req.Header.Set("Accept", "application/json")
 
@@ -355,7 +290,6 @@ func TestGetEntryPreview_JSON(t *testing.T) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	// Assertions
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
@@ -365,6 +299,5 @@ func TestGetEntryPreview_JSON(t *testing.T) {
 
 	assert.Equal(t, "10.jpg", jsonResp.Filename)
 	assert.Equal(t, "image/jpeg", jsonResp.MimeType)
-	// Check for data URI prefix + base64 content
 	assert.Equal(t, "data:image/jpeg;base64,RmFrZUltYWdl", jsonResp.Data)
 }

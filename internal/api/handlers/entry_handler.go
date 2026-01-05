@@ -19,8 +19,8 @@ import (
 // @Description The 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.
 // @Description
 // @Description This endpoint uses a hybrid model:
-// @Description - **Small files (<= 8MB):** Processed synchronously. Returns `201 Created` with the full entry metadata.
-// @Description - **Large files (> 8MB):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
+// @Description - **Small files (<= Configured Limit):** Processed synchronously. Returns `201 Created` with the full entry metadata.
+// @Description - **Large files (> Configured Limit):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
 // @Tags entry
 // @Accept  mpfd
 // @Produce  json
@@ -37,27 +37,23 @@ import (
 // @Router /entry [post]
 func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 
-	// 1. Parse database name
 	dbName := r.URL.Query().Get("database_name")
 	if dbName == "" {
 		respondWithError(w, http.StatusBadRequest, "Missing required query parameter: database_name")
 		return
 	}
 
-	// 2. Parse multipart form
-	// ---
-	// Use ParseMultipartForm
-	// This is the key that enables the (*os.File) type assertion.
-	// We set a max in-memory size (e.g., 8MB). Anything larger
-	// will be spooled to a temp file on disk by the http server.
-	// ---
-	if err := r.ParseMultipartForm(8 << 20); err != nil { // 8MB max in-memory
+	maxMemory := h.Cfg.MaxSyncUploadSizeBytes
+	if maxMemory <= 0 {
+		maxMemory = 8 << 20
+	}
+
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
 		logging.Log.Warnf("Failed to parse multipart form: %v", err)
 		respondWithError(w, http.StatusBadRequest, "Failed to parse multipart form.")
 		return
 	}
 
-	// 3. Get metadata part
 	metadataStr := r.FormValue("metadata")
 	if metadataStr == "" {
 		logging.Log.Warn("Missing 'metadata' part in multipart form")
@@ -65,7 +61,6 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Get file part
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Missing 'file' part in multipart form.")
@@ -73,10 +68,8 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// 5. Call the EntryService. It returns (body, status, error)
 	body, status, err := h.Entry.CreateEntry(dbName, metadataStr, file, header)
 	if err != nil {
-		// Map service errors to HTTP status codes
 		if errors.Is(err, services.ErrNotFound) {
 			respondWithError(w, http.StatusNotFound, "Database not found.")
 		} else if errors.Is(err, services.ErrValidation) {
@@ -84,9 +77,8 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 		} else if errors.Is(err, services.ErrUnsupported) {
 			respondWithError(w, http.StatusUnsupportedMediaType, err.Error())
 		} else if errors.Is(err, services.ErrDependencies) {
-			respondWithError(w, http.StatusBadRequest, err.Error()) // e.g., FFmpeg missing
+			respondWithError(w, http.StatusBadRequest, err.Error())
 		} else if status == http.StatusNotImplemented {
-			// This is our stub from handleLargeFileAsync
 			respondWithError(w, http.StatusNotImplemented, err.Error())
 		} else {
 			logging.Log.Errorf("UploadEntry: Unhandled error from EntryService: %v", err)
@@ -95,8 +87,26 @@ func (h *Handlers) UploadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 6. Respond to the client with the status and body from the service
-	//    (This will be 201 or 202)
+	// Extract Entry ID for audit log
+	var entryID int64
+	var mode string
+	if finalEntry, ok := body.(models.Entry); ok {
+		if id, ok := finalEntry["id"].(int64); ok {
+			entryID = id
+		}
+		mode = "sync"
+	} else if partialEntry, ok := body.(models.PartialEntryResponse); ok {
+		entryID = partialEntry.ID
+		mode = "async"
+	}
+
+	// Audit Log
+	h.Auditor.Log(r.Context(), "entry.upload", getUserFromContext(r), fmt.Sprintf("%s:%d", dbName, entryID), map[string]interface{}{
+		"filename": header.Filename,
+		"size":     header.Size,
+		"mode":     mode,
+	})
+
 	respondWithJSON(w, status, body)
 }
 
@@ -129,7 +139,6 @@ func (h *Handlers) GetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call EntryService ---
 	entryPath, mimeType, filename, err := h.Entry.GetEntryFile(dbName, id)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
@@ -140,9 +149,7 @@ func (h *Handlers) GetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Content Negotiation: JSON response for Grafana/Web clients ---
 	if strings.Contains(r.Header.Get("Accept"), "application/json") {
-		// If filename is empty, fallback to ID
 		if filename == "" {
 			filename = fmt.Sprintf("%d", id)
 		}
@@ -150,12 +157,8 @@ func (h *Handlers) GetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Standard Binary Response ---
 	w.Header().Set("Content-Type", mimeType)
-
-	// Set Content-Disposition header if filename is available
 	if filename != "" {
-		// Use fmt.Sprintf to safely quote the filename
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	}
 
@@ -191,7 +194,6 @@ func (h *Handlers) GetEntryPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call EntryService ---
 	previewPath, err := h.Entry.GetEntryPreview(dbName, id)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
@@ -207,21 +209,16 @@ func (h *Handlers) GetEntryPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set cache-control headers ---
-	// This tells the browser to never cache this response.
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
-	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
-	w.Header().Set("Expires", "0")                                         // Proxies.
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 
-	// --- Content Negotiation: JSON response ---
 	if strings.Contains(r.Header.Get("Accept"), "application/json") {
-		// Previews are always JPEGs named by ID
 		filename := fmt.Sprintf("%d.jpg", id)
 		serveFileAsJSON(w, previewPath, filename, "image/jpeg")
 		return
 	}
 
-	// --- Standard Binary Response ---
 	w.Header().Set("Content-Type", "image/jpeg")
 	http.ServeFile(w, r, previewPath)
 }
@@ -253,7 +250,6 @@ func (h *Handlers) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Call EntryService ---
 	if err := h.Entry.DeleteEntry(dbName, id); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			respondWithError(w, http.StatusNotFound, "Database or entry not found.")
@@ -262,6 +258,9 @@ func (h *Handlers) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Audit Log
+	h.Auditor.Log(r.Context(), "entry.delete", getUserFromContext(r), fmt.Sprintf("%s:%d", dbName, id), nil)
 
 	logging.Log.Infof("Entry deleted: %s from database %s", idStr, dbName)
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Entry '" + idStr + "' was successfully deleted."})
@@ -281,8 +280,6 @@ func (h *Handlers) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 // @Security BasicAuth
 // @Router /entry/meta [get]
 func (h *Handlers) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
-	// DISABLE CACHING
-	// This is critical for the frontend poller to work correctly on remote servers.
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
@@ -299,14 +296,12 @@ func (h *Handlers) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Call DatabaseService (GetDatabase) ---
 	db, err := h.Database.GetDatabase(dbName)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Database not found.")
 		return
 	}
 
-	// --- Call EntryService (GetEntry) ---
 	entry, err := h.Entry.GetEntry(dbName, id, db.CustomFields)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Entry not found.")
@@ -351,7 +346,6 @@ func (h *Handlers) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The service now handles sanitizing the update map
 	finalEntry, err := h.Entry.UpdateEntry(dbName, id, updates)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
@@ -361,6 +355,9 @@ func (h *Handlers) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Audit Log (Optional for updates, but good to have)
+	h.Auditor.Log(r.Context(), "entry.update", getUserFromContext(r), fmt.Sprintf("%s:%d", dbName, id), nil)
 
 	respondWithJSON(w, http.StatusOK, finalEntry)
 }

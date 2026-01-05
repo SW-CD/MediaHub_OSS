@@ -1,4 +1,4 @@
-// entry-grid.component.spec.ts
+// frontend/src/app/components/entry-grid/entry-grid.component.spec.ts
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SimpleChange, SimpleChanges } from '@angular/core';
@@ -24,7 +24,7 @@ describe('EntryGridComponent', () => {
     mockDatabaseService = jasmine.createSpyObj('DatabaseService', ['getEntryPreviewUrl']);
     
     await TestBed.configureTestingModule({
-      imports: [EntryGridComponent], // Standalone
+      imports: [EntryGridComponent], 
       providers: [
         { provide: DatabaseService, useValue: mockDatabaseService }
       ]
@@ -39,49 +39,43 @@ describe('EntryGridComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('Selection Logic', () => {
+    it('isSelected should return true if id is in selectedIds set', () => {
+      component.selectedIds = new Set([101]);
+      expect(component.isSelected(mockEntry)).toBeTrue();
+    });
+
+    it('isSelected should return false if id is NOT in selectedIds set', () => {
+      component.selectedIds = new Set([999]);
+      expect(component.isSelected(mockEntry)).toBeFalse();
+    });
+
+    it('onCheckboxClick should emit toggleSelection and stop propagation', () => {
+      spyOn(component.toggleSelection, 'emit');
+      const mockEvent = jasmine.createSpyObj('MouseEvent', ['stopPropagation']);
+
+      component.onCheckboxClick(mockEntry, mockEvent);
+
+      expect(mockEvent.stopPropagation).toHaveBeenCalled();
+      expect(component.toggleSelection.emit).toHaveBeenCalledWith({ entry: mockEntry, event: mockEvent });
+    });
+  });
+
   it('should add entry ID to failedImageIds on onImageError', () => {
     expect(component.failedImageIds.has(101)).toBeFalse();
-    
     component.onImageError(101);
-    
     expect(component.failedImageIds.has(101)).toBeTrue();
   });
 
   it('should clear failedImageIds when inputs change', () => {
-    // Arrange: Add a failure
     component.onImageError(101);
     expect(component.failedImageIds.size).toBe(1);
 
-    // Act: Trigger ngOnChanges
     const changes: SimpleChanges = {
       dbName: new SimpleChange('OldDB', 'NewDB', false)
     };
     component.ngOnChanges(changes);
 
-    // Assert: Set should be empty
     expect(component.failedImageIds.size).toBe(0);
-  });
-
-  describe('getEntryTitle', () => {
-    it('should return correct title for Ready status', () => {
-      const entry = { ...mockEntry, status: EntryStatus.Ready };
-      expect(component.getEntryTitle(entry)).toContain('View details');
-    });
-
-    it('should return correct title for Processing status', () => {
-      const entry = { ...mockEntry, status: EntryStatus.Processing };
-      expect(component.getEntryTitle(entry)).toContain('Processing...');
-    });
-
-    it('should return correct title for Error status', () => {
-      const entry = { ...mockEntry, status: EntryStatus.Error };
-      expect(component.getEntryTitle(entry)).toContain('Processing Failed');
-    });
-
-    it('should return No Preview title if ID is in failedImageIds', () => {
-      const entry = { ...mockEntry, status: EntryStatus.Ready };
-      component.onImageError(entry.id);
-      expect(component.getEntryTitle(entry)).toContain('No Preview Available');
-    });
   });
 });

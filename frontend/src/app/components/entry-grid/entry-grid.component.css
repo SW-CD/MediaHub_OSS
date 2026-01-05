@@ -1,15 +1,15 @@
 /* frontend/src/app/components/entry-grid/entry-grid.component.css */
-/* RENAMED: from image-grid.component.css */
 
-/* Styles moved from image-list.component.css */
 .image-grid {
   display: grid;
-  /* Responsive grid: auto-fill creates as many columns as fit */
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1.5rem;
+  /* Prevent native text selection on the grid to avoid blue highlights during shift-click */
+  user-select: none;
 }
 
 .grid-card {
+  position: relative; /* Needed for absolute positioning of checkbox */
   background-color: var(--content-bg);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
@@ -18,21 +18,72 @@
   transition: all 0.2s ease-in-out;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
+
 .grid-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   border-color: var(--border-color-light);
 }
 
-.grid-card-preview {
-  width: 100%;
-  /* Creates a 1:1 aspect ratio square */
-  padding-top: 100%; 
-  position: relative;
-  background-color: var(--input-bg); /* This background will show for letterboxing */
+/* Selected State */
+.grid-card.selected {
+  border-color: var(--button-primary-bg);
+  background-color: rgba(66, 153, 225, 0.1); /* Light blue tint */
 }
 
-/* --- ADDED: Placeholder styles --- */
+/* --- Selection Overlay --- */
+.selection-overlay {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+  /* Make sure checkbox is clickable */
+  cursor: pointer;
+}
+
+.checkbox-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: white;
+}
+
+/* Show checkbox when card is hovered OR selected */
+.grid-card:hover .checkbox-circle {
+  border-color: rgba(255, 255, 255, 1);
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.checkbox-circle.checked {
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+/* By default, hide the checkbox unless hovered or checked */
+.checkbox-circle:not(.checked) {
+  opacity: 0;
+}
+.grid-card:hover .checkbox-circle {
+  opacity: 1;
+}
+
+/* --- Existing Styles --- */
+
+.grid-card-preview {
+  width: 100%;
+  padding-top: 100%; 
+  position: relative;
+  background-color: var(--input-bg);
+}
+
 .grid-card-placeholder {
   position: absolute;
   top: 0;
@@ -55,27 +106,17 @@
   height: 2.5rem;
 }
 
-.status-processing {
-  color: var(--text-accent);
-}
-.status-error {
-  color: var(--button-danger-bg);
-}
+.status-processing { color: var(--text-accent); }
+.status-error { color: var(--button-danger-bg); }
 
 .processing-icon {
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-/* --- END ADDED --- */
-
 
 .grid-card-img {
   position: absolute;
@@ -83,7 +124,6 @@
   left: 0;
   width: 100%;
   height: 100%;
-  /* UPDATED: Changed from 'cover' to 'contain' */
   object-fit: contain; 
 }
 
@@ -91,7 +131,7 @@
   padding: 0.75rem;
   display: flex;
   justify-content: space-between;
-  align-items: center; /* Corrected typo */
+  align-items: center;
   font-size: 0.875rem;
 }
 

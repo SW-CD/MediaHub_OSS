@@ -8,24 +8,22 @@ import (
 	"time"
 )
 
-// Handlers provides a struct to hold shared dependencies for API handlers,
-// such as the database service.
+// Handlers provides a struct to hold shared dependencies for API handlers.
 type Handlers struct {
-	// --- Depend on interfaces, not concrete structs ---
 	Info         services.InfoService
 	User         services.UserService
 	Token        auth.TokenService
 	Database     services.DatabaseService
 	Entry        services.EntryService
 	Housekeeping services.HousekeepingService
+	Auditor      services.Auditor // <-- Added Auditor
 
 	Cfg       *config.Config
-	Version   string    // Kept for info handler, though it's in InfoService now
-	StartTime time.Time // Kept for info handler, though it's in InfoService now
+	Version   string
+	StartTime time.Time
 }
 
 // NewHandlers creates a new instance of Handlers with its dependencies.
-// --- Accept interfaces as parameters ---
 func NewHandlers(
 	info services.InfoService,
 	user services.UserService,
@@ -33,6 +31,7 @@ func NewHandlers(
 	database services.DatabaseService,
 	entry services.EntryService,
 	housekeeping services.HousekeepingService,
+	auditor services.Auditor, // <-- Added Auditor
 	cfg *config.Config,
 ) *Handlers {
 	return &Handlers{
@@ -42,8 +41,9 @@ func NewHandlers(
 		Database:     database,
 		Entry:        entry,
 		Housekeeping: housekeeping,
+		Auditor:      auditor,
 		Cfg:          cfg,
-		Version:      info.GetInfo().Version,     // Get from service
-		StartTime:    info.GetInfo().UptimeSince, // <-- FIX: Changed from StartTime to UptimeSince
+		Version:      info.GetInfo().Version,
+		StartTime:    info.GetInfo().UptimeSince,
 	}
 }

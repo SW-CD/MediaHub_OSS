@@ -20,16 +20,17 @@ import { SecureImageDirective } from '../../directives/secure-image.directive';
 export class EntryGridComponent implements OnChanges {
   @Input() entries: Entry[] = [];
   @Input() dbName: string | null = null;
+  // --- SELECTION INPUTS ---
+  @Input() selectedIds = new Set<number>();
+  
   @Output() entryClicked = new EventEmitter<Entry>();
+  @Output() toggleSelection = new EventEmitter<{ entry: Entry, event: MouseEvent }>();
 
-  // Track IDs of entries where the preview image failed to load (404)
   public failedImageIds = new Set<number>();
 
   constructor(private databaseService: DatabaseService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If the database or the list of entries changes, reset the error tracking
-    // to allow retries or clear stale errors.
     if (changes['dbName'] || changes['entries']) {
       this.failedImageIds.clear();
     }
@@ -44,9 +45,14 @@ export class EntryGridComponent implements OnChanges {
     this.entryClicked.emit(entry);
   }
 
-  /**
-   * Called by the SecureImageDirective when the image fails to load (e.g. 404).
-   */
+  // Handle the checkbox click separately to prevent bubbling if needed,
+  // or handle it in the parent div click if we want entire card to toggle?
+  // Use case: Card click -> Detail. Checkbox click -> Select.
+  public onCheckboxClick(entry: Entry, event: MouseEvent): void {
+    event.stopPropagation(); // Don't open details
+    this.toggleSelection.emit({ entry, event });
+  }
+
   public onImageError(entryId: number): void {
     this.failedImageIds.add(entryId);
   }
@@ -55,20 +61,11 @@ export class EntryGridComponent implements OnChanges {
     return entry.id;
   }
 
-  public getEntryTitle(entry: Entry): string {
-    if (this.failedImageIds.has(entry.id)) {
-      return `Entry ID: ${entry.id} (No Preview Available)`;
-    }
+  public isSelected(entry: Entry): boolean {
+    return this.selectedIds.has(entry.id);
+  }
 
-    switch (entry.status) {
-      case 'ready':
-        return `View details for entry ID: ${entry.id}`;
-      case 'processing':
-        return `Entry ID: ${entry.id} (Processing...)`;
-      case 'error':
-        return `Entry ID: ${entry.id} (Processing Failed)`;
-      default:
-        return `Entry ID: ${entry.id}`;
-    }
+  public getEntryTitle(entry: Entry): string {
+    return `ID: ${entry.id}`; // Simplified
   }
 }

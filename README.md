@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (v1.1.0) ✨
+# MediaHub API & Web Interface (v1.2.0) ✨
 
 This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting, managing custom metadata and retrieving files, organized into distinct databases. The focus is on image and audio data, but generic files can be stored as well. The software has an optional dependency on ffmpeg for automatic audio transcoding and metadata extraction.
 
@@ -7,6 +7,7 @@ This open source project provides a HTTP REST API and web frontend for storing, 
 </p>
 
 Intended use-cases for the software are:
+
   * storing of camera data with metadata in a production environment, e.g., images for product quality checks, wildlife observation etc
   * storing of audio samples captured using microphones, e.g., for condition monitoring of machines, animal observation
 
@@ -20,7 +21,7 @@ You can find screenshots of what the frontend looks like in the [screenshots](/s
   * **Dynamic Metadata:** Supports defining custom fields (e.g., `score`, `source`, `defect`) for each database. These fields are stored and indexed for efficient searching.
   * **Automated Housekeeping:** A background service periodically cleans up files based on configurable age (set to `0` to disable) and disk space limits (set to `0` to disable).
   * **Media Processing:** Configure databases to automatically perform actions like converting images to JPEG or audio files to FLAC. This relies on the optional FFmpeg dependency.
-  * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). This provides immediate feedback to the user for large files, which can then be processed in the background.
+  * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). The size threshold for this switch is configurable (default: 8MB). This provides immediate feedback to the user for large files, which can then be processed in the background.
   * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
   * **Drag & Drop Uploads:** Intuitive file uploading by dragging files directly onto the entry list or the upload modal.
   * **Preview Generation:** Automatically generates downscaled JPEG previews for images and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
@@ -36,13 +37,14 @@ You can download prebuild binaries for different architectures using the provide
 
 | Operating System | Architecture | Download Link |
 | :--- | :--- | :--- |
-| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_linux_aarch64) |
-| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_linux_x86_64) |
-| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v1.1.0/mediahub_windows_x86_64.exe) |
+| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v1.2.0/mediahub_linux_aarch64) |
+| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v1.2.0/mediahub_linux_x86_64) |
+| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v1.2.0/mediahub_windows_x86_64.exe) |
 
-A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.1.0/config.toml).
+A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v1.2.0/config.toml).
 
 As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub.
+
 ```bash
 docker run -d \
   --name mediahub \
@@ -110,6 +112,37 @@ The server will start, typically on `http://localhost:8080`.
 
 -----
 
+## 🛠️ Maintenance Commands
+
+In addition to the web server, the binary includes several maintenance tools accessible via subcommands.
+
+### Database Recovery
+
+If the server crashes during a file upload, some entries may get stuck in a "processing" state. The recovery command scans the database and fixes these inconsistencies.
+
+```bash
+# Runs the integrity check and fixes stuck entries (does not start the web server)
+./mediahub recovery
+```
+
+### Database Migrations
+
+You can manually manage the database schema versions using the `migrate` command. This is useful for upgrading the database structure explicitly.
+
+```bash
+# Check current migration status
+./mediahub migrate status
+
+# Apply all pending migrations (Up)
+./mediahub migrate up
+
+# Rollback the last migration (Down)
+# Use with care and a backup of the database! This can permanently remove data!
+./mediahub migrate down
+```
+
+-----
+
 ## 🔧 Configuration
 
 The application is configured using a hierarchy of settings. Any value set by a **command-line flag** will override a value set by an **environment variable**, which in turn overrides any value set in the **`config.toml` file**.
@@ -124,6 +157,7 @@ On startup, the application looks for a `config.toml` file in its working direct
 [server]
 host = "localhost" # The host address to bind to
 port = 8080        # The port for the HTTP server
+max_sync_upload_size = "8MB" # Threshold for switching from synchronous (RAM) to asynchronous (Disk) processing
 
 [database]
 path = "mediahub.db"      # The path to the SQLite database file
@@ -131,6 +165,7 @@ storage_root = "storage_root" # The root directory where files will be stored
 
 [logging]
 level = "info" # The logging level (debug, info, warn, error)
+audit_enabled = false # (v1.2+) Set to true to enable detailed audit logging. False saves I/O.
 
 [media]
 # Optional: Path to the FFmpeg executable.
@@ -140,6 +175,13 @@ ffmpeg_path = ""
 # Optional: Path to the FFprobe executable.
 # If empty, the server will check near ffmpeg_path, then the system PATH.
 ffprobe_path = ""
+
+[jwt]
+  # Javascript Web Token settings, no need to change those in most cases.
+  access_duration_min = 5
+  refresh_duration_hours = 24
+  # If empty, a random secret is generated on startup and saved here automatically.
+  secret = "" 
 ```
 
 ### 2\. Flags & Environment Variables (Overrides)
@@ -147,13 +189,16 @@ ffprobe_path = ""
 You can override any setting from the `config.toml` file using environment variables or command-line flags.
 
 | Flag | Environment Variable | Description | Default |
-| --- | --- | --- | --- |
+| :--- | :--- | :--- | :--- |
 | `--port` | `FDB_PORT` | Overrides `server.port` from `config.toml`. | `8080` |
 | `--log-level` | `FDB_LOG_LEVEL` | Overrides `logging.level` from `config.toml`. | `info` |
+| `--audit-enabled` | `FDB_AUDIT_ENABLED` | Enables detailed audit logging for security events. | `false` |
 | `--database-path` | `FDB_DATABASE_PATH` | Overrides `database.path` from `config.toml`. | `mediahub.db` |
 | `--storage-root` | `FDB_STORAGE_ROOT` | Overrides `database.storage_root` from `config.toml`. | `storage_root` |
 | `--ffmpeg-path` | `FDB_FFMPEG_PATH` | Overrides `media.ffmpeg_path` from `config.toml`. | `""` |
 | `--ffprobe-path` | `FDB_FFPROBE_PATH` | Overrides `media.ffprobe_path` from `config.toml`. | `""` |
+| `--max-sync-upload` | `FDB_MAX_SYNC_UPLOAD` | Overrides `server.max_sync_upload_size`. Sets memory threshold (e.g. "4MB", "1GB"). | `8MB` |
+| `--jwt-secret` | `FDB_JWT_SECRET` | Overrides `jwt.secret`. Manually sets the signing key. | `""` |
 | `--config_path` | `FDB_CONFIG_PATH` | Path to the base TOML configuration file. | `config.toml` |
 | `--password` | `FDB_PASSWORD` | The password for the 'admin' user (used on first run or with `--reset_pw`). | `""` |
 | `--reset_pw` | `FDB_RESET_PW` | If `true`, resets the 'admin' password on startup to the one provided. | `false` |
@@ -222,10 +267,10 @@ As mentioned you can just use prebuild binaries, but if you want to build the pr
   * **Node.js & npm:** Required for building the frontend.
   * **Angular CLI:** The command-line interface for Angular. Install globally with `npm install -g @angular/cli`.
   * **(Optional) FFmpeg & FFprobe:** Required for:
-    * Audio-to-FLAC/Opus conversion (`ffmpeg`).
-    * Audio waveform preview generation (`ffmpeg`).
-    * Metadata extraction (duration, channels) for MP3, FLAC, Ogg, etc. (`ffprobe`).
-    * If not found, these features will be disabled. The paths can be configured in `config.toml` or via flags/env vars.
+      * Audio-to-FLAC/Opus conversion (`ffmpeg`).
+      * Audio waveform preview generation (`ffmpeg`).
+      * Metadata extraction (duration, channels) for MP3, FLAC, Ogg, etc. (`ffprobe`).
+      * If not found, these features will be disabled. The paths can be configured in `config.toml` or via flags/env vars.
 
 -----
 
@@ -319,6 +364,7 @@ You can use the free version for commercial use cases without any restrictions.
 If you are in need of software support or you are interested in a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). 
 
 Available commercial features include:
+
   * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
   * single sign on via OIDC (e.g., using keycloak)
 

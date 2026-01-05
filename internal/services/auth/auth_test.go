@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mediahub/internal/config"
+	"mediahub/internal/db/migrations" // Import
 	"mediahub/internal/models"
 	"mediahub/internal/repository"
 	"mediahub/internal/services"
@@ -15,13 +16,13 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/pressly/goose/v3" // Import
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// --- Mocks ---
-
+// ... Mocks (Same as before) ...
 type MockTokenService struct {
 	mock.Mock
 }
@@ -30,7 +31,6 @@ func (m *MockTokenService) GenerateTokens(user *models.User) (string, string, er
 	args := m.Called(user)
 	return args.String(0), args.String(1), args.Error(2)
 }
-
 func (m *MockTokenService) ValidateAccessToken(tokenString string) (*models.User, error) {
 	args := m.Called(tokenString)
 	if args.Get(0) == nil {
@@ -38,7 +38,6 @@ func (m *MockTokenService) ValidateAccessToken(tokenString string) (*models.User
 	}
 	return args.Get(0).(*models.User), args.Error(1)
 }
-
 func (m *MockTokenService) ValidateRefreshToken(tokenString string) (*models.User, error) {
 	args := m.Called(tokenString)
 	if args.Get(0) == nil {
@@ -46,16 +45,11 @@ func (m *MockTokenService) ValidateRefreshToken(tokenString string) (*models.Use
 	}
 	return args.Get(0).(*models.User), args.Error(1)
 }
-
 func (m *MockTokenService) Logout(refreshToken string) error {
 	args := m.Called(refreshToken)
 	return args.Error(0)
 }
 
-// --- Test Setup ---
-
-// setupMiddlewareTest creates the dependencies needed to test the middleware.
-// It uses a real DB for UserService (to test Basic Auth fallback) and a Mock for TokenService.
 func setupMiddlewareTest(t *testing.T) (*repository.Repository, *MockTokenService, *auth.Middleware, func()) {
 	t.Helper()
 	const dbPath = "test_middleware.db"
@@ -72,6 +66,15 @@ func setupMiddlewareTest(t *testing.T) (*repository.Repository, *MockTokenServic
 		t.Fatalf("Failed to create repository: %v", err)
 	}
 
+	// --- FIX: Apply Migrations ---
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("Failed to set dialect: %v", err)
+	}
+	if err := goose.Up(repo.DB, "."); err != nil {
+		t.Fatalf("Failed to migrate middleware DB: %v", err)
+	}
+
 	// Create a test user for Basic Auth tests
 	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	_, err = repo.DB.Exec(`
@@ -85,7 +88,6 @@ func setupMiddlewareTest(t *testing.T) (*repository.Repository, *MockTokenServic
 	userSvc := services.NewUserService(repo)
 	mockTokenSvc := new(MockTokenService)
 
-	// Initialize Middleware with Hybrid services
 	middleware := auth.NewMiddleware(userSvc, mockTokenSvc)
 
 	cleanup := func() {
@@ -97,13 +99,11 @@ func setupMiddlewareTest(t *testing.T) (*repository.Repository, *MockTokenServic
 	return repo, mockTokenSvc, middleware, cleanup
 }
 
-// --- Tests ---
-
+// ... Tests (Same as before) ...
 func TestAuthMiddleware_Hybrid(t *testing.T) {
 	_, mockTokenSvc, middleware, cleanup := setupMiddlewareTest(t)
 	defer cleanup()
 
-	// Setup Router with protected endpoint
 	r := mux.NewRouter()
 	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := r.Context().Value("user").(*models.User)
@@ -111,15 +111,12 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Apply Middleware
-	// We wrap the handler with AuthMiddleware -> RoleMiddleware("CanView")
 	r.Handle("/protected", middleware.AuthMiddleware(middleware.RoleMiddleware("CanView")(protectedHandler)))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
 	t.Run("Case 1: Valid Bearer Token (JWT)", func(t *testing.T) {
-		// Setup Mock
 		jwtUser := &models.User{ID: 99, Username: "jwtuser", CanView: true}
 		mockTokenSvc.On("ValidateAccessToken", "valid.jwt.token").Return(jwtUser, nil).Once()
 
@@ -133,7 +130,6 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 	})
 
 	t.Run("Case 2: Invalid Bearer Token", func(t *testing.T) {
-		// Setup Mock to fail
 		mockTokenSvc.On("ValidateAccessToken", "invalid.jwt").Return(nil, errors.New("invalid token")).Once()
 
 		req, _ := http.NewRequest("GET", ts.URL+"/protected", nil)
@@ -145,7 +141,6 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 	})
 
 	t.Run("Case 3: Expired Bearer Token", func(t *testing.T) {
-		// Setup Mock to return specific expired error
 		mockTokenSvc.On("ValidateAccessToken", "expired.jwt").Return(nil, errors.New("token is expired")).Once()
 
 		req, _ := http.NewRequest("GET", ts.URL+"/protected", nil)
@@ -155,14 +150,12 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
-		// Verify the specific error message for frontend handling
 		var body map[string]string
 		json.NewDecoder(resp.Body).Decode(&body)
 		assert.Equal(t, "Token expired", body["error"])
 	})
 
 	t.Run("Case 4: Valid Basic Auth (Fallback)", func(t *testing.T) {
-		// No TokenService interaction expected
 		req, _ := http.NewRequest("GET", ts.URL+"/protected", nil)
 		req.SetBasicAuth("basicuser", "password123")
 
@@ -182,7 +175,6 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 	})
 
 	t.Run("Case 6: Role Authorization Failure", func(t *testing.T) {
-		// Create a user WITHOUT "CanView" role
 		noRoleUser := &models.User{ID: 100, Username: "norole", CanView: false}
 		mockTokenSvc.On("ValidateAccessToken", "valid.norole.token").Return(noRoleUser, nil).Once()
 
@@ -191,7 +183,6 @@ func TestAuthMiddleware_Hybrid(t *testing.T) {
 
 		resp, err := http.DefaultClient.Do(req)
 		assert.NoError(t, err)
-		// Should be Forbidden (403), not Unauthorized (401)
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
 

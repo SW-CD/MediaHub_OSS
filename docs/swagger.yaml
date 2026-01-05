@@ -59,6 +59,13 @@ definitions:
       refresh_token:
         type: string
     type: object
+  models.BulkDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
   models.CustomField:
     properties:
       name:
@@ -112,6 +119,23 @@ definitions:
     type: object
   models.Entry:
     additionalProperties: true
+    type: object
+  models.ExportRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  models.FileJSONResponse:
+    properties:
+      data:
+        description: Base64 encoded string with data URI prefix
+        type: string
+      filename:
+        type: string
+      mime_type:
+        type: string
     type: object
   models.Housekeeping:
     properties:
@@ -236,7 +260,7 @@ info:
     url: https://www.swcd.lu
   description: This is a sample server for a file store.
   title: SWCD MediaHub-API
-  version: 1.1.0
+  version: 1.2.0
 paths:
   /database:
     delete:
@@ -435,6 +459,90 @@ paths:
       security:
       - BasicAuth: []
       summary: Get entries from a database (basic)
+      tags:
+      - database
+  /database/entries/delete:
+    post:
+      consumes:
+      - application/json
+      description: Deletes multiple entries in a single atomic transaction.
+      parameters:
+      - description: Database Name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: List of Entry IDs to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.BulkDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing name or empty ID list
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Transaction failed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Bulk delete entries
+      tags:
+      - database
+  /database/entries/export:
+    post:
+      consumes:
+      - application/json
+      description: Streams a ZIP archive containing the files and metadata (CSV) for
+        the specified entries.
+      parameters:
+      - description: Database Name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: List of Entry IDs to export
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ExportRequest'
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: ZIP Archive
+          schema:
+            type: file
+        "400":
+          description: Missing name or empty ID list
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Export entries as ZIP
       tags:
       - database
   /database/entries/search:
@@ -642,8 +750,8 @@ paths:
         The 'file' part's 'filename' in the Content-Disposition header will be extracted and saved.
 
         This endpoint uses a hybrid model:
-        - **Small files (<= 8MB):** Processed synchronously. Returns `201 Created` with the full entry metadata.
-        - **Large files (> 8MB):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
+        - **Small files (<= Configured Limit):** Processed synchronously. Returns `201 Created` with the full entry metadata.
+        - **Large files (> Configured Limit):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
       parameters:
       - description: Database Name
         in: query
@@ -694,7 +802,8 @@ paths:
       - entry
   /entry/file:
     get:
-      description: Retrieves a raw entry file.
+      description: Retrieves a raw entry file. Supports Content Negotiation via Accept
+        header.
       parameters:
       - description: Database Name
         in: query
@@ -708,11 +817,12 @@ paths:
         type: integer
       produces:
       - application/octet-stream
+      - application/json
       responses:
         "200":
-          description: The raw file data
+          description: 'Base64 encoded file data (if Accept: application/json)'
           schema:
-            type: file
+            $ref: '#/definitions/models.FileJSONResponse'
         "400":
           description: Invalid request
           schema:
@@ -782,7 +892,8 @@ paths:
       - entry
   /entry/preview:
     get:
-      description: Retrieves a 200x200 JPEG preview of an entry.
+      description: Retrieves a 200x200 JPEG preview of an entry. Supports Content
+        Negotiation via Accept header.
       parameters:
       - description: Database Name
         in: query
@@ -796,11 +907,12 @@ paths:
         type: integer
       produces:
       - image/jpeg
+      - application/json
       responses:
         "200":
-          description: The JPEG preview image
+          description: 'Base64 encoded preview data (if Accept: application/json)'
           schema:
-            type: file
+            $ref: '#/definitions/models.FileJSONResponse'
         "400":
           description: Invalid request
           schema:
