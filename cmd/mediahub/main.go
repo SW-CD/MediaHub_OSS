@@ -14,7 +14,7 @@ var frontendFS embed.FS
 
 // @title SWCD MediaHub-API
 // @version 1.2.0
-// @description This is a sample server for a file store.
+// @description This is a server for a image, audio and file storage with integrated web-ui.
 // @contact.name Christian Dengler
 // @contact.url https://www.swcd.lu
 // @contact.email denglerchr@gmail.com

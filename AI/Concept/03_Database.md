@@ -1,6 +1,6 @@
 # SQLite Schema & Migrations
 
-The database schema is now managed via **Migrations** (using `pressly/goose`). The application embeds `.sql` migration files and applies them via the `migrate` CLI command. If a mismatching schema version is found on a different command, an error is triggered with a request to use the `migrate` command first, or downgrade to the correct version of the application.
+The database schema is managed via **Migrations** (using `pressly/goose`). The application embeds `.sql` migration files and applies them via the `migrate` CLI command. If a mismatching schema version is found on a different command, an error is triggered with a request to use the `migrate` command first, or downgrade to the correct version of the application. Both SQLite and PostreSQL are supported in the future.
 
 **Important:** Do not manually modify the schema in the codebase. Create a new versioned migration file (e.g., `002_add_permissions.sql`) to change the structure.
 

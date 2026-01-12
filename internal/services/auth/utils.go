@@ -7,8 +7,7 @@ import (
 )
 
 // GenerateSecret creates a cryptographically secure random string.
-// This was previously logic inside main.go, moved here for better organization
-// and accessibility by the CLI package.
+// Use by the CLI package in case no secret was found or configured.
 func GenerateSecret() (string, error) {
 	bytes := make([]byte, 32) // 256 bits
 	if _, err := rand.Read(bytes); err != nil {

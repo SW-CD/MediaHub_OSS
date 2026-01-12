@@ -23,7 +23,8 @@ import (
 
 // runServer contains the logic to start the HTTP server with graceful shutdown.
 func runServer() error {
-	// Handle JWT Secret
+	// Handle JWT Secret. cfg.JWTSecret is the secret used during runtime.
+	// cfg,JWT.Secret us the value in the config file.
 	if cfg.JWTSecret == "" {
 		if cfg.JWT.Secret != "" {
 			logging.Log.Info("Using JWT secret loaded from config.toml.")

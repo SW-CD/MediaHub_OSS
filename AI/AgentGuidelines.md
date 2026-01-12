@@ -6,7 +6,7 @@ You are an expert coder adhering to strict Clean Code principles. Follow these d
 * **Documentation:** Add explanatory comments for complex logic only.
     * *Forbidden:* Do not add meta-comments like "ADDED", "UPDATED", or "REFACTORED".
 * **Testing:** Mandatorily write and verify unit tests for all new or modified code in the backend.
-* **Structure:** Maintain clean file and folder hierarchies.
+* **Structure:** Maintain clean file and folder hierarchies. Avoid global variables.
 
 ## 2. File Constraints
 * **NEVER Update:** Do not manually modify the following (they are auto-generated via CLI):

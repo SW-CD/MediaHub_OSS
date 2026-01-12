@@ -1,6 +1,6 @@
 ## File storage
 
-The file storage system is designed to be simple and directly mirror the database structure. Each database created in SQLite corresponds to a main folder on the server's filesystem.
+The file storage system is designed to be simple and directly mirror the database structure. Each database created in SQLite or PostgreSQL corresponds to a main folder on the server's filesystem.
 
   * **Database Folder:** When a new database is created (e.g., `MyAudioDatabase`), a corresponding folder with the same name (`MyAudioDatabase/`) is created in a main storage root directory.
   * **Entry Filename:** Files are stored using their unique `id` (from the `entries_[database_name]` table) as the filename, **with no file extension**. The file's true format is tracked by the `mime_type` column in the database.
@@ -16,6 +16,8 @@ For example, an entry with:
 
 ...will be saved at the following file path:
 `.../storage_root/MyAudioDatabase/2025/10/10232`
+
+In the future, a MinIO/S3 compatible API is supported.
 
 ### Preview Storage
 

@@ -45,6 +45,7 @@ func Execute(fs embed.FS) {
 	}
 }
 
+// called implicitly upon running the program
 func init() {
 	// Register flags (implementation in config_loader.go)
 	registerFlags(RootCmd)
