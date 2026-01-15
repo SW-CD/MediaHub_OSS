@@ -11,7 +11,6 @@
   level = "info"
   audit_enabled = false # (v1.2+) Set to true to enable detailed audit logging. False saves I/O.
 
-
 [jwt]
   access_duration_min = 5
   refresh_duration_hours = 24
