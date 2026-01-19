@@ -1,5 +1,33 @@
 package config
 
-type Config struct {
-	//TODO
+import (
+	"fmt"
+	"os"
+
+	"github.com/BurntSushi/toml"
+)
+
+// LoadConfig loads the configuration from a TOML file.
+func LoadConfig(path string) (*Config, error) {
+	var config Config
+	_, err := toml.DecodeFile(path, &config)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// SaveConfig writes the current configuration back to a TOML file.
+// Used to persist the auto-generated JWT secret.
+func SaveConfig(path string, cfg *Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create config file for saving: %w", err)
+	}
+	defer f.Close()
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(cfg); err != nil {
+		return fmt.Errorf("failed to encode config to file: %w", err)
+	}
+	return nil
 }
