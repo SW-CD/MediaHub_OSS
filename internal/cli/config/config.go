@@ -9,11 +9,21 @@ import (
 
 // LoadConfig loads the configuration from a TOML file.
 func LoadConfig(path string) (*Config, error) {
+	// Parse the config
 	var config Config
 	_, err := toml.DecodeFile(path, &config)
 	if err != nil {
 		return nil, err
 	}
+
+	// Check if values that need to be converted are ok as well
+	if _, err := config.GetServerConfig(); err != nil {
+		return nil, err
+	}
+	if _, err := config.GetJWTConfig(); err != nil {
+		return nil, err
+	}
+
 	return &config, nil
 }
 
