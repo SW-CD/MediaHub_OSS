@@ -1,11 +1,22 @@
 package cli
 
 import (
+	"fmt"
+	"mediahub/internal/repository"
+	"mediahub/internal/repository/sqlite"
+	"os"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func NewMigrateCommand(globalOptions *GlobalOptions) *cobra.Command {
+
+	repository, err := sqlite.NewRepository(globalOptions.Conf.Database.Path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	var migrateCmd = &cobra.Command{
 		Use:   "migrate",
@@ -17,7 +28,7 @@ func NewMigrateCommand(globalOptions *GlobalOptions) *cobra.Command {
 		Use:   "up",
 		Short: "Migrate the database to the most recent version",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigration("up", globalOptions.Logger)
+			return runMigration("up", repository, globalOptions.Logger)
 		},
 	}
 
@@ -25,7 +36,7 @@ func NewMigrateCommand(globalOptions *GlobalOptions) *cobra.Command {
 		Use:   "down",
 		Short: "Roll back the database by one version",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigration("down", globalOptions.Logger)
+			return runMigration("down", repository, globalOptions.Logger)
 		},
 	}
 
@@ -33,7 +44,7 @@ func NewMigrateCommand(globalOptions *GlobalOptions) *cobra.Command {
 		Use:   "status",
 		Short: "Dump the migration status for the current DB",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigration("status", globalOptions.Logger)
+			return runMigration("status", repository, globalOptions.Logger)
 		},
 	}
 
@@ -45,7 +56,7 @@ func NewMigrateCommand(globalOptions *GlobalOptions) *cobra.Command {
 	return migrateCmd
 }
 
-func runMigration(command string, logger *logrus.Logger) error {
+func runMigration(command string, repository repository.Repository, logger *logrus.Logger) error {
 
 	// TODO
 	// ...

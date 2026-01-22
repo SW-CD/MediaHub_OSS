@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"mediahub/internal/shared"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -32,12 +33,12 @@ func LoadConfig(path string) (*Config, error) {
 func SaveConfig(path string, cfg *Config) error {
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("failed to create config file for saving: %w", err)
+		return fmt.Errorf("trying to save the config: %w", shared.ErrorCreateFile)
 	}
 	defer f.Close()
 	encoder := toml.NewEncoder(f)
 	if err := encoder.Encode(cfg); err != nil {
-		return fmt.Errorf("failed to encode config to file: %w", err)
+		return fmt.Errorf("trying to save the config: %w", shared.ErrorEncodeFile)
 	}
 	return nil
 }

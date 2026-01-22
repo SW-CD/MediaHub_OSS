@@ -42,7 +42,9 @@ func ParseSize(sizeStr string) (uint64, error) {
 	}
 }
 
-// parseDuration parses a duration string (e.g., "30d", "24h") into a time.Duration.
+// shared.ParseDuration parses a duration string with support for days
+// (e.g., "30d", "24h") into a time.Duration. If you dont need support for "d", you can
+// just use time.ParseDuration .
 // A special value of "0" is allowed and returns 0 duration (disabling the check).
 func ParseDuration(durationStr string) (time.Duration, error) {
 	trimmedStr := strings.TrimSpace(durationStr)

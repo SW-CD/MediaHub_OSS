@@ -19,7 +19,7 @@ type Repository interface {
 	// Entry
 	CreateEntry(db *Database, entry *Entry) (*Entry, error)
 	GetEntry(db *Database, id int) (*Entry, error)
-	GetEntries(db *Database, limit, offset int, order string, tstart, tend int64, customFields []shared.CustomField) ([]Entry, error)
+	GetEntries(db *Database, limit, offset int, order string, tstart, tend int64) ([]Entry, error)
 	UpdateEntry(db *Database, entry *Entry) error
 	DeleteEntry(db *Database, id int) error
 	DeleteEntries(db *Database, ids []int) error

@@ -17,3 +17,4 @@ const (
 
 // repository errors
 const ErrUserNotFound = Error("user not found")
+const ErrInvalidName = Error("invalid name")

@@ -13,8 +13,8 @@ type CustomFields []CustomField
 
 // defines a role that a user has in a specific database (can_view, can_edit, can_delete, can_admin)
 type Role struct {
-	DatabaseID uint   `toml:"database_id"`
-	Role       string `toml:"role"`
+	Database string `toml:"database"`
+	Role     string `toml:"role"`
 }
 
 // Housekeeping defines the automated maintenance policies for a database.
