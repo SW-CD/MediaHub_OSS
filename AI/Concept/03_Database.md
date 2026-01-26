@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS databases (
     hk_disk_space TEXT NOT NULL DEFAULT '100G',
     hk_max_age TEXT NOT NULL DEFAULT '365d',
     
-    -- Stores the JSON object for type-specific config 
-    -- (e.g., {"create_preview": true, "auto_conversion": "flac"})
-    config TEXT NOT NULL DEFAULT '{}',
+    -- Stores the configuration for auto-conversion 
+    create_preview BOOLEAN NOT NULL DEFAULT 0,
+    auto_conversion TEXT NOT NULL DEFAULT 'none',
     
     -- Stores the JSON array of custom field definitions
     custom_fields TEXT NOT NULL DEFAULT '[]',
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS databases (
     total_disk_space_bytes INTEGER NOT NULL DEFAULT 0
 );
 
--- Users Table
+-- Users Table, TODO update regarding per database user roles
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT(64) UNIQUE NOT NULL CHECK(length(username) > 0 AND length(username) <= 64),

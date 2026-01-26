@@ -30,20 +30,21 @@ Creates a new database. This includes creating a new folder, adding an entry to 
 ```
 
   * **name** (string, required): The unique identifier.
-  * **content\_type** (string, required): The type of content this database will store. Supported types: `image`, `audio`, `file`. This determines the dynamic table schema and allowed MIME types.
+  * **content\_type** (string, required): The type of content this database will store. Supported types: `image`, `audio`, `video`, `file`. This determines the dynamic table schema and allowed MIME types.
   * **housekeeping** (object, optional):
       * **interval** (string, optional): Default: "1h".
       * **disk\_space** (string, optional): Default: "100GB".
       * **max\_age** (string, optional): Default: "365 days".
   * **config** (object, optional): A JSON object for type-specific settings.
-      * **For `content_type: 'image'`**:
+      * **For `content_type: 'image', 'audio' and 'video'`**:
           * `create_preview` (boolean, optional): Default: `true`.
-          * `convert_to_jpeg` (boolean, optional): Default: `false`.
-      * **For `content_type: 'audio'`**:
-          * `create_preview` (boolean, optional): Default: `true`.
-          * `auto_conversion` (string, optional): Default: `"none"`. Other values: `"flac"`, `"opus"`. **(Note: Setting this to anything other than "none" requires FFmpeg to be installed on the server.)**
+          * `auto_conversion` (string, optional): Default: `"none"`. Other values depend on the database type:
+            - if `'image'`: `"jpeg"`, `"webp"`
+            - if `'audio'`: `"flac"`, `"opus"`
+            - if `'video'`: `"mp4"`, `"webm"`
+          * Note: the auto conversion feature required ffmpeg to be available on the server.
       * **For `content_type: 'file'`**:
-          * No options available. `config` should be `{}`.
+          * no configuration options are this field is ommitted if provided.
   * **custom\_fields** (array, optional): An array of objects defining custom columns for this database's entry table.
       * **name** (string, required): The name of the custom field.
       * **type** (string, required): The SQLite data type. Supported types: `TEXT`, `INTEGER`, `REAL`, `BOOLEAN`.
@@ -261,7 +262,7 @@ Returns an array of all database objects.
         },
         "config": {
             "create_preview": true,
-            "convert_to_jpeg": false
+            "auto_conversion": "none"
         },
         "custom_fields": [
             { "name": "sensor_id", "type": "TEXT" }
@@ -493,7 +494,7 @@ Returns a report of actions taken.
       * **Folder structure:** `YYYY/MM/ID.ext` (Files are organized by date, similar to storage).
       * **`entries.csv`:** A single CSV file containing all metadata for the exported entries.
           * **Standard Columns:** `id`, `filename`, `timestamp` (ISO8601), `filesize`, `mime_type`, `status`.
-          * **Type-Specific Columns:** `width`, `height` (Image) or `duration_sec`, `channels` (Audio).
+          * **Type-Specific Columns:** `width`, `height` (Image) or `duration_sec`, `channels` (Audio) or `width`, `height`, `duration_sec` (Video).
           * **Custom Columns:** One column for each custom field defined in the database.
 
 ##### Error Responses

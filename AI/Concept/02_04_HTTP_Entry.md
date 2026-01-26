@@ -60,8 +60,10 @@ Returned for small, in-memory files. Returns the entry metadata object.
     "duration_sec": 150.2,
     "channels": 2,
     "status": "processing",
-    "artist": "Demo",
-    "album": "Demo Album"
+    "custom_fields": {
+      "artist": "Demo",
+      "album": "Demo Album"
+    }
 }
 ```
 
@@ -69,7 +71,7 @@ Returned for small, in-memory files. Returns the entry metadata object.
 
 **Status 202 - Accepted**
 
-Returned for large, on-disk files. Returns a **partial** metadata object containing only the `id`, `timestamp`, `status`, and any user-provided metadata.
+Returned for large, on-disk files. Returns a **partial** metadata object containing only the `id`, `timestamp`, `status`, and any user-provided metadata. It does not return calculated metadata like the filesize, song duration etc.
 
 **The client is now responsible for polling the `GET /api/entry/meta?id={id}` endpoint** until the `status` field is `"ready"`.
 
@@ -135,54 +137,93 @@ Retrieves the raw **original** file. This endpoint supports **Content Negotiatio
 
 ##### Request
 
+#### GET /api/entry/file
+
+Retrieves the raw file. This endpoint supports **Content Negotiation** (JSON vs Binary) and **HTTP Range Requests** (Streaming/Seeking).
+
+**Role Required: `CanView**`
+
+##### Request
+
 `GET /api/entry/file?database_name=$name&id=$id`
 
-  * **database\_name** (query param, required): The name of the database the entry belongs to.
-  * **id** (query param, required): The unique ID of the entry to retrieve.
+* **database_name** (query param, required): The name of the database the entry belongs to.
+* **id** (query param, required): The unique ID of the entry to retrieve.
 
 ##### Headers (Request)
 
-  * `Accept` (optional):
-      * `*/*` (or omitted): Triggers the **Standard Binary Response**.
-      * `application/json`: Triggers the **JSON Base64 Response**.
+* `Accept` (optional):
+* `*/*` (or omitted): Triggers the **Standard Binary Response**.
+* `application/json`: Triggers the **JSON Base64 Response**.
 
-##### Response: Standard Binary (Default)
 
-Returned when `Accept` is `*/*` or omitted.
+* `Range` (optional): The byte range requested (e.g., `bytes=0-1023` or `bytes=1000-`).
+* *Note: This is ignored if `Accept` is set to `application/json`.*
+
+
+
+##### Response: Standard Binary (Full Download)
+
+Returned when `Accept` is `*/*` (or omitted) and **no `Range` header** is present.
 
 **Status 200 - OK**
 
-  * **Headers:**
-      * `Content-Type`: The stored MIME type of the file (e.g., `audio/flac`, `image/jpeg`).
-      * `Content-Length`: The file size in bytes.
-      * `Content-Disposition`: `attachment; filename="my_song.wav"` (Forces download with original filename).
-  * **Body:** The raw binary data of the file.
+* **Headers:**
+* `Content-Type`: The stored MIME type (e.g., `video/mp4`, `audio/flac`).
+* `Content-Length`: The **total** file size in bytes.
+* `Accept-Ranges`: `bytes` (Advertises that streaming is supported).
+* `Content-Disposition`: `attachment; filename="my_movie.mp4"` (Forces download).
+
+
+* **Body:** The complete raw binary data of the file.
+
+##### Response: Standard Binary (Partial / Streaming)
+
+Returned when `Accept` is `*/*` (or omitted) and a **valid `Range` header** is present.
+
+**Status 206 - Partial Content**
+
+* **Headers:**
+* `Content-Type`: The stored MIME type (e.g., `video/mp4`).
+* `Content-Length`: The size of the **chunk** being sent (not the total file size).
+* `Content-Range`: `bytes {start}-{end}/{total}` (e.g., `bytes 1000-1999/50000`).
+* `Accept-Ranges`: `bytes`.
+* `Content-Disposition`: `inline; filename="my_movie.mp4"` (Allows browser playback).
+
+
+* **Body:** The binary data for the specific byte range requested.
 
 ##### Response: JSON / Base64
 
 Returned when `Accept` is `application/json`.
+*Note: Range requests are not supported in this mode.*
 
 **Status 200 - OK**
 
-  * **Headers:**
-      * `Content-Type`: `application/json`
-  * **Body:** A JSON object containing the file metadata and the Base64-encoded content string.
+* **Headers:**
+* `Content-Type`: `application/json`
+
+
+* **Body:** A JSON object containing the file metadata and the Base64-encoded content string.
 
 ```json
 {
   "filename": "my_song.wav",
   "mime_type": "audio/wav",
+  "size": 8945000,
   "data": "data:audio/wav;base64,UklGRi..."
 }
+
 ```
 
 ##### Error Responses
 
-  * **Status 400 - Bad Request**: Missing 'id' or 'database\_name' query parameter.
-  * **Status 401 - Unauthorized**: Authentication failed.
-  * **Status 403 - Forbidden**: User lacks `CanView` role.
-  * **Status 404 - Not Found**: Entry '10232' or database 'MyAudioDatabase' not found.
-
+* **Status 400 - Bad Request**: Missing 'id' or 'database_name'.
+* **Status 401 - Unauthorized**: Authentication failed.
+* **Status 403 - Forbidden**: User lacks `CanView` role.
+* **Status 404 - Not Found**: Entry or database not found.
+* **Status 416 - Range Not Satisfiable**: The requested `Range` is invalid (e.g., start is greater than file size).
+* **Headers:** `Content-Range: bytes */{total_file_size}`
 -----
 
 #### GET /api/entry/preview
