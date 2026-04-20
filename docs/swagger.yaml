@@ -1,143 +1,94 @@
 basePath: /api
 definitions:
-  handlers.ErrorResponse:
+  audithandler.AuditLogResponse:
     properties:
-      error:
+      action:
         type: string
+      actor:
+        type: string
+      details:
+        additionalProperties: {}
+        type: object
+      id:
+        type: integer
+      resource:
+        type: string
+      timestamp:
+        type: integer
     type: object
-  handlers.MessageResponse:
+  databasehandler.ConfigPayload:
     properties:
-      message:
+      auto_conversion:
         type: string
+      create_preview:
+        type: boolean
     type: object
-  handlers.PasswordUpdateRequest:
+  databasehandler.DatabaseCreatePayload:
     properties:
-      password:
+      config:
+        $ref: '#/definitions/databasehandler.ConfigPayload'
+      content_type:
         type: string
-    type: object
-  handlers.UserCreateRequest:
-    properties:
-      can_create:
-        type: boolean
-      can_delete:
-        type: boolean
-      can_edit:
-        type: boolean
-      can_view:
-        type: boolean
-      is_admin:
-        type: boolean
-      password:
-        type: string
-      username:
-        type: string
-    type: object
-  handlers.UserUpdateRequest:
-    properties:
-      can_create:
-        type: boolean
-      can_delete:
-        type: boolean
-      can_edit:
-        type: boolean
-      can_view:
-        type: boolean
-      is_admin:
-        type: boolean
-      password:
-        type: string
-    type: object
-  handlers.tokenRequest:
-    properties:
-      refresh_token:
-        type: string
-    type: object
-  handlers.tokenResponse:
-    properties:
-      access_token:
-        type: string
-      refresh_token:
-        type: string
-    type: object
-  models.BulkDeleteRequest:
-    properties:
-      ids:
+      custom_fields:
         items:
-          type: integer
+          $ref: '#/definitions/databasehandler.DatabaseCustomField'
         type: array
+      housekeeping:
+        $ref: '#/definitions/databasehandler.HousekeepingPayload'
+      name:
+        type: string
     type: object
-  models.CustomField:
+  databasehandler.DatabaseCustomField:
     properties:
       name:
         type: string
       type:
-        description: 'Supported types: TEXT, INTEGER, REAL, BOOLEAN'
         type: string
     type: object
-  models.Database:
+  databasehandler.DatabaseResponse:
     properties:
       config:
-        type: object
+        $ref: '#/definitions/databasehandler.ConfigPayload'
       content_type:
         type: string
       custom_fields:
         items:
-          $ref: '#/definitions/models.CustomField'
+          $ref: '#/definitions/databasehandler.DatabaseCustomField'
         type: array
       housekeeping:
-        $ref: '#/definitions/models.Housekeeping'
-      last_hk_run:
-        type: string
+        $ref: '#/definitions/databasehandler.DatabaseResponseHK'
       name:
         type: string
       stats:
-        $ref: '#/definitions/models.Stats'
+        $ref: '#/definitions/databasehandler.DatabaseResponseStats'
     type: object
-  models.DatabaseCreatePayload:
+  databasehandler.DatabaseResponseHK:
+    properties:
+      disk_space:
+        description: e.g. "10G"
+        type: string
+      interval:
+        description: e.g."10min"
+        type: string
+      max_age:
+        description: e.g. "365d"
+        type: string
+    type: object
+  databasehandler.DatabaseResponseStats:
+    properties:
+      entry_count:
+        type: integer
+      total_disk_space_bytes:
+        type: integer
+    type: object
+  databasehandler.DatabaseUpdatePayload:
     properties:
       config:
-        additionalProperties: true
-        type: object
-      content_type:
-        type: string
-      custom_fields:
-        items:
-          $ref: '#/definitions/models.CustomField'
-        type: array
+        $ref: '#/definitions/databasehandler.ConfigPayload'
       housekeeping:
-        $ref: '#/definitions/models.Housekeeping'
-      name:
-        type: string
+        $ref: '#/definitions/databasehandler.HousekeepingPayload'
     type: object
-  models.DatabaseUpdatePayload:
-    properties:
-      config:
-        additionalProperties: true
-        type: object
-      housekeeping:
-        $ref: '#/definitions/models.Housekeeping'
-    type: object
-  models.Entry:
-    additionalProperties: true
-    type: object
-  models.ExportRequest:
-    properties:
-      ids:
-        items:
-          type: integer
-        type: array
-    type: object
-  models.FileJSONResponse:
-    properties:
-      data:
-        description: Base64 encoded string with data URI prefix
-        type: string
-      filename:
-        type: string
-      mime_type:
-        type: string
-    type: object
-  models.Housekeeping:
+  databasehandler.HousekeepingPayload:
     properties:
       disk_space:
         type: string
@@ -146,7 +97,7 @@ definitions:
       max_age:
         type: string
     type: object
-  models.HousekeepingReport:
+  databasehandler.HousekeepingResponse:
     properties:
       database_name:
         type: string
@@ -157,86 +108,201 @@ definitions:
       space_freed_bytes:
         type: integer
     type: object
-  models.Info:
+  entryhandler.BulkDeleteRequest:
     properties:
-      ffmpeg:
-        type: boolean
-      ffprobe:
-        type: boolean
-      service_name:
-        type: string
-      uptime_since:
-        type: string
-      version:
-        type: string
+      ids:
+        items:
+          type: integer
+        type: array
     type: object
-  models.PartialEntryResponse:
+  entryhandler.BulkDeleteResponse:
     properties:
-      custom_fields:
-        allOf:
-        - $ref: '#/definitions/models.Entry'
-        description: Only fields provided by user
       database_name:
         type: string
+      deleted_count:
+        type: integer
+      errors:
+        type: string
+      message:
+        type: string
+      space_freed_bytes:
+        type: integer
+    type: object
+  entryhandler.EntryResponse:
+    properties:
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      database_name:
+        type: string
+      filename:
+        type: string
+      filesize:
+        type: integer
       id:
         type: integer
+      media_fields:
+        additionalProperties: {}
+        type: object
+      mime_type:
+        type: string
+      preview_filesize:
+        type: integer
       status:
-        description: Will be "processing"
         type: string
       timestamp:
         type: integer
     type: object
-  models.SearchFilter:
+  entryhandler.ExportRequest:
     properties:
-      conditions:
+      ids:
         items:
-          $ref: '#/definitions/models.SearchFilter'
+          type: integer
         type: array
+    type: object
+  entryhandler.FileJSONResponse:
+    properties:
+      data:
+        description: Base64 encoded string with data URI prefix
+        type: string
+      filename:
+        type: string
+      mime_type:
+        type: string
+    type: object
+  entryhandler.PartialEntryResponse:
+    properties:
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      database_name:
+        type: string
+      id:
+        type: integer
+      mime_type:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  entryhandler.PostPatchEntryRequest:
+    properties:
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      filename:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  infohandler.InfoResponse:
+    properties:
+      conversion_to:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      oidc:
+        $ref: '#/definitions/infohandler.OIDCConfig'
+      service_name:
+        type: string
+      uptime:
+        description: Changed to reflect elapsed duration
+        type: string
+      version:
+        type: string
+    type: object
+  infohandler.OIDCConfig:
+    properties:
+      enabled:
+        type: boolean
+      login_page_disabled:
+        type: boolean
+      oidc_client_id:
+        type: string
+      oidc_issuer_url:
+        type: string
+      oidc_redirect_url:
+        type: string
+    type: object
+  repository.Condition:
+    properties:
       field:
-        description: For single conditions ("=", ">", "<", etc.)
         type: string
       operator:
-        description: For logical grouping ("and", "or")
+        description: e.g., "=", ">", "<", "LIKE"
         type: string
-      value: {}
+      value:
+        description: '''any'' allows for strings, numbers, or booleans'
     type: object
-  models.SearchPagination:
+  repository.FilterGroup:
+    properties:
+      conditions:
+        description: The individual rules
+        items:
+          $ref: '#/definitions/repository.Condition'
+        type: array
+      operator:
+        description: e.g., "and", "or"
+        type: string
+    type: object
+  repository.Pagination:
     properties:
       limit:
-        description: Pointer to check if it was provided
         type: integer
       offset:
         type: integer
     type: object
-  models.SearchRequest:
+  repository.SearchRequest:
     properties:
       filter:
-        allOf:
-        - $ref: '#/definitions/models.SearchFilter'
-        description: Pointer so it can be omitted
+        $ref: '#/definitions/repository.FilterGroup'
       pagination:
-        $ref: '#/definitions/models.SearchPagination'
+        $ref: '#/definitions/repository.Pagination'
       sort:
-        allOf:
-        - $ref: '#/definitions/models.SearchSort'
-        description: Pointer so it can be omitted
+        $ref: '#/definitions/repository.SortCriteria'
     type: object
-  models.SearchSort:
+  repository.SortCriteria:
     properties:
       direction:
-        description: '"asc", "desc"'
+        description: '"asc" or "desc"'
         type: string
       field:
         type: string
     type: object
-  models.Stats:
+  tokenhandler.OidcTokenRequest:
     properties:
-      entry_count:
-        type: integer
-      total_disk_space_bytes:
-        type: integer
+      idp_token:
+        type: string
     type: object
-  models.User:
+  tokenhandler.TokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  tokenhandler.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  userhandler.CreateUserPayload:
+    properties:
+      is_admin:
+        type: boolean
+      password:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/userhandler.DatabasePermission'
+        type: array
+      username:
+        type: string
+    type: object
+  userhandler.DatabasePermission:
     properties:
       can_create:
         type: boolean
@@ -246,11 +312,48 @@ definitions:
         type: boolean
       can_view:
         type: boolean
+      database_name:
+        type: string
+    type: object
+  userhandler.UpdateMePayload:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  userhandler.UpdateUserPayload:
+    properties:
+      is_admin:
+        type: boolean
+      password:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/userhandler.DatabasePermission'
+        type: array
+    type: object
+  userhandler.UserResponse:
+    properties:
       id:
         type: integer
       is_admin:
         type: boolean
+      permissions:
+        items:
+          $ref: '#/definitions/userhandler.DatabasePermission'
+        type: array
       username:
+        type: string
+    type: object
+  utils.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  utils.MessageResponse:
+    properties:
+      message:
         type: string
     type: object
 info:
@@ -258,77 +361,173 @@ info:
     email: denglerchr@gmail.com
     name: Christian Dengler
     url: https://www.swcd.lu
-  description: This is a sample server for a file store.
+  description: This is a server for a image, audio and file storage with integrated
+    web-ui.
   title: SWCD MediaHub-API
-  version: 1.2.0
+  version: 2.0.0-beta1
 paths:
-  /database:
-    delete:
-      description: Deletes a database, its entry table, and all of its associated
-        entries and metadata.
+  /api/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revokes a Refresh Token, effectively logging the user out.
       parameters:
-      - description: Database Name
-        in: query
-        name: name
+      - description: Refresh token JSON body
+        in: body
+        name: body
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/tokenhandler.TokenRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Success message
+          description: Logged out successfully message
           schema:
-            $ref: '#/definitions/handlers.MessageResponse'
+            $ref: '#/definitions/utils.MessageResponse'
         "400":
-          description: Missing name parameter or invalid name
+          description: Invalid request body
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Database not found
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - token
+  /api/token:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Obtains an internal JWT Access/Refresh token pair.
+        Supports two authentication methods:
+        1. Local Authentication: Send standard Basic Auth headers.
+        2. OIDC Token Exchange (commercial version only): Send a JSON body containing a valid external JWT (`idp_token`).
+        Providing both methods in a single request will result in a 400 Bad Request.
+      parameters:
+      - description: OIDC Identity Provider Token (required if not using Basic Auth)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/tokenhandler.OidcTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns access and refresh tokens
+          schema:
+            $ref: '#/definitions/tokenhandler.TokenResponse'
+        "400":
+          description: Ambiguous authentication request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Invalid credentials, invalid OIDC token, or missing authentication
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Failed to delete database record or folder
+          description: Internal server error or OIDC not available
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Delete a database
+      summary: Get a token pair
       tags:
-      - database
+      - token
+  /api/token/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Uses a valid Refresh Token to obtain a new Access/Refresh token
+        pair.
+      parameters:
+      - description: Refresh token JSON body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/tokenhandler.TokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns new access and refresh tokens
+          schema:
+            $ref: '#/definitions/tokenhandler.TokenResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: Refresh token pair
+      tags:
+      - token
+  /audit:
     get:
-      description: Retrieves details, custom fields, and statistics for a specific
-        database.
+      description: Retrieves a paginated list of system audit logs. This endpoint
+        provides basic filtering by timestamp and pagination.
       parameters:
-      - description: Database Name
+      - description: Number of logs to return (default 30)
         in: query
-        name: name
-        required: true
+        name: limit
+        type: integer
+      - description: Offset for pagination (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: Sort order ('asc' or 'desc', default 'desc')
+        in: query
+        name: order
         type: string
+      - description: Start timestamp (Unix milliseconds)
+        format: int64
+        in: query
+        name: tstart
+        type: integer
+      - description: End timestamp (Unix milliseconds)
+        format: int64
+        in: query
+        name: tend
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Returns an array of audit log objects
           schema:
-            $ref: '#/definitions/models.Database'
+            items:
+              $ref: '#/definitions/audithandler.AuditLogResponse'
+            type: array
         "400":
-          description: Missing name parameter
+          description: Invalid parameter formats
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Database not found
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires IsAdmin role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Failed to calculate stats
+          description: Failed to retrieve audit logs
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Get database details
+      - BearerAuth: []
+      summary: Get audit logs
       tags:
-      - database
+      - audit
+  /database:
     post:
       consumes:
       - application/json
@@ -340,29 +539,96 @@ paths:
         name: database
         required: true
         schema:
-          $ref: '#/definitions/models.DatabaseCreatePayload'
+          $ref: '#/definitions/databasehandler.DatabaseCreatePayload'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Database'
+            $ref: '#/definitions/databasehandler.DatabaseResponse'
         "400":
           description: Invalid request payload or missing name
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "409":
           description: Database name already in use
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Failed to create database or storage folder
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a new database
+      tags:
+      - database
+  /database/{dbname}:
+    delete:
+      description: Deletes a database, its entry table, and all of its associated
+        entries and metadata.
+      parameters:
+      - description: Database Name
+        in: path
+        name: dbname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            $ref: '#/definitions/utils.MessageResponse'
+        "400":
+          description: Missing dbname path parameter or invalid name
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Failed to delete database record or folder
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a database
+      tags:
+      - database
+    get:
+      description: Retrieves details, custom fields, and statistics for a specific
+        database.
+      parameters:
+      - description: Database Name
+        in: path
+        name: dbname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/databasehandler.DatabaseResponse'
+        "400":
+          description: Missing dbname path parameter
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Failed to calculate stats
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get database details
       tags:
       - database
     put:
@@ -371,8 +637,8 @@ paths:
       description: Updates the housekeeping rules for a specific database.
       parameters:
       - description: Database Name
-        in: query
-        name: name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: Housekeeping Rules or Config flag
@@ -380,39 +646,39 @@ paths:
         name: housekeeping
         required: true
         schema:
-          $ref: '#/definitions/models.DatabaseUpdatePayload'
+          $ref: '#/definitions/databasehandler.DatabaseUpdatePayload'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Database'
+            $ref: '#/definitions/databasehandler.DatabaseResponse'
         "400":
-          description: Invalid request payload or missing name
+          description: Invalid request payload or missing dbname path parameter
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Failed to update database
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update database housekeeping rules
       tags:
       - database
-  /database/entries:
+  /database/{dbname}/entries:
     get:
       description: Retrieves a paginated list of entries from a specific database.
         Only supports time-based filters.
       parameters:
       - description: Database Name
-        in: query
-        name: name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: Number of entries to return (default 30)
@@ -427,92 +693,110 @@ paths:
         in: query
         name: order
         type: string
-      - description: Start timestamp (RFC3339 or Unix seconds)
+      - description: Start timestamp (Unix milliseconds)
+        format: int64
         in: query
         name: tstart
-        type: string
-      - description: End timestamp (RFC3339 or Unix seconds)
+        type: integer
+      - description: End timestamp (Unix milliseconds)
+        format: int64
         in: query
         name: tend
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Returns an empty array if no entries match
+          description: Returns an array of entry metadata objects
           schema:
             items:
-              $ref: '#/definitions/models.Entry'
+              $ref: '#/definitions/entryhandler.EntryResponse'
             type: array
         "400":
-          description: Missing name parameter
+          description: Missing name param or invalid parameter formats
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanView role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Failed to retrieve entries
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get entries from a database (basic)
       tags:
       - database
-  /database/entries/delete:
+  /database/{dbname}/entries/delete:
     post:
       consumes:
       - application/json
-      description: Deletes multiple entries in a single atomic transaction.
+      description: Deletes multiple entries in a single atomic transaction. Updates
+        database statistics only once.
       parameters:
       - description: Database Name
-        in: query
-        name: name
+        in: path
+        name: dbname
         required: true
         type: string
-      - description: List of Entry IDs to delete
+      - description: JSON object containing a list of Entry IDs to delete
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/models.BulkDeleteRequest'
+          $ref: '#/definitions/entryhandler.BulkDeleteRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Summary of the deletion operation
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/entryhandler.BulkDeleteResponse'
         "400":
-          description: Missing name or empty ID list
+          description: Invalid request, missing name, or empty IDs list
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanDelete role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Transaction failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Bulk delete entries
       tags:
       - database
-  /database/entries/export:
+  /database/{dbname}/entries/export:
     post:
       consumes:
       - application/json
       description: Streams a ZIP archive containing the files and metadata (CSV) for
-        the specified entries.
+        the specified entries using io.Pipe.
       parameters:
       - description: Database Name
-        in: query
-        name: name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: List of Entry IDs to export
@@ -520,228 +804,92 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/models.ExportRequest'
+          $ref: '#/definitions/entryhandler.ExportRequest'
       produces:
       - application/zip
       responses:
         "200":
-          description: ZIP Archive
+          description: ZIP Archive containing files and entries.csv
           schema:
             type: file
         "400":
-          description: Missing name or empty ID list
+          description: Missing name query parameter or empty IDs list
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanView role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Server error
+          description: ZIP streaming failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Export entries as ZIP
       tags:
       - database
-  /database/entries/search:
+  /database/{dbname}/entries/search:
     post:
       consumes:
       - application/json
-      description: Retrieves a paginated list of entries matching complex filter criteria.
+      description: Retrieves a list of entry metadata matching the complex, nested
+        filter criteria provided in the request body.
       parameters:
       - description: Database Name
-        in: query
-        name: name
+        in: path
+        name: dbname
         required: true
         type: string
-      - description: JSON search query
+      - description: JSON body defining filter, sort, and pagination logic
         in: body
         name: search
         required: true
         schema:
-          $ref: '#/definitions/models.SearchRequest'
+          $ref: '#/definitions/repository.SearchRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Returns an empty array if no entries match
+          description: Returns an array of matching results (even if empty)
           schema:
             items:
-              $ref: '#/definitions/models.Entry'
+              $ref: '#/definitions/entryhandler.EntryResponse'
             type: array
         "400":
           description: Missing name, invalid JSON, missing limit, or invalid filter/sort
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanView role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Failed to retrieve entries
+          description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Search for entries in a database (complex)
       tags:
       - database
-  /database/housekeeping:
-    post:
-      description: Manually triggers the housekeeping task for a specific database.
-      parameters:
-      - description: Database Name
-        in: query
-        name: name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.HousekeepingReport'
-        "400":
-          description: Missing name parameter
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Database not found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Housekeeping failed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Trigger housekeeping for a database
-      tags:
-      - database
-  /databases:
-    get:
-      description: Retrieves a list of all available databases and their statistics.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Returns an empty array if no databases exist
-          schema:
-            items:
-              $ref: '#/definitions/models.Database'
-            type: array
-        "500":
-          description: Failed to retrieve databases
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: List all databases
-      tags:
-      - database
-  /entry:
-    delete:
-      description: Deletes an entry file from disk and its metadata from the database.
-      parameters:
-      - description: Database Name
-        in: query
-        name: database_name
-        required: true
-        type: string
-      - description: Entry ID
-        in: query
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success message
-          schema:
-            $ref: '#/definitions/handlers.MessageResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Database or entry not found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Delete an entry
-      tags:
-      - entry
-    patch:
-      consumes:
-      - application/json
-      description: Updates an entry's mutable metadata, including custom fields and
-        the 'filename'.
-      parameters:
-      - description: Database Name
-        in: query
-        name: database_name
-        required: true
-        type: string
-      - description: Entry ID
-        in: query
-        name: id
-        required: true
-        type: integer
-      - description: JSON object with fields to update
-        in: body
-        name: updates
-        required: true
-        schema:
-          $ref: '#/definitions/models.Entry'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: The full, updated entry metadata object
-          schema:
-            $ref: '#/definitions/models.Entry'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Database or entry not found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Update entry metadata
-      tags:
-      - entry
+  /database/{dbname}/entry:
     post:
       consumes:
       - multipart/form-data
@@ -758,7 +906,7 @@ paths:
         name: database_name
         required: true
         type: string
-      - description: JSON metadata for the entry (including custom fields)
+      - description: JSON metadata for the entry
         in: formData
         name: metadata
         required: true
@@ -774,91 +922,89 @@ paths:
         "201":
           description: For small files (synchronous processing)
           schema:
-            $ref: '#/definitions/models.Entry'
+            $ref: '#/definitions/entryhandler.EntryResponse'
         "202":
           description: For large files (asynchronous processing)
           schema:
-            $ref: '#/definitions/models.PartialEntryResponse'
+            $ref: '#/definitions/entryhandler.PartialEntryResponse'
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "415":
           description: Unsupported entry format
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Upload an entry
       tags:
       - entry
-  /entry/file:
-    get:
-      description: Retrieves a raw entry file. Supports Content Negotiation via Accept
-        header.
+  /database/{dbname}/entry/{id}:
+    delete:
+      description: Deletes an entry file from disk and its metadata from the database.
       parameters:
       - description: Database Name
-        in: query
-        name: database_name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: Entry ID
-        in: query
+        in: path
         name: id
         required: true
         type: integer
       produces:
-      - application/octet-stream
       - application/json
       responses:
         "200":
-          description: 'Base64 encoded file data (if Accept: application/json)'
+          description: Success message
           schema:
-            $ref: '#/definitions/models.FileJSONResponse'
+            $ref: '#/definitions/utils.MessageResponse'
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database or entry not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Get an entry file
+      summary: Delete an entry
       tags:
       - entry
-  /entry/meta:
     get:
       description: Retrieves all metadata for a single entry, including custom fields.
       parameters:
       - description: Database Name
-        in: query
-        name: database_name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: Entry ID
-        in: query
+        format: int64
+        in: path
         name: id
         required: true
         type: integer
@@ -868,410 +1014,518 @@ paths:
         "200":
           description: The full entry metadata object
           schema:
-            $ref: '#/definitions/models.Entry'
+            $ref: '#/definitions/entryhandler.EntryResponse'
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Database or entry not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get entry metadata
       tags:
       - entry
-  /entry/preview:
-    get:
-      description: Retrieves a 200x200 JPEG preview of an entry. Supports Content
-        Negotiation via Accept header.
+    patch:
+      consumes:
+      - application/json
+      description: Updates an entry's mutable metadata, including custom fields, the
+        'timestamp' and the 'filename'.
       parameters:
       - description: Database Name
-        in: query
-        name: database_name
+        in: path
+        name: dbname
         required: true
         type: string
       - description: Entry ID
-        in: query
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: JSON object with fields to update
+        in: body
+        name: updates
+        required: true
+        schema:
+          $ref: '#/definitions/entryhandler.PostPatchEntryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The full, updated entry metadata object
+          schema:
+            $ref: '#/definitions/entryhandler.EntryResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database or entry not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update entry metadata
+      tags:
+      - entry
+  /database/{dbname}/entry/{id}/file:
+    get:
+      description: Retrieves a raw entry file. Supports Content Negotiation (JSON
+        vs Binary) and HTTP Range Requests (Streaming).
+      parameters:
+      - description: Database Name
+        in: path
+        name: dbname
+        required: true
+        type: string
+      - description: Entry ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Byte range request (e.g., bytes=0-1023)
+        in: header
+        name: Range
+        type: string
+      produces:
+      - application/octet-stream
+      - application/json
+      responses:
+        "200":
+          description: 'Base64 encoded file data (if Accept: application/json)'
+          headers:
+            Accept-Ranges:
+              description: bytes
+              type: string
+          schema:
+            $ref: '#/definitions/entryhandler.FileJSONResponse'
+        "206":
+          description: Partial content (streaming response)
+          headers:
+            Accept-Ranges:
+              description: bytes
+              type: string
+            Content-Range:
+              description: bytes start-end/total
+              type: string
+          schema:
+            type: file
+        "400":
+          description: Invalid request or ID format
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database or entry not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "409":
+          description: File is currently processing
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "416":
+          description: Range Not Satisfiable
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      - BearerAuth: []
+      summary: Get an entry file
+      tags:
+      - entry
+  /database/{dbname}/entry/{id}/preview:
+    get:
+      description: Retrieves a 200x200 WebP preview of an entry. Supports Content
+        Negotiation via Accept header.
+      parameters:
+      - description: Database Name
+        in: path
+        name: dbname
+        required: true
+        type: string
+      - description: Entry ID
+        format: int64
+        in: path
         name: id
         required: true
         type: integer
       produces:
-      - image/jpeg
+      - image/webp
       - application/json
       responses:
         "200":
           description: 'Base64 encoded preview data (if Accept: application/json)'
           schema:
-            $ref: '#/definitions/models.FileJSONResponse'
+            $ref: '#/definitions/entryhandler.FileJSONResponse'
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
-          description: Database or entry not found
+          description: Database, entry, or preview not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get an entry preview
       tags:
       - entry
+  /database/{dbname}/housekeeping:
+    post:
+      description: Manually triggers the housekeeping maintenance task for a specific
+        database.
+      parameters:
+      - description: Database Name
+        in: path
+        name: dbname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns a report of actions taken.
+          schema:
+            $ref: '#/definitions/databasehandler.HousekeepingResponse'
+        "400":
+          description: Missing dbname path parameter
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanDelete role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "409":
+          description: Lock not acquired
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Trigger database housekeeping
+      tags:
+      - database
+  /databases:
+    get:
+      description: Retrieves a list of all available databases and their statistics.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns an empty array if no databases exist
+          schema:
+            items:
+              $ref: '#/definitions/databasehandler.DatabaseResponse'
+            type: array
+        "500":
+          description: Failed to retrieve databases
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all databases
+      tags:
+      - database
   /info:
     get:
-      description: Retrieves general information about the software, i.e., the service
-        name, software version, uptime, and ffmpeg availability. This is a public
-        endpoint.
+      description: Retrieves general information about the software, including version,
+        uptime, and media tool availability.
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Returns general backend information
           schema:
-            $ref: '#/definitions/models.Info'
-      summary: Get service information
+            $ref: '#/definitions/infohandler.InfoResponse'
+      summary: Get server info
       tags:
-      - Info
-  /logout:
-    post:
-      consumes:
-      - application/json
-      description: Invalidates a refresh token. This endpoint is protected by an Access
-        Token.
-      parameters:
-      - description: Refresh Token to invalidate
-        in: body
-        name: token
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.tokenRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MessageResponse'
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Authentication required (invalid access token)
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Could not process token
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Logout
-      tags:
-      - Auth
+      - info
   /me:
     get:
-      description: Get the currently authenticated user's details.
+      description: Retrieves the user record and their specific permissions for the
+        currently authenticated user. Admins will receive an empty permissions array.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.User'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Get current user
-      tags:
-      - Users
-    patch:
-      consumes:
-      - application/json
-      description: Allows a user to change their own password.
-      parameters:
-      - description: Password update request
-        in: body
-        name: password
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.PasswordUpdateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Update current user's password
-      tags:
-      - Users
-  /token:
-    post:
-      description: Authenticate using Basic Auth to receive an access and refresh
-        token.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.tokenResponse'
+            $ref: '#/definitions/userhandler.UserResponse'
         "401":
           description: Authentication failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Token generation failed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Get JWT tokens
+      - BearerAuth: []
+      summary: Retrieve current user
       tags:
-      - Auth
-  /token/refresh:
-    post:
-      consumes:
-      - application/json
-      description: Provide a valid refresh token to receive a new access token. The
-        old refresh token is revoked.
-      parameters:
-      - description: Refresh Token
-        in: body
-        name: token
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.tokenRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.tokenResponse'
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Invalid or expired token
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Token generation failed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Refresh JWT access token
-      tags:
-      - Auth
-  /user:
-    delete:
-      description: Deletes a user account.
-      parameters:
-      - description: User ID
-        in: query
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MessageResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BasicAuth: []
-      summary: Delete a user
-      tags:
-      - Admin
+      - User
     patch:
       consumes:
       - application/json
-      description: Updates an existing user's roles or password.
+      description: Updates the password for the currently authenticated user. Requires
+        the old password to verify identity.
+      parameters:
+      - description: Old and New Password
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.UpdateMePayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password updated successfully
+          schema:
+            $ref: '#/definitions/utils.MessageResponse'
+        "400":
+          description: Invalid JSON body or missing fields
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: 'Authentication failed: invalid old password'
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      - BearerAuth: []
+      summary: Update current user's password
+      tags:
+      - User
+  /user:
+    delete:
+      description: Deletes a user account and cascades the deletion to remove their
+        database permissions. Requires the global IsAdmin role.
       parameters:
       - description: User ID
         in: query
         name: id
         required: true
         type: integer
-      - description: User update request
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.UserUpdateRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: User successfully deleted
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/utils.MessageResponse'
         "400":
-          description: Bad Request
+          description: Missing or invalid ID format
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Authentication failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
-          description: Forbidden
+          description: 'Forbidden: Admin user not retrieved'
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
-          description: Not Found
+          description: User not found
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "409":
-          description: Conflict
+          description: Cannot delete the last remaining admin user
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Update a user's roles or password
+      - BearerAuth: []
+      summary: Delete a user
       tags:
-      - Admin
+      - User
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing user's global status, password, or database
+        permissions. Permissions act as an Upsert/Replace operation. Requires the
+        global IsAdmin role.
+      parameters:
+      - description: User ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.UpdateUserPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully updated
+          schema:
+            $ref: '#/definitions/userhandler.UserResponse'
+        "400":
+          description: Missing ID or invalid JSON body
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: 'Forbidden: Admin user not retrieved'
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "409":
+          description: Cannot remove last admin user
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      - BearerAuth: []
+      summary: Update an existing user
+      tags:
+      - User
     post:
       consumes:
       - application/json
-      description: Creates a new user account.
+      description: Creates a new user account and optionally defines their database
+        permissions. Requires the global IsAdmin role.
       parameters:
-      - description: User creation request
+      - description: New user details and permissions
         in: body
-        name: user
+        name: payload
         required: true
         schema:
-          $ref: '#/definitions/handlers.UserCreateRequest'
+          $ref: '#/definitions/userhandler.CreateUserPayload'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: User successfully created
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/userhandler.UserResponse'
         "400":
-          description: Bad Request
+          description: Invalid JSON body, missing fields, or duplicate database names
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Authentication failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
-          description: Forbidden
+          description: 'Forbidden: Admin user not retrieved'
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "409":
-          description: Conflict
+          description: User already exists
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
+      - BearerAuth: []
       summary: Create a new user
       tags:
-      - Admin
+      - User
   /users:
     get:
-      description: Retrieves a list of all users in the system.
+      description: Retrieves a list of all user accounts and their assigned database
+        permissions. Requires the global IsAdmin role.
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of users
           schema:
             items:
-              $ref: '#/definitions/models.User'
+              $ref: '#/definitions/userhandler.UserResponse'
             type: array
         "401":
-          description: Unauthorized
+          description: Authentication failed
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
         "403":
-          description: Forbidden
+          description: 'Forbidden: User lacks IsAdmin role'
           schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
+            $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Get all users
+      - BearerAuth: []
+      summary: Retrieve all users
       tags:
-      - Admin
+      - User
 schemes:
 - http
 securityDefinitions:

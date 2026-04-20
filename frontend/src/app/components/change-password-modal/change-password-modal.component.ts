@@ -1,4 +1,3 @@
-// frontend/src/app/components/change-password-modal/change-password-modal.component.ts
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -27,7 +26,9 @@ export class ChangePasswordModalComponent implements OnInit, OnDestroy {
     private modalService: ModalService,
     private notificationService: NotificationService
   ) {
+    // Added the oldPassword field to the form validation
     this.passwordForm = this.fb.group({
+      oldPassword: ['', [Validators.required]],
       newPassword: ['', [Validators.required, Validators.minLength(8)]],
     });
   }
@@ -50,9 +51,11 @@ export class ChangePasswordModalComponent implements OnInit, OnDestroy {
     }
 
     this.isLoading = true;
+    const oldPassword = this.passwordForm.value.oldPassword;
     const newPassword = this.passwordForm.value.newPassword;
 
-    this.authService.changeOwnPassword(newPassword).pipe(
+    // Call the updated service method with both passwords
+    this.authService.changeOwnPassword(oldPassword, newPassword).pipe(
       finalize(() => this.isLoading = false)
     ).subscribe({
       next: () => {
@@ -60,7 +63,9 @@ export class ChangePasswordModalComponent implements OnInit, OnDestroy {
         this.closeModal(true);
       },
       error: (err: HttpErrorResponse) => {
-        // Errors are globally handled, but you could add specific logic here if needed.
+        if (err.status === 401) {
+           this.notificationService.showError('Incorrect current password.');
+        }
         console.error('Password change failed:', err);
       },
     });
@@ -75,4 +80,3 @@ export class ChangePasswordModalComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 }
-

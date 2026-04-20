@@ -1,20 +1,22 @@
-// filepath: cmd/mediahub/main.go
+// filepath: cmd/mediahub_oss/main.go
 package main
 
 import (
 	"embed"
-	"mediahub/internal/cli"
+	"io/fs"
+	"log"
+	"mediahub_oss/internal/cli"
 
 	// Import docs for Swagger
-	_ "mediahub/docs"
+	_ "mediahub_oss/docs"
 )
 
 //go:embed all:frontend_embed/browser
 var frontendFS embed.FS
 
 // @title SWCD MediaHub-API
-// @version 1.2.0
-// @description This is a sample server for a file store.
+// @version 2.0.0-beta1
+// @description This is a server for a image, audio and file storage with integrated web-ui.
 // @contact.name Christian Dengler
 // @contact.url https://www.swcd.lu
 // @contact.email denglerchr@gmail.com
@@ -28,6 +30,12 @@ var frontendFS embed.FS
 // @import encoding/json
 
 func main() {
+
+	subFS, err := fs.Sub(frontendFS, "frontend_embed/browser")
+	if err != nil {
+		log.Fatalf("Failed to initialize frontend filesystem: %v", err)
+	}
+
 	// Delegate all execution to the CLI package
-	cli.Execute(frontendFS)
+	cli.Execute(subFS)
 }

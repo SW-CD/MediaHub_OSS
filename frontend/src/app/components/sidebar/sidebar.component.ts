@@ -1,17 +1,14 @@
-// frontend/src/app/components/sidebar/sidebar.component.ts
 import { Component, OnDestroy, OnInit, ChangeDetectorRef, Input, Output, EventEmitter } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
-import { Database, User } from '../../models/api.models';
+import { Database, User, AppInfo } from '../../models';
 import { AuthService } from '../../services/auth.service';
 import { DatabaseService } from '../../services/database.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { ModalService } from '../../services/modal.service';
-// UPDATED: Import renamed modal
 import { CreateDatabaseModalComponent } from '../create-database-modal/create-database-modal.component';
 import { ChangePasswordModalComponent } from '../change-password-modal/change-password-modal.component';
 import { AppInfoService } from '../../services/app-info.service'; 
-import { AppInfo } from '../../models/api.models'; 
 
 @Component({
   selector: 'app-sidebar',
@@ -20,14 +17,7 @@ import { AppInfo } from '../../models/api.models';
   standalone: false,
 })
 export class SidebarComponent implements OnInit, OnDestroy {
-  /**
-   * Receives the current collapsed state from the parent component.
-   */
   @Input() isCollapsed: boolean = false;
-  
-  /**
-   * Emits an event when the toggle button is clicked.
-   */
   @Output() toggleSidebar = new EventEmitter<void>();
 
   public databases$: Observable<Database[]>;
@@ -74,24 +64,32 @@ export class SidebarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Emits the toggle event to the parent dashboard component.
-   */
   onToggleSidebar(): void {
     this.toggleSidebar.emit();
   }
 
   /**
-   * NEW: Returns the correct icon path based on db content_type.
-   * (Assumes icons are added to assets/icons/)
+   * Returns the correct icon path based on db content_type.
    */
   public getIconForDb(db: Database): string {
     switch (db.content_type) {
       case 'image': return 'assets/icons/image-icon.svg';
       case 'audio': return 'assets/icons/audio-icon.svg';
+      case 'video': return 'assets/icons/video-icon.svg'; // NEW: Added Video support
       case 'file': return 'assets/icons/file-icon.svg';
       default: return 'assets/icons/db-icon.svg';
     }
+  }
+
+  /**
+   * NEW: Helper to determine if the user should see the settings gear icon.
+   * True if the user is an admin OR has edit/delete permissions for this specific db.
+   */
+  public canManageDatabase(dbName: string, user: User): boolean {
+    if (user.is_admin) return true;
+    
+    const dbPermission = user.permissions?.find(p => p.database_name === dbName);
+    return !!dbPermission && (dbPermission.can_edit || dbPermission.can_delete);
   }
 
   logout(): void {

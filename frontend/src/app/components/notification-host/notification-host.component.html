@@ -1,7 +1,7 @@
-<div *ngIf="globalError" class="global-error-banner">
+<div *ngIf="globalError" class="global-error-banner" role="alert" aria-live="assertive">
   <div class="global-error-content">
     <span>{{ globalError }}</span>
-    <button (click)="clearGlobalError()" class="close-btn">&times;</button>
+    <button (click)="clearGlobalError()" class="close-btn" aria-label="Dismiss error">&times;</button>
   </div>
 </div>
 
@@ -9,6 +9,8 @@
   *ngIf="toast"
   [@toastAnimation]
   class="toast-notification"
+  role="status"
+  aria-live="polite"
   [ngClass]="{
     'toast-success': toast.type === 'success',
     'toast-error': toast.type === 'error',
@@ -16,5 +18,5 @@
   }"
 >
   <span>{{ toast.message }}</span>
-  <button (click)="clearToast()" class="close-btn">&times;</button>
+  <button (click)="clearToast()" class="close-btn" aria-label="Dismiss notification">&times;</button>
 </div>

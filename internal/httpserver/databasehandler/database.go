@@ -1,0 +1,363 @@
+package databasehandler
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"mediahub_oss/internal/httpserver/utils"
+	"mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared/customerrors"
+)
+
+// @Summary Get database details
+// @Description Retrieves details, custom fields, and statistics for a specific database.
+// @Tags database
+// @Produce  json
+// @Param    dbname  path  string  true  "Database Name"
+// @Success 200 {object} DatabaseResponse
+// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter"
+// @Failure 404 {object} utils.ErrorResponse "Database not found"
+// @Failure 500 {object} utils.ErrorResponse "Failed to calculate stats"
+// @Security BasicAuth
+// @Router /database/{dbname} [get]
+func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
+	var ctx = r.Context()
+
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
+		return
+	}
+
+	dbname := r.PathValue("dbname")
+	if dbname == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+		return
+	}
+
+	db, err := h.Repo.GetDatabase(ctx, dbname)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
+		return
+	}
+
+	h.Auditor.Log(ctx, "database.get", user.Username, dbname, nil)
+
+	dbResp := mapToDatabaseResponse(db)
+	utils.RespondWithJSON(w, http.StatusOK, dbResp)
+}
+
+// @Summary List all databases
+// @Description Retrieves a list of all available databases and their statistics.
+// @Tags database
+// @Produce  json
+// @Success 200 {array} DatabaseResponse "Returns an empty array if no databases exist"
+// @Failure 500 {object} utils.ErrorResponse "Failed to retrieve databases"
+// @Security BasicAuth
+// @Router /databases [get]
+func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
+		return
+	}
+
+	// 1. Fetch all databases from the repository
+	dbs, err := h.Repo.GetDatabases(ctx)
+	if err != nil {
+		h.Logger.Error("Failed to retrieve databases.", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve databases. Error: %v", err))
+		return
+	}
+
+	// 2. Filter for non-admin users based on database-level permissions
+	if !user.IsAdmin {
+		permissions, err := h.Repo.GetAllUserPermissions(ctx, user.ID)
+		if err != nil {
+			h.Logger.Error("Failed to retrieve user permissions.", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions.")
+			return
+		}
+
+		// Build an O(1) lookup map of databases the user is allowed to see
+		allowedDBs := make(map[string]bool)
+		for _, perm := range permissions {
+			// Check if the user has a non-empty Roles string
+			if len(perm.Roles) > 0 {
+				allowedDBs[perm.Database] = true
+			}
+		}
+
+		// Filter the original database list into a new slice
+		var filteredDBs []repository.Database
+		for _, db := range dbs {
+			if allowedDBs[db.Name] {
+				filteredDBs = append(filteredDBs, db)
+			}
+		}
+
+		// Ensure we return an empty array [] instead of null if no DBs matched
+		if filteredDBs == nil {
+			filteredDBs = []repository.Database{}
+		}
+
+		dbs = filteredDBs
+	}
+
+	// Convert to DatabaseResponse
+	var resp = make([]DatabaseResponse, len(dbs))
+	for i, db := range dbs {
+		resp[i] = mapToDatabaseResponse(db)
+	}
+
+	// Audit
+	h.Auditor.Log(ctx, "databases.get", user.Username, "repository", nil)
+	utils.RespondWithJSON(w, http.StatusOK, resp)
+}
+
+// @Summary Create a new database
+// @Description Creates a new database with custom fields and a dedicated entry table.
+// @Tags database
+// @Accept   json
+// @Produce  json
+// @Param    database  body  DatabaseCreatePayload  true  "Database Metadata"
+// @Success 201 {object} DatabaseResponse
+// @Failure 400 {object} utils.ErrorResponse "Invalid request payload or missing name"
+// @Failure 409 {object} utils.ErrorResponse "Database name already in use"
+// @Failure 500 {object} utils.ErrorResponse "Failed to create database or storage folder"
+// @Security BasicAuth
+// @Router /database [post]
+func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request) {
+	var payload DatabaseCreatePayload
+	var ctx = r.Context()
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		h.Logger.Warn("Failed to decode request body", "error", err)
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if payload.Name == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required field: name")
+		return
+	}
+	if payload.ContentType == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required field: content_type")
+		return
+	}
+
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
+		return
+	}
+
+	// Create the database
+	var database = payload.toModel()
+
+	createdDB, err := h.Repo.CreateDatabase(ctx, database)
+	if err != nil {
+		if errors.Is(err, customerrors.ErrDatabaseExists) {
+			utils.RespondWithError(w, http.StatusConflict, "Database name already in use.")
+		} else if errors.Is(err, customerrors.ErrInvalidName) {
+			utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		} else {
+			h.Logger.Error("Failed to create database.", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create database. Error: %v", err))
+		}
+		return
+	}
+
+	// Audit Log
+	h.Auditor.Log(ctx, "database.create", user.Username, createdDB.Name, map[string]any{
+		"content_type": createdDB.ContentType,
+	})
+
+	resp := mapToDatabaseResponse(createdDB)
+	utils.RespondWithJSON(w, http.StatusCreated, resp)
+}
+
+// @Summary Update database housekeeping rules
+// @Description Updates the housekeeping rules for a specific database.
+// @Tags database
+// @Accept   json
+// @Produce  json
+// @Param    dbname  path  string  true  "Database Name"
+// @Param    housekeeping  body  DatabaseUpdatePayload  true  "Housekeeping Rules or Config flag"
+// @Success 200 {object} DatabaseResponse
+// @Failure 400 {object} utils.ErrorResponse "Invalid request payload or missing dbname path parameter"
+// @Failure 404 {object} utils.ErrorResponse "Database not found"
+// @Failure 500 {object} utils.ErrorResponse "Failed to update database"
+// @Security BasicAuth
+// @Router /database/{dbname} [put]
+func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request) {
+
+	var ctx = r.Context()
+
+	// Parse request
+	dbname := r.PathValue("dbname")
+	if dbname == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+		return
+	}
+
+	db, err := h.Repo.GetDatabase(ctx, dbname)
+	if errors.Is(err, customerrors.ErrNotFound) {
+		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
+		return
+	} else if err != nil {
+		h.Logger.Error("error retrieving database", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error retrieving database. Error: %v", err))
+		return
+	}
+
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "could not find user in context")
+		return
+	}
+
+	var updates DatabaseUpdatePayload
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// update database
+	newconfig := updates.getConfig()
+	newhk := updates.getHK(db.Housekeeping.LastHkRun)
+	db.Config = newconfig
+	db.Housekeeping = newhk
+
+	updatedDB, err := h.Repo.UpdateDatabase(ctx, db)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error updating database: %v", err))
+		return
+	}
+
+	// Audit Log
+	h.Auditor.Log(ctx, "database.update", user.Username, dbname, nil)
+
+	resp := mapToDatabaseResponse(updatedDB)
+	utils.RespondWithJSON(w, http.StatusOK, resp)
+}
+
+// @Summary Delete a database
+// @Description Deletes a database, its entry table, and all of its associated entries and metadata.
+// @Tags database
+// @Produce  json
+// @Param    dbname  path  string  true  "Database Name"
+// @Success 200 {object} utils.MessageResponse "Success message"
+// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter or invalid name"
+// @Failure 404 {object} utils.ErrorResponse "Database not found"
+// @Failure 500 {object} utils.ErrorResponse "Failed to delete database record or folder"
+// @Security BasicAuth
+// @Router /database/{dbname} [delete]
+func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request) {
+	var ctx = r.Context()
+
+	dbname := r.PathValue("dbname")
+	if dbname == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+		return
+	}
+
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "could not find user in context")
+		return
+	}
+
+	if err := h.Repo.DeleteDatabase(ctx, dbname); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
+		} else if strings.Contains(err.Error(), "invalid database name") {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid database name.")
+		} else {
+			h.Logger.Error("Failed to delete database record.", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete database record. Error: %v", err))
+		}
+		return
+	}
+
+	// Audit Log
+	h.Auditor.Log(ctx, "database.delete", user.Username, dbname, nil)
+
+	h.Logger.Info("Database deleted successfully.", "database", dbname)
+	utils.RespondWithJSON(w, http.StatusOK, utils.MessageResponse{
+		Message: "Database '" + dbname + "' and all its contents were successfully deleted.",
+	})
+}
+
+// @Summary Trigger database housekeeping
+// @Description Manually triggers the housekeeping maintenance task for a specific database.
+// @Tags database
+// @Produce json
+// @Param    dbname path string true "Database Name"
+// @Success 200 {object} HousekeepingResponse "Returns a report of actions taken."
+// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden (Requires CanDelete role)"
+// @Failure 404 {object} utils.ErrorResponse "Database not found"
+// @Failure 409 {object} utils.ErrorResponse "Lock not acquired"
+// @Failure 500 {object} utils.ErrorResponse "Internal server error"
+// @Security BasicAuth
+// @Router /database/{dbname}/housekeeping [post]
+func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// 1. Extract and validate user
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Could not get user from context")
+		return
+	}
+
+	// 2. Extract database name from path
+	dbName := r.PathValue("dbname")
+	if dbName == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required parameter: dbname")
+		return
+	}
+
+	// 3. Verify the database exists
+	db, err := h.Repo.GetDatabase(ctx, dbName)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "Database not found")
+		return
+	}
+
+	// 4. Execute Housekeeping Logic
+	deletedCount, spaceFreed, err := h.HouseKeeper.RunDBHousekeeping(ctx, db)
+	if errors.Is(err, customerrors.ErrLockNotAcquired) {
+		h.Logger.Error("Skipping housekeeping", "error", err, "database", dbName)
+		utils.RespondWithError(w, http.StatusConflict, "Lock not acquired")
+		return
+	}
+	if err != nil {
+		h.Logger.Error("Manual housekeeping failed", "error", err, "database", dbName)
+		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Housekeeping task failed. Error: %v", err))
+		return
+	}
+
+	// 5. Audit Log the manual trigger
+	h.Auditor.Log(ctx, "database.housekeeping", user.Username, dbName, map[string]any{
+		"entries_deleted": deletedCount,
+		"space_freed":     spaceFreed,
+	})
+
+	// 6. Respond with the summary
+	resp := HousekeepingResponse{
+		DatabaseName:    dbName,
+		EntriesDeleted:  deletedCount,
+		SpaceFreedBytes: spaceFreed,
+		Message:         fmt.Sprintf("Housekeeping complete. %d entries deleted due to age or disk space limits.", deletedCount),
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, resp)
+}

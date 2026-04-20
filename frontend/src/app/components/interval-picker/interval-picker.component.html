@@ -1,13 +1,8 @@
-<!-- frontend/src/app/components/interval-picker/interval-picker.component.html
-  This component's styling makes the number input and unit select
-  appear as a single, combined form control.
--->
 <div
   class="interval-picker-wrapper"
   [formGroup]="intervalForm"
   [class.read-only]="readOnly"
 >
-  <!-- Number Input -->
   <input
     type="number"
     formControlName="value"
@@ -15,7 +10,6 @@
     (blur)="handleBlur()"
   />
 
-  <!-- Unit Select Dropdown -->
   <select
     formControlName="unit"
     class="form-control interval-unit"

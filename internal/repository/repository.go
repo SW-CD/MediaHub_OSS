@@ -1,175 +1,95 @@
-// filepath: internal/repository/repository.go
-// Package repository provides the functionality for interacting with the SQLite database.
+// The repository package implements the interface to communicate
+// with the database (SQLite, PostgreSQL, in the future maybe MSSQL)
+// Some standards:
+// - timestamps are passed as time.Time and handled as Int64 representing millisecond precision unix epochs internally
+// - the zero value (time.Time{}) is used to specify an undefined/missing timestamp
+// - omitting a timestamp (by passing time.Time{}) can be used to have the server create a default timestamp entry// - timestamps should use the server time, thus the client should avoid passing timestamps created using time.now()
+// - the interface uses time.Duration instead of timestamps where possible to avoid passing client timestamp
 package repository
 
 import (
-	"database/sql"
-	"errors"
+	"context"
 	"fmt"
-	"mediahub/internal/config"
-	"mediahub/internal/db/migrations" // Import the embedded migrations
-	"mediahub/internal/logging"       // Import logging
-	"regexp"
-	"strconv"
-	"strings"
+	"mediahub_oss/internal/shared/customerrors"
 	"time"
-
-	"github.com/Masterminds/squirrel"
-	_ "github.com/mattn/go-sqlite3" // SQLite driver
-	"github.com/patrickmn/go-cache"
-	"github.com/pressly/goose/v3"
 )
 
-var SafeNameRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+type Repository interface {
+	// General
+	Close() error
+	GetDBTime(ctx context.Context) (time.Time, error)
 
-// ErrInvalidFilter is returned when a search filter is malformed or invalid.
-var ErrInvalidFilter = errors.New("invalid filter")
+	// Database
+	CreateDatabase(ctx context.Context, db Database) (Database, error)
+	GetDatabase(ctx context.Context, name string) (Database, error)
+	GetDatabases(ctx context.Context) ([]Database, error)
+	UpdateDatabase(ctx context.Context, db Database) (Database, error)
+	DeleteDatabase(ctx context.Context, name string) error
+	GetDatabaseStats(ctx context.Context, name string) (DatabaseStats, error)
 
-// Repository provides access to the database.
-type Repository struct {
-	DB      *sql.DB
-	Cache   *cache.Cache
-	Cfg     *config.Config
-	Builder squirrel.StatementBuilderType // SQL Query Builder
+	// Housekeeping
+	HouseKeepingRequired(ctx context.Context) ([]Database, error)                // return all databases where the last housekeeping run was longer ago than the provided interval
+	HouseKeepingWasCalled(ctx context.Context, dbname string) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
+
+	// Entry
+	// Deleting or creating entries will also update the database statistics
+	CreateEntry(ctx context.Context, db Database, entry Entry) (Entry, error)
+	GetEntry(ctx context.Context, dbname string, id int64) (Entry, error)
+	GetEntries(ctx context.Context, dbname string, limit, offset int, order string, tstart, tend time.Time) ([]Entry, error)
+	UpdateEntry(ctx context.Context, dbname string, entry Entry) (Entry, error)
+	UpdateEntriesStatus(ctx context.Context, dbname string, entryIDs []int64, status uint8) error
+	DeleteEntry(ctx context.Context, dbname string, id int64) (DeletedEntryMeta, error)
+	DeleteEntries(ctx context.Context, dbname string, entryIDs []int64) ([]DeletedEntryMeta, error)
+	SearchEntries(ctx context.Context, dbname string, req SearchRequest, customFields []CustomField) ([]Entry, error)
+
+	// User
+	CreateUser(ctx context.Context, user User) (User, error)
+	CountAdminUsers(ctx context.Context) (int64, error)
+	DeleteUser(ctx context.Context, id int64) error
+	UpdateUser(ctx context.Context, user User) (User, error)
+	GetUsers(ctx context.Context) ([]User, error)
+	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
+	SetUserPermissions(ctx context.Context, permissions UserPermissions) error // create or update or delete (in case of empty Roles)
+	GetUserPermissions(ctx context.Context, userID int64, dbname string) (UserPermissions, error)
+	GetAllUserPermissions(ctx context.Context, userID int64) ([]UserPermissions, error)
+
+	// Token
+	StoreRefreshToken(ctx context.Context, userID int64, tokenHash string, validDuration time.Duration) error // TODO adapt implementations
+	ValidateRefreshToken(ctx context.Context, tokenHash string) (int64, error)
+	DeleteRefreshToken(ctx context.Context, tokenHash string) error
+	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
+	DeleteAllRefreshTokensForUser(ctx context.Context, userID int64) error
+
+	// Logging
+	LogAudit(ctx context.Context, log AuditLog) error
+	GetLogs(ctx context.Context, limit, offset int, order string, tstart, tend time.Time) ([]AuditLog, error)
+	DeleteLogs(ctx context.Context, maxAge time.Duration) error // delete all logs where the timestamp (checked again server time) is too old // TODO adapt implementations
+
+	// Distributed Locking
+	AcquireLock(ctx context.Context, lockName string, ownerID string, ttl time.Duration) (bool, error)
+	ReleaseLock(ctx context.Context, lockName string, ownerID string) error
+
+	// Migration
+	GetMigrationVersion(ctx context.Context) (int, error) // integer is 1000*major version + minor version
+	MigrateUp(ctx context.Context) error
+	MigrateDown(ctx context.Context) error
 }
 
-// NewRepository creates a new database service instance.
-// It opens the database file. Note: It does NOT automatically migrate.
-// The caller must run ValidateSchema or the 'migrate' CLI command.
-func NewRepository(cfg *config.Config) (*Repository, error) {
-	// Add `_journal=WAL` for better concurrent performance (many readers, one writer).
-	dsn := fmt.Sprintf("%s?_foreign_keys=on&_journal=WAL", cfg.Database.Path)
-
-	db, err := sql.Open("sqlite3", dsn)
+func UserExists(ctx context.Context, s Repository, username string) (bool, error) {
+	_, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return nil, fmt.Errorf("could not open database: %w", err)
-	}
-
-	// Set connection pool properties
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("could not connect to database: %w", err)
-	}
-
-	repo := &Repository{
-		DB:    db,
-		Cache: cache.New(5*time.Minute, 10*time.Minute),
-		Cfg:   cfg,
-		// Initialize Squirrel with Question mark placeholders for SQLite
-		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
-	}
-
-	return repo, nil
-}
-
-// Close closes the database connection.
-func (s *Repository) Close() {
-	s.DB.Close()
-}
-
-// BeginTx starts a new database transaction.
-func (s *Repository) BeginTx() (*Tx, error) {
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return &Tx{tx}, nil
-}
-
-// EnsureSchemaBootstrapped checks if the database is fresh (no migration table).
-// If it is fresh, it applies all migrations automatically.
-// If it contains existing data/migrations, it does nothing.
-func (s *Repository) EnsureSchemaBootstrapped() error {
-	// 1. Check if the goose_db_version table exists
-	var count int
-	query := "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='goose_db_version'"
-	if err := s.DB.QueryRow(query).Scan(&count); err != nil {
-		return fmt.Errorf("failed to check for migration table: %w", err)
-	}
-
-	// 2. If table exists, this is an existing database. Do not auto-migrate.
-	if count > 0 {
-		logging.Log.Debug("Existing database detected (migration table found). Skipping auto-bootstrap.")
-		return nil
-	}
-
-	// 3. If table is missing, this is a new database. Bootstrap it.
-	logging.Log.Info("Fresh database detected. Bootstrapping schema...")
-
-	// Configure Goose to use the embedded filesystem
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		return fmt.Errorf("failed to set goose dialect: %w", err)
-	}
-
-	// Apply all "Up" migrations
-	if err := goose.Up(s.DB, "."); err != nil {
-		return fmt.Errorf("failed to apply migrations: %w", err)
-	}
-
-	logging.Log.Info("Database bootstrapping complete.")
-	return nil
-}
-
-// ValidateSchema checks if the database schema is up to date with the binary.
-// It returns nil if the versions match.
-func (s *Repository) ValidateSchema() error {
-	// Configure Goose to use the embedded filesystem
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		return fmt.Errorf("failed to set goose dialect: %w", err)
-	}
-
-	// 1. Get current DB version
-	currentVersion, err := goose.GetDBVersion(s.DB)
-	if err != nil {
-		return fmt.Errorf("failed to get current database version: %w", err)
-	}
-
-	// 2. Determine the latest version in the binary
-	latestVersion, err := getLatestMigrationVersion()
-	if err != nil {
-		return fmt.Errorf("failed to determine latest migration version: %w", err)
-	}
-
-	// 3. Compare
-	if currentVersion < latestVersion {
-		return fmt.Errorf("database schema is outdated (DB: v%d, App: v%d). Please run './mediahub migrate up' to update", currentVersion, latestVersion)
-	}
-	if currentVersion > latestVersion {
-		return fmt.Errorf("database schema is newer than this application binary (DB: v%d, App: v%d). Please upgrade the application", currentVersion, latestVersion)
-	}
-
-	return nil
-}
-
-// getLatestMigrationVersion scans the embedded FS to find the highest version number.
-func getLatestMigrationVersion() (int64, error) {
-	entries, err := migrations.FS.ReadDir(".")
-	if err != nil {
-		return 0, err
-	}
-
-	var maxVersion int64 = 0
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
-			continue
+		if err == customerrors.ErrUserNotFound {
+			return false, nil
 		}
-		// Parse filename like "001_init.sql" -> 1
-		parts := strings.SplitN(entry.Name(), "_", 2)
-		if len(parts) < 2 {
-			continue
-		}
-		ver, err := strconv.ParseInt(parts[0], 10, 64)
-		if err != nil {
-			continue // Skip files that don't start with a number
-		}
-		if ver > maxVersion {
-			maxVersion = ver
-		}
+		return false, err
 	}
-	return maxVersion, nil
+	return true, nil
+}
+
+// formatVersion converts the packed integer (e.g., 2001) into a readable string (e.g., "2.1")
+func FormatVersion(v int) string {
+	major := v / 1000
+	minor := v % 1000
+	return fmt.Sprintf("%d.%d", major, minor)
 }

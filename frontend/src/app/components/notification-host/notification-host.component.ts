@@ -1,6 +1,7 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { Notification, NotificationService } from '../../services/notification.service';
-import { Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
@@ -8,6 +9,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
   templateUrl: './notification-host.component.html',
   styleUrls: ['./notification-host.component.css'],
   standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush, // NEW: Huge performance boost for a root-level component
   animations: [
     trigger('toastAnimation', [
       transition(':enter', [
@@ -20,26 +22,68 @@ import { trigger, transition, style, animate } from '@angular/animations';
     ]),
   ],
 })
-export class NotificationHostComponent implements OnDestroy {
-  globalError: string | null = null;
-  toast: Notification | null = null;
-  private subscriptions = new Subscription();
-  private toastTimer: any;
+export class NotificationHostComponent implements OnInit, OnDestroy {
+  public globalError: string | null = null;
+  public toast: Notification | null = null;
+  
+  private destroy$ = new Subject<void>();
+  private toastTimer?: ReturnType<typeof setTimeout>; // UPDATED: Strict typing instead of 'any'
 
-  constructor(private notificationService: NotificationService) {
-    this.subscriptions.add(this.notificationService.globalError$.subscribe(message => this.globalError = message));
-    this.subscriptions.add(this.notificationService.toastNotification$.subscribe(notification => this.showToast(notification)));
+  constructor(
+    private notificationService: NotificationService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  ngOnInit(): void {
+    this.notificationService.globalError$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => {
+        this.globalError = message;
+        this.cdr.markForCheck(); // Inform Angular to update the view
+      });
+
+    this.notificationService.toastNotification$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(notification => {
+        this.showToast(notification);
+      });
   }
 
   private showToast(notification: Notification | null): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+    
     this.toast = notification;
+    this.cdr.markForCheck(); // Inform Angular to update the view
+
     if (notification) {
-      this.toastTimer = setTimeout(() => this.toast = null, 4000);
+      this.toastTimer = setTimeout(() => {
+        this.toast = null;
+        this.cdr.markForCheck(); // Inform Angular to update the view when hiding
+      }, 4000);
     }
   }
 
-  clearGlobalError(): void { this.notificationService.clearGlobalError(); }
-  clearToast(): void { if (this.toastTimer) clearTimeout(this.toastTimer); this.toast = null; }
-  ngOnDestroy(): void { this.subscriptions.unsubscribe(); if (this.toastTimer) clearTimeout(this.toastTimer); }
+  clearGlobalError(): void { 
+    this.notificationService.clearGlobalError(); 
+    this.globalError = null;
+    this.cdr.markForCheck();
+  }
+  
+  clearToast(): void { 
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer); 
+    }
+    this.toast = null; 
+    this.cdr.markForCheck();
+  }
+  
+  ngOnDestroy(): void { 
+    this.destroy$.next();
+    this.destroy$.complete();
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer); 
+    }
+  }
 }

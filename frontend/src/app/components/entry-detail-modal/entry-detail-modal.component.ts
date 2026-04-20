@@ -1,16 +1,16 @@
-// frontend/src/app/components/entry-detail-modal/entry-detail-modal.component.ts
-
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject, Observable, of } from 'rxjs';
-import { switchMap, takeUntil, map, take, filter, tap } from 'rxjs/operators';
-import { Database, Entry, User } from '../../models/api.models';
+import { Subject, Observable, of, combineLatest } from 'rxjs';
+import { switchMap, takeUntil, map, take, filter, tap, withLatestFrom } from 'rxjs/operators';
+import { Database, Entry, User } from '../../models';
+import { EntryService } from '../../services/entry.service';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
-import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component'; // <-- IMPORT THIS
+import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component';
+import { isMimeTypeStreamable } from '../../utils/mime-types';
 
 @Component({
   selector: 'app-entry-detail-modal',
@@ -23,20 +23,22 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
 
   public entryForMetadata: Entry | null = null;
   public fileUrl: SafeUrl | null = null;
-  // REMOVED: metadataKeys is no longer needed as we map fields manually in HTML
   public isLoadingFile: boolean = true;
   
   public currentUser$: Observable<User | null>;
   public previewUrl: string | null = null;
   
-  // Changed to public so HTML can access config/custom_fields
   public currentDatabase: Database | null = null; 
   
+  public canEdit = false;
+  public canDelete = false;
+
   private currentObjectUrl: string | null = null;
   private destroy$ = new Subject<void>();
 
   constructor(
     private modalService: ModalService,
+    private entryService: EntryService,
     private databaseService: DatabaseService,
     private sanitizer: DomSanitizer,
     private authService: AuthService,
@@ -46,13 +48,21 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.databaseService.selectedDatabase$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((db) => (this.currentDatabase = db));
+    // Keep internal state updated
+    combineLatest([
+      this.databaseService.selectedDatabase$,
+      this.currentUser$
+    ]).pipe(takeUntil(this.destroy$))
+      .subscribe(([db, user]) => {
+        this.currentDatabase = db;
+        this.updatePermissions(user, db);
+      });
 
-    this.databaseService.selectedEntry$.pipe(
+    // FIXED: Use withLatestFrom to avoid race conditions if selectedEntry fires before currentDatabase is set.
+    this.entryService.selectedEntry$.pipe(
       takeUntil(this.destroy$),
-      switchMap(entry => {
+      withLatestFrom(this.databaseService.selectedDatabase$),
+      switchMap(([entry, currentDb]) => {
         this.revokeFileObjectUrl();
         
         this.fileUrl = null;
@@ -60,24 +70,43 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
         this.isLoadingFile = true;
         this.entryForMetadata = null;
 
-        if (entry && this.currentDatabase) {
-          // Fetch fresh metadata
-          return this.databaseService.getEntryMeta(this.currentDatabase.name, entry.id).pipe(
+        if (entry && currentDb) {
+          return this.entryService.getEntryMeta(currentDb.name, entry.id).pipe(
             switchMap(metaEntry => {
               this.entryForMetadata = metaEntry;
-              this.previewUrl = this.getPreviewUrl();
+              this.previewUrl = this.getPreviewUrl(currentDb.name, metaEntry.id);
 
-              // Fetch the actual file blob
-              return this.databaseService.getEntryFileBlob(this.currentDatabase!.name, entry.id).pipe(
-                map(blob => {
-                  this.currentObjectUrl = URL.createObjectURL(blob);
-                  this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(this.currentObjectUrl);
-                  this.isLoadingFile = false;
-                  return 'loaded';
-                }),
-                // Handle case where file load fails but metadata loaded ok
-                tap({ error: () => this.isLoadingFile = false })
-              );
+              // 1. Check our central utility to see if the browser supports it
+              const mime = metaEntry.mime_type || 'file';
+              const isStreamable = isMimeTypeStreamable(mime);
+
+              if (isStreamable) {
+                // STREAMING SUPPORTED: Provide direct URL
+                const streamUrl = this.entryService.getEntryFileUrl(currentDb.name, entry.id);
+                this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(streamUrl);
+                this.isLoadingFile = false;
+                
+                return of('streaming_ready');
+                
+              } else if (mime.startsWith('image/')) {
+                // IMAGES: Fall back to Blob download
+                return this.entryService.getEntryFileBlob(currentDb.name, entry.id).pipe(
+                  map(blob => {
+                    this.currentObjectUrl = URL.createObjectURL(blob);
+                    this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(this.currentObjectUrl);
+                    this.isLoadingFile = false;
+                    return 'loaded';
+                  }),
+                  tap({ error: () => this.isLoadingFile = false })
+                );
+                
+              } else {
+                // UNSUPPORTED MEDIA / GENERIC FILES: Do NOT download Blob!
+                // Skip fetching the file entirely and just show the metadata UI.
+                // The user can still click the "Download" button to save it locally.
+                this.isLoadingFile = false;
+                return of('unsupported_file');
+              }
             })
           );
         } else {
@@ -88,14 +117,28 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
     ).subscribe();
   }
 
-  public getPreviewUrl(): string | null {
-    if (this.currentDatabase && this.entryForMetadata) {
-      return this.databaseService.getEntryPreviewUrl(this.currentDatabase.name, this.entryForMetadata.id);
+  private updatePermissions(user: User | null, db: Database | null): void {
+    if (!user || !db) {
+      this.canEdit = false;
+      this.canDelete = false;
+      return;
     }
-    return null;
+
+    if (user.is_admin) {
+      this.canEdit = true;
+      this.canDelete = true;
+    } else {
+      const dbPermission = user.permissions?.find(p => p.database_name === db.name);
+      this.canEdit = dbPermission?.can_edit || false;
+      this.canDelete = dbPermission?.can_delete || false;
+    }
   }
 
-  // --- NEW: Edit Handler ---
+  // Refactored to take arguments to guarantee it relies on the specific flow context
+  public getPreviewUrl(dbName: string, entryId: number): string {
+    return this.entryService.getEntryPreviewUrl(dbName, entryId);
+  }
+
   onEdit(): void {
     if (!this.entryForMetadata) return;
 
@@ -104,9 +147,6 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Open the Edit Modal. 
-    // Since both components listen to `selectedEntry$`, updates will propagate automatically 
-    // if the service updates the subject after save.
     this.modalService.open(EditEntryModalComponent.MODAL_ID);
   }
 
@@ -131,7 +171,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.isLoadingFile = true; 
         
-        this.databaseService.deleteEntry(this.currentDatabase!.name, this.entryForMetadata!.id)
+        this.entryService.deleteEntry(this.currentDatabase!.name, this.entryForMetadata!.id)
           .subscribe({
             next: () => {
               this.closeModal();
@@ -152,7 +192,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.modalService.close();
-    this.databaseService.clearSelectedEntry();
+    this.entryService.clearSelectedEntry();
     this.revokeFileObjectUrl();
 
     this.fileUrl = null;

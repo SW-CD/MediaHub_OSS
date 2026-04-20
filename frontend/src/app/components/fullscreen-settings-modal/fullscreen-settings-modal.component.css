@@ -1,0 +1,55 @@
+/* frontend/src/app/components/fullscreen-settings-modal/fullscreen-settings-modal.component.css */
+
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Creates a responsive grid layout. 
+  Defaults to 1 column on small screens, expands to 2 columns on wider screens. 
+*/
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Modal footer actions aligned to the right */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* --- Local utility classes used in the HTML --- */
+
+.pt-4 {
+  padding-top: 1rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.block {
+  display: block;
+}
+
+/* Refines the global text-muted for smaller sub-labels */
+.text-muted {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}

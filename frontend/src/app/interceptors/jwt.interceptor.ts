@@ -1,5 +1,3 @@
-// frontend/src/app/interceptors/jwt.interceptor.ts
-
 import { Injectable } from '@angular/core';
 import {
   HttpRequest,
@@ -11,7 +9,7 @@ import {
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, filter, switchMap, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
-import { TokenResponse } from '../models/api.models';
+import { TokenResponse } from '../models';
 
 @Injectable()
 export class JwtInterceptor implements HttpInterceptor {
@@ -21,15 +19,16 @@ export class JwtInterceptor implements HttpInterceptor {
   constructor(private authService: AuthService) {}
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // 1. Add Bearer token if available
     let authReq = request;
     const token = this.authService.getAccessToken();
     
-    // Skip adding headers for the /token endpoints to avoid circular logic or overwriting Basic Auth
-    if (request.url.includes('/api/token')) {
+    // UPDATED: Check for 'api/token' without the leading slash to match our relative paths!
+    // This ensures both 'api/token' and 'api/token/refresh' are skipped
+    if (request.url.includes('api/token')) {
         return next.handle(request);
     }
 
+    // 1. Add Bearer token if available
     if (token) {
       authReq = this.addTokenHeader(request, token);
     }

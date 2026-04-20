@@ -10,6 +10,18 @@
     </div>
     
     <div class="view-mode-toggle" *ngIf="dbName">
+      
+      <button 
+        *ngIf="currentDb?.content_type !== 'file'"
+        class="toggle-btn"
+        style="margin-right: 12px;" 
+        (click)="openFullscreenSettingsModal()"
+        title="Fullscreen Presentation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </button>
+
       <button 
         class="toggle-btn"
         [class.active]="viewMode === 'grid'"
@@ -17,6 +29,7 @@
         title="Grid View">
         <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 11a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
       </button>
+      
       <button
         class="toggle-btn"
         [class.active]="viewMode === 'list'"
@@ -29,7 +42,6 @@
 
   <ng-container *ngIf="dbName; else noDbSelected">
 
-    <!-- REFACTORED: Use the new EntryFilterComponent -->
     <app-entry-filter
       [availableFilters]="availableFilters"
       [isLoading]="isLoading"
@@ -86,14 +98,13 @@
       </ng-container>
     </div>
 
-    <!-- FLOATING ACTIONS -->
     <div class="floating-actions-wrapper">
       <div class="selection-actions" *ngIf="selectedEntryIds.size > 0">
         <span class="selection-count">{{ selectedEntryIds.size }} selected</span>
         <button class="btn btn-secondary btn-sm" (click)="clearSelection()">Cancel</button>
         
         <button 
-          *ngIf="user.can_delete"
+          *ngIf="canDelete"
           class="btn btn-danger btn-icon" 
           (click)="onBulkDelete()"
           [disabled]="isBulkProcessing"
@@ -111,7 +122,7 @@
       </div>
 
       <button
-        *ngIf="user.can_create"
+        *ngIf="canCreate"
         class="btn btn-primary upload-fab"
         (click)="openUploadModal()"
         title="Upload New Entry">
@@ -126,4 +137,13 @@
       <p>Please select a database from the sidebar to view its entries.</p>
     </div>
   </ng-template>
+
+  <ng-container *ngIf="showFullscreenPlayer">
+    <app-fullscreen-player 
+      [settings]="fullscreenSettings"
+      [dbName]="currentDb!.name"
+      [contentType]="currentDb!.content_type"
+      (exit)="closeFullscreenPlayer()">
+    </app-fullscreen-player>
+  </ng-container>
 </div>

@@ -1,41 +1,71 @@
 // frontend/src/app/utils/mime-types.ts
 import { ContentType } from '../models/enums';
 
+export interface MimeConfig {
+  mime: string;
+  streamable: boolean;
+}
+
 /**
- * A centralized map of allowed MIME types for each ContentType.
- * This mirrors the validation logic found in the Go backend.
+ * A centralized map of allowed MIME types for each ContentType,
+ * including browser compatibility flags like streamability.
  */
-export const ALLOWED_MIME_TYPES: Record<ContentType, string[]> = {
+export const ALLOWED_MIME_TYPES: Record<ContentType, MimeConfig[]> = {
   [ContentType.Image]: [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp'
+    { mime: 'image/jpeg', streamable: false },
+    { mime: 'image/png', streamable: false },
+    { mime: 'image/gif', streamable: false },
+    { mime: 'image/webp', streamable: false },
+    { mime: 'image/avif', streamable: false }
   ],
   [ContentType.Audio]: [
-    'audio/mpeg',
-    'audio/wav',
-    'audio/flac',
-    'audio/opus',
-    'audio/ogg',
-    'application/ogg',
-    'audio/x-flac'
+    { mime: 'audio/mpeg', streamable: true },
+    { mime: 'audio/wav', streamable: true },
+    { mime: 'audio/flac', streamable: true },
+    { mime: 'audio/opus', streamable: true },
+    { mime: 'audio/ogg', streamable: true },
+    { mime: 'application/ogg', streamable: true },
+    { mime: 'audio/x-flac', streamable: true },
+    { mime: 'audio/m4a', streamable: true },
+    { mime: 'audio/mp4', streamable: true }
   ],
-  // Empty array implies all types are allowed for Generic Files
+  [ContentType.Video]: [
+    { mime: 'video/mp4', streamable: true },
+    { mime: 'video/webm', streamable: true },
+    { mime: 'video/ogg', streamable: true },
+    // Formats below are not natively supported for streaming by most HTML5 players
+    { mime: 'video/x-matroska', streamable: false }, 
+    { mime: 'video/quicktime', streamable: false },  
+    { mime: 'video/x-msvideo', streamable: false },  
+    { mime: 'video/x-flv', streamable: false }       
+  ],
   [ContentType.File]: [] 
 };
 
 /**
  * Validates if a given MIME type is allowed for the specific ContentType.
- * @param contentType The database content type (image, audio, file).
- * @param mimeType The file's MIME type string (e.g., 'image/jpeg').
- * @returns True if allowed, false otherwise.
  */
 export function isMimeTypeAllowed(contentType: ContentType, mimeType: string): boolean {
   const allowed = ALLOWED_MIME_TYPES[contentType];
-  // If list is empty or undefined, we assume it's a generic file DB allowing everything.
   if (!allowed || allowed.length === 0) {
     return true;
   }
-  return allowed.includes(mimeType);
+  return allowed.some(config => config.mime === mimeType);
+}
+
+/**
+ * Checks if the given MIME type can be natively streamed by the browser.
+ */
+export function isMimeTypeStreamable(mimeType: string): boolean {
+  if (!mimeType) return false;
+  
+  for (const key in ALLOWED_MIME_TYPES) {
+    const configs = ALLOWED_MIME_TYPES[key as ContentType];
+    const found = configs.find(c => c.mime === mimeType);
+    if (found) {
+      return found.streamable;
+    }
+  }
+  
+  return false; // Default to false for unknown or generic files
 }

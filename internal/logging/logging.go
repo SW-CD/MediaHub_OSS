@@ -1,41 +1,34 @@
-// internal/logging/logging.go
 package logging
 
 import (
+	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
-// Log is a pre-configured logger instance.
-var Log = logrus.New()
+// NewLogger initializes the logger with a specific level.
+func NewLogger(levelStr string) *slog.Logger {
+	var level slog.Level
 
-func init() {
-	// Set the log format.
-	// Using JSON format for structured logging.
-	Log.SetFormatter(&logrus.JSONFormatter{})
-
-	// Set the output.
-	// Default is stderr, but can be set to a file.
-	Log.SetOutput(os.Stdout)
-	Log.SetLevel(logrus.TraceLevel)
-}
-
-// Init initializes the logger with a specific level.
-func Init(level string) {
-	switch strings.ToLower(level) {
-	case "trace":
-		Log.SetLevel(logrus.TraceLevel)
+	// Map strings to slog Levels.
+	switch strings.ToLower(levelStr) {
 	case "debug":
-		Log.SetLevel(logrus.DebugLevel)
-	case "info":
-		Log.SetLevel(logrus.InfoLevel)
+		level = slog.LevelDebug
 	case "warn":
-		Log.SetLevel(logrus.WarnLevel)
+		level = slog.LevelWarn
 	case "error":
-		Log.SetLevel(logrus.ErrorLevel)
+		level = slog.LevelError
 	default:
-		Log.SetLevel(logrus.InfoLevel)
+		level = slog.LevelInfo
 	}
+
+	// Create the Handler Options with the chosen level
+	opts := &slog.HandlerOptions{
+		Level: level,
+		// Optional: AddSource: true, // Uncomment if you want file:line number in logs
+	}
+
+	handler := slog.NewJSONHandler(os.Stdout, opts)
+
+	return slog.New(handler)
 }

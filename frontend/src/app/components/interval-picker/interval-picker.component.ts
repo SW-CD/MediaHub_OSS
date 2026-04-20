@@ -1,5 +1,4 @@
-// frontend/src/app/components/interval-picker/interval-picker.component.ts
-import { Component, Input, OnInit, OnDestroy, forwardRef } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, forwardRef, ChangeDetectionStrategy } from '@angular/core';
 import {
   ControlValueAccessor,
   NG_VALUE_ACCESSOR,
@@ -22,6 +21,7 @@ import { ReactiveFormsModule } from '@angular/forms';
   styleUrls: ['./interval-picker.component.css'],
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush, // NEW: Added for performance optimization
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -30,9 +30,7 @@ import { ReactiveFormsModule } from '@angular/forms';
     },
   ],
 })
-export class IntervalPickerComponent
-  implements ControlValueAccessor, OnInit, OnDestroy
-{
+export class IntervalPickerComponent implements ControlValueAccessor, OnInit, OnDestroy {
   // Internal tracking of readOnly state
   private _readOnly = false;
 
@@ -63,9 +61,11 @@ export class IntervalPickerComponent
     // When the internal form changes, combine the values and propagate the change
     this.intervalForm.valueChanges
       .pipe(takeUntil(this.destroy$))
-      .subscribe((val) => {
+      .subscribe(() => {
         if (this.intervalForm.valid) {
-          const combinedValue = `${val.value}${val.unit}`;
+          // UPDATED: Use getRawValue() to get values even if the form is disabled
+          const rawVal = this.intervalForm.getRawValue();
+          const combinedValue = `${rawVal.value}${rawVal.unit}`;
           this.onChange(combinedValue);
         } else {
           this.onChange(''); // Propagate invalid state

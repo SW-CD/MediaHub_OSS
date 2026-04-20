@@ -30,7 +30,11 @@ import { UserFormComponent } from './components/user-form/user-form.component';
 import { IntervalPickerComponent } from './components/interval-picker/interval-picker.component';
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
-import { EntryFilterComponent } from './components/entry-filter/entry-filter.component'; // <-- NEW
+import { EntryFilterComponent } from './components/entry-filter/entry-filter.component';
+import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit-log.component';
+import { DatetimeDefaultDirective } from './directives/datetime-default.directive';
+import { FullscreenSettingsModalComponent } from './components/fullscreen-settings-modal/fullscreen-settings-modal.component';
+import { FullscreenPlayerComponent } from './components/fullscreen-player/fullscreen-player.component';
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
@@ -59,7 +63,10 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     AdminUserListComponent,
     ChangePasswordModalComponent,
     UserFormComponent,
-    EntryFilterComponent // <-- NEW
+    EntryFilterComponent,
+    AdminAuditLogComponent,
+    FullscreenSettingsModalComponent,
+    FullscreenPlayerComponent,
   ],
   imports: [
     BrowserModule,
@@ -74,7 +81,8 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     EntryListViewComponent,
     SecureImageDirective,
     FormatBytesPipe,
-    FileDragDropDirective
+    FileDragDropDirective,
+    DatetimeDefaultDirective
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }

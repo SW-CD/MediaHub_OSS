@@ -2,14 +2,13 @@
   <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
     <div class="filter-controls">
       
-      <!-- Standard Filters -->
       <div class="form-group">
         <label for="tstart" class="form-label">Start Date</label>
-        <input id="tstart" type="datetime-local" formControlName="tstart" class="form-control">
+        <input id="tstart" type="datetime-local" formControlName="tstart" class="form-control" appDatetimeDefault>
       </div>
       <div class="form-group">
         <label for="tend" class="form-label">End Date</label>
-        <input id="tend" type="datetime-local" formControlName="tend" class="form-control">
+        <input id="tend" type="datetime-local" formControlName="tend" class="form-control" appDatetimeDefault>
       </div>
       <div class="form-group limit-group">
         <label for="limitPerPage" class="form-label">Per Page</label>
@@ -19,7 +18,6 @@
         </div>
       </div>
 
-      <!-- Custom Dynamic Filters -->
       <div formArrayName="customFilters" class="custom-filters-array">
         <div *ngFor="let group of customFilters.controls; let i = index" [formGroupName]="i" class="custom-filter-row">
           
@@ -40,7 +38,34 @@
             </ng-container>
           </select>
           
-          <input type="text" formControlName="value" placeholder="Value" class="form-control">
+          <ng-container [ngSwitch]="getSelectedFieldType(i)">
+            
+            <select *ngSwitchCase="'BOOLEAN'" formControlName="value" class="form-control">
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+            
+            <input *ngSwitchCase="'INTEGER'" 
+                   type="number" 
+                   step="1" 
+                   formControlName="value" 
+                   placeholder="Value" 
+                   class="form-control">
+                   
+            <input *ngSwitchCase="'REAL'" 
+                   type="number" 
+                   step="any" 
+                   formControlName="value" 
+                   placeholder="Value" 
+                   class="form-control">
+                   
+            <input *ngSwitchDefault 
+                   type="text" 
+                   formControlName="value" 
+                   placeholder="Value" 
+                   class="form-control">
+                   
+          </ng-container>
           
           <button type="button" class="btn-remove" (click)="removeCustomFilter(i)" title="Remove Filter">
             <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 20 20" fill="currentColor">
@@ -50,7 +75,6 @@
         </div>
       </div>
 
-      <!-- Actions -->
       <div class="filter-actions">
         <button type="button" class="btn-link" (click)="addCustomFilter()">+ Add Filter</button>
         <button type="submit" class="btn btn-primary" [disabled]="filterForm.invalid || isLoading">Apply</button>

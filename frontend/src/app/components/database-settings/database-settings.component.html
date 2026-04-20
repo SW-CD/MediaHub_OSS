@@ -1,4 +1,3 @@
-<!-- frontend/src/app/components/database-settings/database-settings.component.html -->
 <div class="settings-container" *ngIf="selectedDatabase$ | async as db; else loadingOrError">
   <div class="header">
     <h2>Settings for: {{ db.name }}</h2>
@@ -8,7 +7,6 @@
      <h3>Statistics</h3>
     <div class="stats-grid" *ngIf="db.stats">
       <div class="stat-item">
-        <!-- UPDATED: "Image Count" to "Entry Count" and "image_count" to "entry_count" -->
         <span class="stat-label">Entry Count</span>
         <span class="stat-value">{{ db.stats.entry_count | number }}</span>
       </div>
@@ -21,83 +19,97 @@
   </div>
 
   <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()">
-    <div class="settings-card" *ngIf="currentUser$ | async as user">
+    <div class="settings-card">
       <h3>Configuration</h3>
       
-      <!-- NEW: Read-only Content Type display -->
       <div class="form-group">
         <label class="form-label">Content Type</label>
         <input type="text" class="form-control" [value]="db.content_type | titlecase" readonly>
       </div>
 
-      <!-- NEW: Dynamic Config section based on content_type -->
       <div [ngSwitch]="db.content_type">
         
-        <!-- === IMAGE SETTINGS === -->
         <ng-container *ngSwitchCase="'image'">
           <h4 class="sub-heading">Image Settings</h4>
           <div class="form-group">
-            <label for="convert_to_jpeg" class="form-label">Force JPEG Conversion</label>
-            <div class="bool-field-container">
-              <label class="toggle-switch">
-                <input type="checkbox" id="convert_to_jpeg" formControlName="convert_to_jpeg">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="bool-field-value">
-                {{ settingsForm.get('convert_to_jpeg')?.value ? 'True' : 'False' }}
-              </span>
-            </div>
-            <small class="text-muted">Converts new non-JPEG uploads to JPEG.</small>
+            <label for="auto_conversion_image" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_image" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+            <small class="text-muted">Converts uploads to the selected format.</small>
           </div>
 
           <div class="form-group">
             <label for="create_previews_image" class="form-label">Generate Previews</label>
             <div class="bool-field-container">
               <label class="toggle-switch">
-                <!-- UPDATED: formControlName to 'create_preview' -->
                 <input type="checkbox" id="create_previews_image" formControlName="create_preview">
                 <span class="toggle-slider"></span>
               </label>
               <span class="bool-field-value">
-                <!-- UPDATED: get() to 'create_preview' -->
                 {{ settingsForm.get('create_preview')?.value ? 'True' : 'False' }}
               </span>
             </div>
-            <small class="text-muted">Generates downscaled JPEG thumbnails on upload.</small>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
           </div>
         </ng-container>
 
-        <!-- === AUDIO SETTINGS === -->
         <ng-container *ngSwitchCase="'audio'">
           <h4 class="sub-heading">Audio Settings</h4>
           <div class="form-group">
-            <label for="auto_conversion" class="form-label">Auto-Conversion</label>
-            <select id="auto_conversion" formControlName="auto_conversion" class="form-control">
-              <option value="none">None</option>
-              <option value="flac">FLAC</option>
-              <option value="opus">Opus</option>
+            <label for="auto_conversion_audio" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_audio" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="audio/flac">FLAC</option>
+              <option value="audio/opus">Opus</option>
             </select>
-            <small class="text-muted">Requires FFmpeg on server. Converts uploads to the selected format.</small>
+            <small class="text-muted">Converts uploads to the selected format.</small>
           </div>
           
           <div class="form-group">
             <label for="create_previews_audio" class="form-label">Generate Previews</label>
             <div class="bool-field-container">
               <label class="toggle-switch">
-                <!-- UPDATED: formControlName to 'create_preview' -->
                 <input type="checkbox" id="create_previews_audio" formControlName="create_preview">
                 <span class="toggle-slider"></span>
               </label>
               <span class="bool-field-value">
-                <!-- UPDATED: get() to 'create_preview' -->
                 {{ settingsForm.get('create_preview')?.value ? 'True' : 'False' }}
               </span>
             </div>
-            <small class="text-muted">Generates JPEG waveform images on upload.</small>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
           </div>
         </ng-container>
 
-        <!-- === FILE SETTINGS (Nothing to show) === -->
+        <ng-container *ngSwitchCase="'video'">
+          <h4 class="sub-heading">Video Settings</h4>
+          <div class="form-group">
+            <label for="auto_conversion_video" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_video" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="video/mp4">MP4</option>
+              <option value="video/webm">WebM</option>
+            </select>
+            <small class="text-muted">Converts uploads to the selected format. Transcoding videos can take significant time.</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="create_previews_video" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="create_previews_video" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                {{ settingsForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
+          </div>
+        </ng-container>
+
         <ng-container *ngSwitchCase="'file'">
           <h4 class="sub-heading">File Settings</h4>
           <p class="text-muted">No specific configuration is available for 'Generic File' databases.</p>
@@ -108,42 +120,62 @@
       <h4 class="sub-heading">Housekeeping Rules</h4>
       <div formGroupName="housekeeping">
          <div class="form-grid-three">
+          
           <div class="form-group">
-            <label for="interval" class="form-label">Interval</label>
-            <app-interval-picker 
-              id="interval" 
-              formControlName="interval" 
-              [readOnly]="!user.can_edit">
-            </app-interval-picker>
+            <label class="form-label">Run Interval</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="number" formControlName="interval_value" class="form-control" min="0" [readOnly]="!canEdit">
+              <select formControlName="interval_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+                <option value="m">Minutes</option>
+                <option value="h">Hours</option>
+                <option value="d">Days</option>
+              </select>
+            </div>
+            <small class="text-muted">Set to 0 to disable automated runs.</small>
           </div>
+          
           <div class="form-group">
-            <label for="disk_space" class="form-label form-label-helper">
+            <label class="form-label form-label-helper">
               <span>Max Disk Space</span>
-              <span class="helper-icon" title="Set to 0 to disable disk space check.">?</span>
             </label>
-            <input id="disk_space" type="text" formControlName="disk_space" class="form-control" [readOnly]="!user.can_edit">
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="number" formControlName="disk_space_value" class="form-control" min="0" [readOnly]="!canEdit">
+              <select formControlName="disk_space_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+                <option value="M">MB</option>
+                <option value="G">GB</option>
+                <option value="T">TB</option>
+              </select>
+            </div>
+            <small class="text-muted">Set to 0 to disable size limit.</small>
           </div>
+          
           <div class="form-group">
-            <label for="max_age" class="form-label form-label-helper">
-              <!-- UPDATED: "Image Age" to "Entry Age" -->
+            <label class="form-label form-label-helper">
               <span>Max Entry Age</span>
-              <span class="helper-icon" title="Set to 0 to disable age check.">?</span>
             </label>
-            <input id="max_age" type="text" formControlName="max_age" class="form-control" [readOnly]="!user.can_edit">
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="number" formControlName="max_age_value" class="form-control" min="0" [readOnly]="!canEdit">
+              <select formControlName="max_age_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+                <option value="h">Hours</option>
+                <option value="d">Days</option>
+              </select>
+            </div>
+            <small class="text-muted">Set to 0 to disable age limit.</small>
           </div>
+
         </div>
       </div>
       
       <div class="form-actions">
-         <button 
-          *ngIf="user.can_edit"
+        <button 
+          *ngIf="canEdit"
           type="submit" 
           class="btn btn-primary"
           [disabled]="settingsForm.invalid || settingsForm.pristine || isLoading">
           {{ isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
         <button 
-          *ngIf="user.can_delete"
+          *ngIf="canDelete"
           type="button" 
           class="btn btn-secondary"
           (click)="onTriggerHousekeeping()"
@@ -154,10 +186,9 @@
     </div>
   </form>
 
-  <div class="settings-card danger-zone" *ngIf="(currentUser$ | async)?.can_delete">
+  <div class="settings-card danger-zone" *ngIf="canDelete">
      <h3>Danger Zone</h3>
     <div class="danger-content">
-      <!-- UPDATED: "all images" to "all entries" -->
       <p>Deleting a database is permanent and cannot be undone. This will remove all entries and metadata associated with it.</p>
       <button 
         class="btn btn-danger" 

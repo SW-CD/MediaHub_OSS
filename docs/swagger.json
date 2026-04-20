@@ -4,18 +4,317 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "This is a sample server for a file store.",
+        "description": "This is a server for a image, audio and file storage with integrated web-ui.",
         "title": "SWCD MediaHub-API",
         "contact": {
             "name": "Christian Dengler",
             "url": "https://www.swcd.lu",
             "email": "denglerchr@gmail.com"
         },
-        "version": "1.2.0"
+        "version": "2.0.0-beta1"
     },
     "basePath": "/api",
     "paths": {
+        "/api/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revokes a Refresh Token, effectively logging the user out.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Logout",
+                "parameters": [
+                    {
+                        "description": "Refresh token JSON body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/tokenhandler.TokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully message",
+                        "schema": {
+                            "$ref": "#/definitions/utils.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/token": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Obtains an internal JWT Access/Refresh token pair.\nSupports two authentication methods:\n1. Local Authentication: Send standard Basic Auth headers.\n2. OIDC Token Exchange (commercial version only): Send a JSON body containing a valid external JWT (`idp_token`).\nProviding both methods in a single request will result in a 400 Bad Request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Get a token pair",
+                "parameters": [
+                    {
+                        "description": "OIDC Identity Provider Token (required if not using Basic Auth)",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/tokenhandler.OidcTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns access and refresh tokens",
+                        "schema": {
+                            "$ref": "#/definitions/tokenhandler.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ambiguous authentication request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials, invalid OIDC token, or missing authentication",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error or OIDC not available",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/token/refresh": {
+            "post": {
+                "description": "Uses a valid Refresh Token to obtain a new Access/Refresh token pair.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Refresh token pair",
+                "parameters": [
+                    {
+                        "description": "Refresh token JSON body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/tokenhandler.TokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns new access and refresh tokens",
+                        "schema": {
+                            "$ref": "#/definitions/tokenhandler.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or expired refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a paginated list of system audit logs. This endpoint provides basic filtering by timestamp and pagination.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Get audit logs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of logs to return (default 30)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order ('asc' or 'desc', default 'desc')",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Start timestamp (Unix milliseconds)",
+                        "name": "tstart",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "End timestamp (Unix milliseconds)",
+                        "name": "tend",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns an array of audit log objects",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/audithandler.AuditLogResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameter formats",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires IsAdmin role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve audit logs",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/database": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Creates a new database with custom fields and a dedicated entry table.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "Create a new database",
+                "parameters": [
+                    {
+                        "description": "Database Metadata",
+                        "name": "database",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/databasehandler.DatabaseCreatePayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/databasehandler.DatabaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request payload or missing name",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Database name already in use",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create database or storage folder",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/database/{dbname}": {
             "get": {
                 "security": [
                     {
@@ -34,8 +333,8 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -43,25 +342,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Database"
+                            "$ref": "#/definitions/databasehandler.DatabaseResponse"
                         }
                     },
                     "400": {
-                        "description": "Missing name parameter",
+                        "description": "Missing dbname path parameter",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to calculate stats",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -87,8 +386,8 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -97,7 +396,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.DatabaseUpdatePayload"
+                            "$ref": "#/definitions/databasehandler.DatabaseUpdatePayload"
                         }
                     }
                 ],
@@ -105,80 +404,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Database"
+                            "$ref": "#/definitions/databasehandler.DatabaseResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request payload or missing name",
+                        "description": "Invalid request payload or missing dbname path parameter",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to update database",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BasicAuth": []
-                    }
-                ],
-                "description": "Creates a new database with custom fields and a dedicated entry table.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "database"
-                ],
-                "summary": "Create a new database",
-                "parameters": [
-                    {
-                        "description": "Database Metadata",
-                        "name": "database",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.DatabaseCreatePayload"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Database"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request payload or missing name",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Database name already in use",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to create database or storage folder",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -201,8 +445,8 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -210,31 +454,31 @@
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MessageResponse"
+                            "$ref": "#/definitions/utils.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Missing name parameter or invalid name",
+                        "description": "Missing dbname path parameter or invalid name",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to delete database record or folder",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/database/entries": {
+        "/database/{dbname}/entries": {
             "get": {
                 "security": [
                     {
@@ -253,8 +497,8 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -276,57 +520,71 @@
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Start timestamp (RFC3339 or Unix seconds)",
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Start timestamp (Unix milliseconds)",
                         "name": "tstart",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "End timestamp (RFC3339 or Unix seconds)",
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "End timestamp (Unix milliseconds)",
                         "name": "tend",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Returns an empty array if no entries match",
+                        "description": "Returns an array of entry metadata objects",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Entry"
+                                "$ref": "#/definitions/entryhandler.EntryResponse"
                             }
                         }
                     },
                     "400": {
-                        "description": "Missing name parameter",
+                        "description": "Missing name param or invalid parameter formats",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanView role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to retrieve entries",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/database/entries/delete": {
+        "/database/{dbname}/entries/delete": {
             "post": {
                 "security": [
                     {
                         "BasicAuth": []
                     }
                 ],
-                "description": "Deletes multiple entries in a single atomic transaction.",
+                "description": "Deletes multiple entries in a single atomic transaction. Updates database statistics only once.",
                 "consumes": [
                     "application/json"
                 ],
@@ -341,57 +599,68 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
-                        "description": "List of Entry IDs to delete",
+                        "description": "JSON object containing a list of Entry IDs to delete",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.BulkDeleteRequest"
+                            "$ref": "#/definitions/entryhandler.BulkDeleteRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Summary of the deletion operation",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/entryhandler.BulkDeleteResponse"
                         }
                     },
                     "400": {
-                        "description": "Missing name or empty ID list",
+                        "description": "Invalid request, missing name, or empty IDs list",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanDelete role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Transaction failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/database/entries/export": {
+        "/database/{dbname}/entries/export": {
             "post": {
                 "security": [
                     {
                         "BasicAuth": []
                     }
                 ],
-                "description": "Streams a ZIP archive containing the files and metadata (CSV) for the specified entries.",
+                "description": "Streams a ZIP archive containing the files and metadata (CSV) for the specified entries using io.Pipe.",
                 "consumes": [
                     "application/json"
                 ],
@@ -406,8 +675,8 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -416,46 +685,58 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ExportRequest"
+                            "$ref": "#/definitions/entryhandler.ExportRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "ZIP Archive",
+                        "description": "ZIP Archive containing files and entries.csv",
                         "schema": {
                             "type": "file"
                         }
                     },
                     "400": {
-                        "description": "Missing name or empty ID list",
+                        "description": "Missing name query parameter or empty IDs list",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanView role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "ZIP streaming failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/database/entries/search": {
+        "/database/{dbname}/entries/search": {
             "post": {
                 "security": [
                     {
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves a paginated list of entries matching complex filter criteria.",
+                "description": "Retrieves a list of entry metadata matching the complex, nested filter criteria provided in the request body.",
                 "consumes": [
                     "application/json"
                 ],
@@ -470,138 +751,64 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
-                        "description": "JSON search query",
+                        "description": "JSON body defining filter, sort, and pagination logic",
                         "name": "search",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SearchRequest"
+                            "$ref": "#/definitions/repository.SearchRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Returns an empty array if no entries match",
+                        "description": "Returns an array of matching results (even if empty)",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Entry"
+                                "$ref": "#/definitions/entryhandler.EntryResponse"
                             }
                         }
                     },
                     "400": {
                         "description": "Missing name, invalid JSON, missing limit, or invalid filter/sort",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanView role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to retrieve entries",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/database/housekeeping": {
-            "post": {
-                "security": [
-                    {
-                        "BasicAuth": []
-                    }
-                ],
-                "description": "Manually triggers the housekeeping task for a specific database.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "database"
-                ],
-                "summary": "Trigger housekeeping for a database",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Database Name",
-                        "name": "name",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.HousekeepingReport"
-                        }
-                    },
-                    "400": {
-                        "description": "Missing name parameter",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Database not found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Housekeeping failed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/databases": {
-            "get": {
-                "security": [
-                    {
-                        "BasicAuth": []
-                    }
-                ],
-                "description": "Retrieves a list of all available databases and their statistics.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "database"
-                ],
-                "summary": "List all databases",
-                "responses": {
-                    "200": {
-                        "description": "Returns an empty array if no databases exist",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Database"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve databases",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/entry": {
+        "/database/{dbname}/entry": {
             "post": {
                 "security": [
                     {
@@ -629,7 +836,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "JSON metadata for the entry (including custom fields)",
+                        "description": "JSON metadata for the entry",
                         "name": "metadata",
                         "in": "formData",
                         "required": true
@@ -646,37 +853,103 @@
                     "201": {
                         "description": "For small files (synchronous processing)",
                         "schema": {
-                            "$ref": "#/definitions/models.Entry"
+                            "$ref": "#/definitions/entryhandler.EntryResponse"
                         }
                     },
                     "202": {
                         "description": "For large files (asynchronous processing)",
                         "schema": {
-                            "$ref": "#/definitions/models.PartialEntryResponse"
+                            "$ref": "#/definitions/entryhandler.PartialEntryResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "415": {
                         "description": "Unsupported entry format",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/database/{dbname}/entry/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieves all metadata for a single entry, including custom fields.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "entry"
+                ],
+                "summary": "Get entry metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Database Name",
+                        "name": "dbname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The full entry metadata object",
+                        "schema": {
+                            "$ref": "#/definitions/entryhandler.EntryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Database or entry not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -699,15 +972,15 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
                         "description": "Entry ID",
                         "name": "id",
-                        "in": "query",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -715,37 +988,37 @@
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MessageResponse"
+                            "$ref": "#/definitions/utils.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database or entry not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -756,7 +1029,7 @@
                         "BasicAuth": []
                     }
                 ],
-                "description": "Updates an entry's mutable metadata, including custom fields and the 'filename'.",
+                "description": "Updates an entry's mutable metadata, including custom fields, the 'timestamp' and the 'filename'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -771,15 +1044,16 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Entry ID",
                         "name": "id",
-                        "in": "query",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -788,7 +1062,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Entry"
+                            "$ref": "#/definitions/entryhandler.PostPatchEntryRequest"
                         }
                     }
                 ],
@@ -796,50 +1070,53 @@
                     "200": {
                         "description": "The full, updated entry metadata object",
                         "schema": {
-                            "$ref": "#/definitions/models.Entry"
+                            "$ref": "#/definitions/entryhandler.EntryResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database or entry not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/entry/file": {
+        "/database/{dbname}/entry/{id}/file": {
             "get": {
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Retrieves a raw entry file. Supports Content Negotiation via Accept header.",
+                "description": "Retrieves a raw entry file. Supports Content Negotiation (JSON vs Binary) and HTTP Range Requests (Streaming).",
                 "produces": [
                     "application/octet-stream",
                     "application/json"
@@ -852,133 +1129,109 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Entry ID",
                         "name": "id",
-                        "in": "query",
+                        "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Byte range request (e.g., bytes=0-1023)",
+                        "name": "Range",
+                        "in": "header"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Base64 encoded file data (if Accept: application/json)",
                         "schema": {
-                            "$ref": "#/definitions/models.FileJSONResponse"
+                            "$ref": "#/definitions/entryhandler.FileJSONResponse"
+                        },
+                        "headers": {
+                            "Accept-Ranges": {
+                                "type": "string",
+                                "description": "bytes"
+                            }
+                        }
+                    },
+                    "206": {
+                        "description": "Partial content (streaming response)",
+                        "schema": {
+                            "type": "file"
+                        },
+                        "headers": {
+                            "Accept-Ranges": {
+                                "type": "string",
+                                "description": "bytes"
+                            },
+                            "Content-Range": {
+                                "type": "string",
+                                "description": "bytes start-end/total"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request or ID format",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Database or entry not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "File is currently processing",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "416": {
+                        "description": "Range Not Satisfiable",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/entry/meta": {
+        "/database/{dbname}/entry/{id}/preview": {
             "get": {
                 "security": [
                     {
                         "BasicAuth": []
                     }
                 ],
-                "description": "Retrieves all metadata for a single entry, including custom fields.",
+                "description": "Retrieves a 200x200 WebP preview of an entry. Supports Content Negotiation via Accept header.",
                 "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "entry"
-                ],
-                "summary": "Get entry metadata",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Entry ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The full entry metadata object",
-                        "schema": {
-                            "$ref": "#/definitions/models.Entry"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Database or entry not found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/entry/preview": {
-            "get": {
-                "security": [
-                    {
-                        "BasicAuth": []
-                    }
-                ],
-                "description": "Retrieves a 200x200 JPEG preview of an entry. Supports Content Negotiation via Accept header.",
-                "produces": [
-                    "image/jpeg",
+                    "image/webp",
                     "application/json"
                 ],
                 "tags": [
@@ -989,15 +1242,16 @@
                     {
                         "type": "string",
                         "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
+                        "name": "dbname",
+                        "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Entry ID",
                         "name": "id",
-                        "in": "query",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -1005,37 +1259,141 @@
                     "200": {
                         "description": "Base64 encoded preview data (if Accept: application/json)",
                         "schema": {
-                            "$ref": "#/definitions/models.FileJSONResponse"
+                            "$ref": "#/definitions/entryhandler.FileJSONResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Database or entry not found",
+                        "description": "Database, entry, or preview not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/database/{dbname}/housekeeping": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Manually triggers the housekeeping maintenance task for a specific database.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "Trigger database housekeeping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Database Name",
+                        "name": "dbname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns a report of actions taken.",
+                        "schema": {
+                            "$ref": "#/definitions/databasehandler.HousekeepingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing dbname path parameter",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanDelete role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Database not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Lock not acquired",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/databases": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieves a list of all available databases and their statistics.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "List all databases",
+                "responses": {
+                    "200": {
+                        "description": "Returns an empty array if no databases exist",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/databasehandler.DatabaseResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve databases",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1043,76 +1401,19 @@
         },
         "/info": {
             "get": {
-                "description": "Retrieves general information about the software, i.e., the service name, software version, uptime, and ffmpeg availability. This is a public endpoint.",
+                "description": "Retrieves general information about the software, including version, uptime, and media tool availability.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Info"
+                    "info"
                 ],
-                "summary": "Get service information",
+                "summary": "Get server info",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Returns general backend information",
                         "schema": {
-                            "$ref": "#/definitions/models.Info"
-                        }
-                    }
-                }
-            }
-        },
-        "/logout": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Invalidates a refresh token. This endpoint is protected by an Access Token.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Logout",
-                "parameters": [
-                    {
-                        "description": "Refresh Token to invalidate",
-                        "name": "token",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.tokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.MessageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required (invalid access token)",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Could not process token",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/infohandler.InfoResponse"
                         }
                     }
                 }
@@ -1123,27 +1424,30 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Get the currently authenticated user's details.",
+                "description": "Retrieves the user record and their specific permissions for the currently authenticated user. Admins will receive an empty permissions array.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Users"
+                    "User"
                 ],
-                "summary": "Get current user",
+                "summary": "Retrieve current user",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/userhandler.UserResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1152,9 +1456,12 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Allows a user to change their own password.",
+                "description": "Updates the password for the currently authenticated user. Requires the old password to verify identity.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1162,132 +1469,37 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Users"
+                    "User"
                 ],
                 "summary": "Update current user's password",
                 "parameters": [
                     {
-                        "description": "Password update request",
-                        "name": "password",
+                        "description": "Old and New Password",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.PasswordUpdateRequest"
+                            "$ref": "#/definitions/userhandler.UpdateMePayload"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Password updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MessageResponse"
+                            "$ref": "#/definitions/utils.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid JSON body or missing fields",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed: invalid old password",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/token": {
-            "post": {
-                "security": [
-                    {
-                        "BasicAuth": []
-                    }
-                ],
-                "description": "Authenticate using Basic Auth to receive an access and refresh token.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Get JWT tokens",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.tokenResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication failed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Token generation failed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/token/refresh": {
-            "post": {
-                "description": "Provide a valid refresh token to receive a new access token. The old refresh token is revoked.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Refresh JWT access token",
-                "parameters": [
-                    {
-                        "description": "Refresh Token",
-                        "name": "token",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.tokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.tokenResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid or expired token",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Token generation failed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1298,9 +1510,12 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new user account.",
+                "description": "Creates a new user account and optionally defines their database permissions. Requires the global IsAdmin role.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1308,55 +1523,55 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "User"
                 ],
                 "summary": "Create a new user",
                 "parameters": [
                     {
-                        "description": "User creation request",
-                        "name": "user",
+                        "description": "New user details and permissions",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UserCreateRequest"
+                            "$ref": "#/definitions/userhandler.CreateUserPayload"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "User successfully created",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/userhandler.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid JSON body, missing fields, or duplicate database names",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden: Admin user not retrieved",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "User already exists",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1365,14 +1580,17 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Deletes a user account.",
+                "description": "Deletes a user account and cascades the deletion to remove their database permissions. Requires the global IsAdmin role.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "User"
                 ],
                 "summary": "Delete a user",
                 "parameters": [
@@ -1386,45 +1604,45 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "User successfully deleted",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MessageResponse"
+                            "$ref": "#/definitions/utils.MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing or invalid ID format",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden: Admin user not retrieved",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Cannot delete the last remaining admin user",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1433,9 +1651,12 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Updates an existing user's roles or password.",
+                "description": "Updates an existing user's global status, password, or database permissions. Permissions act as an Upsert/Replace operation. Requires the global IsAdmin role.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1443,9 +1664,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "User"
                 ],
-                "summary": "Update a user's roles or password",
+                "summary": "Update an existing user",
                 "parameters": [
                     {
                         "type": "integer",
@@ -1455,56 +1676,56 @@
                         "required": true
                     },
                     {
-                        "description": "User update request",
-                        "name": "user",
+                        "description": "Fields to update",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UserUpdateRequest"
+                            "$ref": "#/definitions/userhandler.UpdateUserPayload"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "User successfully updated",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/userhandler.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing ID or invalid JSON body",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden: Admin user not retrieved",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Cannot remove last admin user",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1515,42 +1736,39 @@
                 "security": [
                     {
                         "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Retrieves a list of all users in the system.",
+                "description": "Retrieves a list of all user accounts and their assigned database permissions. Requires the global IsAdmin role.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "User"
                 ],
-                "summary": "Get all users",
+                "summary": "Retrieve all users",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of users",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.User"
+                                "$ref": "#/definitions/userhandler.UserResponse"
                             }
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden: User lacks IsAdmin role",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     }
                 }
@@ -1558,126 +1776,80 @@
         }
     },
     "definitions": {
-        "handlers.ErrorResponse": {
+        "audithandler.AuditLogResponse": {
             "type": "object",
             "properties": {
-                "error": {
+                "action": {
                     "type": "string"
+                },
+                "actor": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
                 }
             }
         },
-        "handlers.MessageResponse": {
+        "databasehandler.ConfigPayload": {
             "type": "object",
             "properties": {
-                "message": {
+                "auto_conversion": {
                     "type": "string"
+                },
+                "create_preview": {
+                    "type": "boolean"
                 }
             }
         },
-        "handlers.PasswordUpdateRequest": {
+        "databasehandler.DatabaseCreatePayload": {
             "type": "object",
             "properties": {
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.UserCreateRequest": {
-            "type": "object",
-            "properties": {
-                "can_create": {
-                    "type": "boolean"
+                "config": {
+                    "$ref": "#/definitions/databasehandler.ConfigPayload"
                 },
-                "can_delete": {
-                    "type": "boolean"
-                },
-                "can_edit": {
-                    "type": "boolean"
-                },
-                "can_view": {
-                    "type": "boolean"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "password": {
+                "content_type": {
                     "type": "string"
                 },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.UserUpdateRequest": {
-            "type": "object",
-            "properties": {
-                "can_create": {
-                    "type": "boolean"
-                },
-                "can_delete": {
-                    "type": "boolean"
-                },
-                "can_edit": {
-                    "type": "boolean"
-                },
-                "can_view": {
-                    "type": "boolean"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.tokenRequest": {
-            "type": "object",
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.tokenResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.BulkDeleteRequest": {
-            "type": "object",
-            "properties": {
-                "ids": {
+                "custom_fields": {
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "$ref": "#/definitions/databasehandler.DatabaseCustomField"
                     }
+                },
+                "housekeeping": {
+                    "$ref": "#/definitions/databasehandler.HousekeepingPayload"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
-        "models.CustomField": {
+        "databasehandler.DatabaseCustomField": {
             "type": "object",
             "properties": {
                 "name": {
                     "type": "string"
                 },
                 "type": {
-                    "description": "Supported types: TEXT, INTEGER, REAL, BOOLEAN",
                     "type": "string"
                 }
             }
         },
-        "models.Database": {
+        "databasehandler.DatabaseResponse": {
             "type": "object",
             "properties": {
                 "config": {
-                    "type": "object"
+                    "$ref": "#/definitions/databasehandler.ConfigPayload"
                 },
                 "content_type": {
                     "type": "string"
@@ -1685,90 +1857,60 @@
                 "custom_fields": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.CustomField"
+                        "$ref": "#/definitions/databasehandler.DatabaseCustomField"
                     }
                 },
                 "housekeeping": {
-                    "$ref": "#/definitions/models.Housekeeping"
-                },
-                "last_hk_run": {
-                    "type": "string"
+                    "$ref": "#/definitions/databasehandler.DatabaseResponseHK"
                 },
                 "name": {
                     "type": "string"
                 },
                 "stats": {
-                    "$ref": "#/definitions/models.Stats"
+                    "$ref": "#/definitions/databasehandler.DatabaseResponseStats"
                 }
             }
         },
-        "models.DatabaseCreatePayload": {
+        "databasehandler.DatabaseResponseHK": {
+            "type": "object",
+            "properties": {
+                "disk_space": {
+                    "description": "e.g. \"10G\"",
+                    "type": "string"
+                },
+                "interval": {
+                    "description": "e.g.\"10min\"",
+                    "type": "string"
+                },
+                "max_age": {
+                    "description": "e.g. \"365d\"",
+                    "type": "string"
+                }
+            }
+        },
+        "databasehandler.DatabaseResponseStats": {
+            "type": "object",
+            "properties": {
+                "entry_count": {
+                    "type": "integer"
+                },
+                "total_disk_space_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "databasehandler.DatabaseUpdatePayload": {
             "type": "object",
             "properties": {
                 "config": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "content_type": {
-                    "type": "string"
-                },
-                "custom_fields": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.CustomField"
-                    }
+                    "$ref": "#/definitions/databasehandler.ConfigPayload"
                 },
                 "housekeeping": {
-                    "$ref": "#/definitions/models.Housekeeping"
-                },
-                "name": {
-                    "type": "string"
+                    "$ref": "#/definitions/databasehandler.HousekeepingPayload"
                 }
             }
         },
-        "models.DatabaseUpdatePayload": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "housekeeping": {
-                    "$ref": "#/definitions/models.Housekeeping"
-                }
-            }
-        },
-        "models.Entry": {
-            "type": "object",
-            "additionalProperties": true
-        },
-        "models.ExportRequest": {
-            "type": "object",
-            "properties": {
-                "ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "models.FileJSONResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "description": "Base64 encoded string with data URI prefix",
-                    "type": "string"
-                },
-                "filename": {
-                    "type": "string"
-                },
-                "mime_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Housekeeping": {
+        "databasehandler.HousekeepingPayload": {
             "type": "object",
             "properties": {
                 "disk_space": {
@@ -1782,7 +1924,7 @@
                 }
             }
         },
-        "models.HousekeepingReport": {
+        "databasehandler.HousekeepingResponse": {
             "type": "object",
             "properties": {
                 "database_name": {
@@ -1799,45 +1941,67 @@
                 }
             }
         },
-        "models.Info": {
+        "entryhandler.BulkDeleteRequest": {
             "type": "object",
             "properties": {
-                "ffmpeg": {
-                    "type": "boolean"
-                },
-                "ffprobe": {
-                    "type": "boolean"
-                },
-                "service_name": {
-                    "type": "string"
-                },
-                "uptime_since": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
-        "models.PartialEntryResponse": {
+        "entryhandler.BulkDeleteResponse": {
+            "type": "object",
+            "properties": {
+                "database_name": {
+                    "type": "string"
+                },
+                "deleted_count": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "space_freed_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "entryhandler.EntryResponse": {
             "type": "object",
             "properties": {
                 "custom_fields": {
-                    "description": "Only fields provided by user",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Entry"
-                        }
-                    ]
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "database_name": {
                     "type": "string"
                 },
+                "filename": {
+                    "type": "string"
+                },
+                "filesize": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
+                "media_fields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "preview_filesize": {
+                    "type": "integer"
+                },
                 "status": {
-                    "description": "Will be \"processing\"",
                     "type": "string"
                 },
                 "timestamp": {
@@ -1845,31 +2009,153 @@
                 }
             }
         },
-        "models.SearchFilter": {
+        "entryhandler.ExportRequest": {
             "type": "object",
             "properties": {
-                "conditions": {
+                "ids": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.SearchFilter"
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "entryhandler.FileJSONResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Base64 encoded string with data URI prefix",
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "entryhandler.PartialEntryResponse": {
+            "type": "object",
+            "properties": {
+                "custom_fields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "database_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "entryhandler.PostPatchEntryRequest": {
+            "type": "object",
+            "properties": {
+                "custom_fields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "infohandler.InfoResponse": {
+            "type": "object",
+            "properties": {
+                "conversion_to": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
+                "oidc": {
+                    "$ref": "#/definitions/infohandler.OIDCConfig"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "description": "Changed to reflect elapsed duration",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "infohandler.OIDCConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "login_page_disabled": {
+                    "type": "boolean"
+                },
+                "oidc_client_id": {
+                    "type": "string"
+                },
+                "oidc_issuer_url": {
+                    "type": "string"
+                },
+                "oidc_redirect_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "repository.Condition": {
+            "type": "object",
+            "properties": {
                 "field": {
-                    "description": "For single conditions (\"=\", \"\u003e\", \"\u003c\", etc.)",
                     "type": "string"
                 },
                 "operator": {
-                    "description": "For logical grouping (\"and\", \"or\")",
+                    "description": "e.g., \"=\", \"\u003e\", \"\u003c\", \"LIKE\"",
                     "type": "string"
                 },
-                "value": {}
+                "value": {
+                    "description": "'any' allows for strings, numbers, or booleans"
+                }
             }
         },
-        "models.SearchPagination": {
+        "repository.FilterGroup": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "description": "The individual rules",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/repository.Condition"
+                    }
+                },
+                "operator": {
+                    "description": "e.g., \"and\", \"or\"",
+                    "type": "string"
+                }
+            }
+        },
+        "repository.Pagination": {
             "type": "object",
             "properties": {
                 "limit": {
-                    "description": "Pointer to check if it was provided",
                     "type": "integer"
                 },
                 "offset": {
@@ -1877,35 +2163,25 @@
                 }
             }
         },
-        "models.SearchRequest": {
+        "repository.SearchRequest": {
             "type": "object",
             "properties": {
                 "filter": {
-                    "description": "Pointer so it can be omitted",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.SearchFilter"
-                        }
-                    ]
+                    "$ref": "#/definitions/repository.FilterGroup"
                 },
                 "pagination": {
-                    "$ref": "#/definitions/models.SearchPagination"
+                    "$ref": "#/definitions/repository.Pagination"
                 },
                 "sort": {
-                    "description": "Pointer so it can be omitted",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.SearchSort"
-                        }
-                    ]
+                    "$ref": "#/definitions/repository.SortCriteria"
                 }
             }
         },
-        "models.SearchSort": {
+        "repository.SortCriteria": {
             "type": "object",
             "properties": {
                 "direction": {
-                    "description": "\"asc\", \"desc\"",
+                    "description": "\"asc\" or \"desc\"",
                     "type": "string"
                 },
                 "field": {
@@ -1913,18 +2189,54 @@
                 }
             }
         },
-        "models.Stats": {
+        "tokenhandler.OidcTokenRequest": {
             "type": "object",
             "properties": {
-                "entry_count": {
-                    "type": "integer"
-                },
-                "total_disk_space_bytes": {
-                    "type": "integer"
+                "idp_token": {
+                    "type": "string"
                 }
             }
         },
-        "models.User": {
+        "tokenhandler.TokenRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "tokenhandler.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.CreateUserPayload": {
+            "type": "object",
+            "properties": {
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/userhandler.DatabasePermission"
+                    }
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.DatabasePermission": {
             "type": "object",
             "properties": {
                 "can_create": {
@@ -1939,13 +2251,71 @@
                 "can_view": {
                     "type": "boolean"
                 },
+                "database_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.UpdateMePayload": {
+            "type": "object",
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "old_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.UpdateUserPayload": {
+            "type": "object",
+            "properties": {
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/userhandler.DatabasePermission"
+                    }
+                }
+            }
+        },
+        "userhandler.UserResponse": {
+            "type": "object",
+            "properties": {
                 "id": {
                     "type": "integer"
                 },
                 "is_admin": {
                     "type": "boolean"
                 },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/userhandler.DatabasePermission"
+                    }
+                },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }

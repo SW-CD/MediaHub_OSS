@@ -1,21 +1,19 @@
-<!-- frontend/src/app/components/modal/modal.component.html -->
-
-<!-- The modal overlay, shown when 'isOpen' is true -->
-<div *ngIf="isOpen" class="modal-overlay" (click)="closeModal()">
+<div 
+  *ngIf="isOpen" 
+  class="modal-overlay" 
+  (click)="closeModal()"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="modalId + '-title'">
   
-  <!-- The modal content itself -->
   <div class="modal-content" (click)="onContentClick($event)">
     
-    <!-- Header -->
     <div class="modal-header">
-      <h2 class="modal-title">{{ modalTitle }}</h2>
-      <button (click)="closeModal()" class="close-button">&times;</button>
+      <h2 class="modal-title" [id]="modalId + '-title'">{{ modalTitle }}</h2>
+      <button (click)="closeModal()" class="close-button" aria-label="Close modal">&times;</button>
     </div>
     
-    <!-- Body -->
     <div class="modal-body">
-      <!-- Transclusion: This is where the specific content -->
-      <!-- of each modal (like a form) will be projected. -->
       <ng-content></ng-content>
     </div>
     

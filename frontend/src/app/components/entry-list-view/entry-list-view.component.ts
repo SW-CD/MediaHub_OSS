@@ -1,7 +1,7 @@
-// frontend/src/app/components/entry-list-view/entry-list-view.component.ts
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
-import { Entry, User } from '../../models/api.models';
+import { Entry, User } from '../../models'; // UPDATED: Import from barrel
 import { DatabaseService } from '../../services/database.service';
+import { EntryService } from '../../services/entry.service';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { SecureImageDirective } from '../../directives/secure-image.directive';
 import { FormatBytesPipe } from '../../pipes/format-bytes.pipe';
@@ -25,7 +25,6 @@ export class EntryListViewComponent implements OnChanges {
   @Input() tableColumns: string[] = [];
   @Input() user: User | null = null;
   @Input() dbName: string | null = null;
-  // --- SELECTION INPUTS ---
   @Input() selectedIds = new Set<number>();
 
   @Output() entryClicked = new EventEmitter<Entry>();
@@ -34,18 +33,47 @@ export class EntryListViewComponent implements OnChanges {
   @Output() toggleSelection = new EventEmitter<{ entry: Entry, event: MouseEvent }>();
 
   public failedImageIds = new Set<number>();
+  
+  // NEW: Scoped permission flags
+  public canEdit = false;
+  public canDelete = false;
 
-  constructor(private databaseService: DatabaseService) {}
+  constructor(
+    private databaseService: DatabaseService,
+    private entryService: EntryService
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['dbName'] || changes['entries']) {
       this.failedImageIds.clear();
     }
+    // Calculate permissions whenever the user or database context changes
+    if (changes['user'] || changes['dbName']) {
+      this.updatePermissions();
+    }
+  }
+
+  // NEW: Resolves permissions specifically for the currently displayed database
+  private updatePermissions(): void {
+    if (!this.user || !this.dbName) {
+      this.canEdit = false;
+      this.canDelete = false;
+      return;
+    }
+
+    if (this.user.is_admin) {
+      this.canEdit = true;
+      this.canDelete = true;
+    } else {
+      const dbPerm = this.user.permissions?.find(p => p.database_name === this.dbName);
+      this.canEdit = dbPerm?.can_edit || false;
+      this.canDelete = dbPerm?.can_delete || false;
+    }
   }
 
   public getPreviewUrl(entry: Entry): string {
     if (!this.dbName) return '';
-    return this.databaseService.getEntryPreviewUrl(this.dbName, entry.id);
+    return this.entryService.getEntryPreviewUrl(this.dbName, entry.id);
   }
 
   public onEntryClick(entry: Entry): void {
@@ -60,11 +88,9 @@ export class EntryListViewComponent implements OnChanges {
     this.deleteClicked.emit(entry);
   }
 
-  // Handle selection checkbox click
   public onCheckboxClick(entry: Entry, event: MouseEvent): void {
     event.stopPropagation();
     
-    // UPDATED: Blur the checkbox to remove the persistent focus ring (blue outline)
     if (event.target instanceof HTMLElement) {
       event.target.blur();
     }

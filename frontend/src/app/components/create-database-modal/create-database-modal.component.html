@@ -4,7 +4,6 @@
     <div class="form-section">
       <h4>Basic Information</h4>
       <div class="form-grid">
-        <!-- Database Name -->
         <div class="form-group" style="grid-column: 1 / -1;">
           <label for="name" class="form-label">Database Name</label>
           <input id="name" type="text" formControlName="name" class="form-control">
@@ -13,93 +12,107 @@
           </div>
         </div>
         
-        <!-- NEW: Content Type Dropdown -->
         <div class="form-group" style="grid-column: 1 / -1;">
           <label for="content_type" class="form-label">Content Type</label>
           <select id="content_type" formControlName="content_type" class="form-control">
             <option value="image">Image</option>
             <option value="audio">Audio</option>
+            <option value="video">Video</option>
             <option value="file">Generic File</option>
           </select>
         </div>
       </div>
     </div>
 
-    <!-- 
-      NEW: Dynamic Configuration Section 
-      Show settings based on the selected content_type.
-    -->
     <div class="form-section" [ngSwitch]="createDbForm.get('content_type')?.value">
       
-      <!-- === IMAGE SETTINGS === -->
       <ng-container *ngSwitchCase="'image'">
         <h4>Image Configuration</h4>
         <div class="form-grid">
           <div class="form-group">
-            <label for="convert_to_jpeg" class="form-label">Force JPEG Conversion</label>
-            <div class="bool-field-container">
-              <label class="toggle-switch">
-                <input type="checkbox" id="convert_to_jpeg" formControlName="convert_to_jpeg">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="bool-field-value">
-                {{ createDbForm.get('convert_to_jpeg')?.value ? 'True' : 'False' }}
-              </span>
-            </div>
-            <small class="text-muted">Converts new non-JPEG uploads to JPEG.</small>
+            <label for="auto_conversion_image" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_image" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+            <small class="text-muted">Converts uploads to the selected format.</small>
           </div>
 
           <div class="form-group">
             <label for="create_previews_image" class="form-label">Generate Previews</label>
             <div class="bool-field-container">
               <label class="toggle-switch">
-                <!-- UPDATED: formControlName to 'create_preview' -->
                 <input type="checkbox" id="create_previews_image" formControlName="create_preview">
                 <span class="toggle-slider"></span>
               </label>
               <span class="bool-field-value">
-                <!-- UPDATED: get() to 'create_preview' -->
                 {{ createDbForm.get('create_preview')?.value ? 'True' : 'False' }}
               </span>
             </div>
-            <small class="text-muted">Generates downscaled JPEG thumbnails on upload.</small>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
           </div>
         </div>
       </ng-container>
 
-      <!-- === AUDIO SETTINGS === -->
       <ng-container *ngSwitchCase="'audio'">
         <h4>Audio Configuration</h4>
         <div class="form-grid">
           <div class="form-group">
-            <label for="auto_conversion" class="form-label">Auto-Conversion</label>
-            <select id="auto_conversion" formControlName="auto_conversion" class="form-control">
-              <option value="none">None</option>
-              <option value="flac">FLAC</option>
-              <option value="opus">Opus</option>
+            <label for="auto_conversion_audio" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_audio" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="audio/flac">FLAC</option>
+              <option value="audio/opus">Opus</option>
             </select>
-            <small class="text-muted">Requires FFmpeg on server. Converts uploads to the selected format.</small>
+            <small class="text-muted">Converts uploads to the selected format.</small>
           </div>
           
           <div class="form-group">
             <label for="create_previews_audio" class="form-label">Generate Previews</label>
             <div class="bool-field-container">
               <label class="toggle-switch">
-                <!-- UPDATED: formControlName to 'create_preview' -->
                 <input type="checkbox" id="create_previews_audio" formControlName="create_preview">
                 <span class="toggle-slider"></span>
               </label>
               <span class="bool-field-value">
-                <!-- UPDATED: get() to 'create_preview' -->
                 {{ createDbForm.get('create_preview')?.value ? 'True' : 'False' }}
               </span>
             </div>
-            <small class="text-muted">Generates JPEG waveform images on upload.</small>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
           </div>
         </div>
       </ng-container>
 
-      <!-- === FILE SETTINGS (Nothing to show) === -->
+      <ng-container *ngSwitchCase="'video'">
+        <h4>Video Configuration</h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="auto_conversion_video" class="form-label">Auto-Conversion</label>
+            <select id="auto_conversion_video" formControlName="auto_conversion" class="form-control">
+              <option value="">None</option>
+              <option value="video/mp4">MP4</option>
+              <option value="video/webm">WebM</option>
+            </select>
+            <small class="text-muted">Converts uploads to the selected format. Transcoding video files can take significant time.</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="create_previews_video" class="form-label">Generate Previews</label>
+            <div class="bool-field-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="create_previews_video" formControlName="create_preview">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="bool-field-value">
+                {{ createDbForm.get('create_preview')?.value ? 'True' : 'False' }}
+              </span>
+            </div>
+            <small class="text-muted">Generates WebP thumbnails on upload.</small>
+          </div>
+        </div>
+      </ng-container>
+
       <ng-container *ngSwitchCase="'file'">
         <h4>File Configuration</h4>
         <p class="text-muted">No specific configuration is available for 'Generic File' databases.</p>
@@ -109,25 +122,49 @@
     <div class="form-section" formGroupName="housekeeping">
       <h4>Housekeeping Rules</h4>
       <div class="form-grid-three">
+        
         <div class="form-group">
-          <label for="interval" class="form-label">Interval</label>
-          <app-interval-picker id="interval" formControlName="interval"></app-interval-picker>
+          <label class="form-label">Run Interval</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="number" formControlName="interval_value" class="form-control" min="0">
+            <select formControlName="interval_unit" class="form-control" style="width: 100px;">
+              <option value="m">Minutes</option>
+              <option value="h">Hours</option>
+              <option value="d">Days</option>
+            </select>
+          </div>
+          <small class="text-muted">Set to 0 to disable automated runs.</small>
         </div>
+        
         <div class="form-group">
-          <label for="disk_space" class="form-label form-label-helper">
+          <label class="form-label form-label-helper">
             <span>Max Disk Space</span>
             <span class="helper-icon" title="Set to 0 to disable disk space check.">?</span>
           </label>
-          <input id="disk_space" type="text" formControlName="disk_space" class="form-control">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="number" formControlName="disk_space_value" class="form-control" min="0">
+            <select formControlName="disk_space_unit" class="form-control" style="width: 100px;">
+              <option value="M">MB</option>
+              <option value="G">GB</option>
+              <option value="T">TB</option>
+            </select>
+          </div>
         </div>
+        
         <div class="form-group">
-          <label for="max_age" class="form-label form-label-helper">
-            <!-- UPDATED: "Image Age" to "Entry Age" -->
+          <label class="form-label form-label-helper">
             <span>Max Entry Age</span>
             <span class="helper-icon" title="Set to 0 to disable age check.">?</span>
           </label>
-          <input id="max_age" type="text" formControlName="max_age" class="form-control">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="number" formControlName="max_age_value" class="form-control" min="0">
+            <select formControlName="max_age_unit" class="form-control" style="width: 100px;">
+              <option value="h">Hours</option>
+              <option value="d">Days</option>
+            </select>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -158,4 +195,3 @@
     </div>
   </form>
 </app-modal>
-

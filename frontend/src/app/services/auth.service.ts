@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
-import { User, TokenResponse } from '../models/api.models';
+import { User, TokenResponse } from '../models';
 import { Router } from '@angular/router';
 
 /**
@@ -31,7 +31,7 @@ export class AuthService {
    * Logs the user in by exchanging credentials for JWT tokens,
    * then fetching the user's profile.
    */
-  login(username: string, password: string): Observable<User> {
+  basicAuthLogin(username: string, password: string): Observable<User> {
     // 1. Prepare Basic Auth header for the token endpoint
     const basicAuth = 'Basic ' + btoa(`${username}:${password}`);
     const headers = new HttpHeaders({ Authorization: basicAuth });
@@ -49,6 +49,21 @@ export class AuthService {
       }),
       catchError((err: HttpErrorResponse) => {
         this.logout(false); // Clean up if anything fails
+        return throwError(() => err);
+      })
+    );
+  }
+
+  oidcLogin(idpToken: string): Observable<User> {
+    return this.http.post<TokenResponse>(`${this.apiUrl}/token`, { idp_token: idpToken }).pipe(
+      tap((tokens) => this.storeTokens(tokens)),
+      switchMap(() => this.fetchCurrentUser()),
+      map(user => {
+        if (!user) throw new Error('Failed to fetch user details after OIDC login');
+        return user;
+      }),
+      catchError((err: HttpErrorResponse) => {
+        this.logout(false);
         return throwError(() => err);
       })
     );
@@ -154,13 +169,32 @@ export class AuthService {
 
   // --- User Management Methods (unchanged) ---
 
-  public hasRole(role: keyof User): boolean {
+  /**
+   * Checks if the current user has a specific permission for a given database.
+   * Global admins automatically return true for all checks.
+   * * @param databaseName The name of the database to check access for.
+   * @param permission The specific permission to check (e.g., 'can_view', 'can_create').
+   */
+  public hasDatabasePermission(databaseName: string, permission: keyof import('../models').Permission): boolean {
     const user = this.getCurrentUser();
-    return user ? !!user[role] : false;
+    if (!user) return false;
+
+    // Global admins bypass all permission checks
+    if (user.is_admin) return true;
+
+    // Find the specific permission record for this database
+    const dbPerms = user.permissions?.find(p => p.database_name === databaseName);
+    
+    // Return the requested permission flag, or false if no record exists
+    return dbPerms ? !!dbPerms[permission] : false;
   }
 
-  changeOwnPassword(newPassword: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/me`, { password: newPassword });
+  changeOwnPassword(oldPassword: string, newPassword: string): Observable<any> {
+    const payload = {
+      old_password: oldPassword,
+      new_password: newPassword
+    };
+    return this.http.patch(`${this.apiUrl}/me`, payload);
   }
 
   getUsers(): Observable<User[]> {

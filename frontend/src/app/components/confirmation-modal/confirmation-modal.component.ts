@@ -1,13 +1,15 @@
-// frontend/src/app/components/confirmation-modal/confirmation-modal.component.ts
-
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ModalService, ModalEvent } from '../../services/modal.service';
 
+// 1. Expand the interface to support custom button text and styles
 export interface ConfirmationModalData {
   title?: string;
   message: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmButtonClass?: string;
 }
 
 @Component({
@@ -19,7 +21,14 @@ export interface ConfirmationModalData {
 export class ConfirmationModalComponent implements OnInit, OnDestroy {
   public static readonly MODAL_ID = 'confirmationModal';
 
-  modalData: ConfirmationModalData = { message: 'Are you sure?' };
+  // 2. Provide sensible defaults
+  modalData: ConfirmationModalData = { 
+    message: 'Are you sure?',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    confirmButtonClass: 'btn-danger'
+  };
+  
   private destroy$ = new Subject<void>();
 
   constructor(private modalService: ModalService) {}
@@ -29,9 +38,13 @@ export class ConfirmationModalComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((event: ModalEvent) => {
         if (event.action === 'open' && event.data) {
+          // 3. Map the incoming data with fallbacks
           this.modalData = {
             title: event.data.title || 'Confirm Action',
-            message: event.data.message || 'Are you sure?'
+            message: event.data.message || 'Are you sure?',
+            confirmText: event.data.confirmText || 'Confirm',
+            cancelText: event.data.cancelText || 'Cancel',
+            confirmButtonClass: event.data.confirmButtonClass || 'btn-danger'
           };
         }
       });
@@ -50,4 +63,3 @@ export class ConfirmationModalComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 }
-

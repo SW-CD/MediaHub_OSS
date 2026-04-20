@@ -1,12 +1,10 @@
-<!-- frontend/src/app/components/user-form/user-form.component.html -->
 <app-modal [modalId]="'userFormModal'" [modalTitle]="isEditMode ? 'Edit User' : 'Create New User'">
   <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="space-y-6">
 
-    <!-- User Details Section -->
     <div>
       <h3 class="text-lg font-medium leading-6">User Details</h3>
       <div class="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4">
-        <!-- UPDATED: Use new global form classes -->
+        
         <div class="form-group sm:col-span-1">
           <label for="username" class="form-label">Username</label>
           <input type="text" id="username" formControlName="username" class="form-control" [class.is-invalid]="userForm.get('username')?.invalid && userForm.get('username')?.touched">
@@ -14,7 +12,7 @@
             Username is required and can only contain letters, numbers, and underscores.
           </div>
         </div>
-        <!-- UPDATED: Use new global form classes -->
+        
         <div class="form-group sm:col-span-1">
           <label for="password" class="form-label">Password</label>
           <input type="password" id="password" formControlName="password" class="form-control" [class.is-invalid]="userForm.get('password')?.invalid && userForm.get('password')?.touched">
@@ -24,41 +22,58 @@
             <div *ngIf="userForm.get('password')?.errors?.['minlength']">Password must be at least 8 characters.</div>
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- Permissions Section -->
-    <!-- UPDATED: Use CSS variable for border -->
     <div class="pt-6 border-t" style="border-color: var(--border-color);">
-      <h3 class="text-lg font-medium leading-6">Permissions</h3>
-      <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <!-- UPDATED: Use new global .checkbox-group -->
-        <div class="checkbox-group">
-          <input id="can_view" type="checkbox" formControlName="can_view" class="form-checkbox">
-          <label for="can_view" class="form-label">Can View</label>
+      <div class="checkbox-group">
+        <input id="is_admin" type="checkbox" formControlName="is_admin" class="form-checkbox">
+        <label for="is_admin" class="form-label font-bold">System Administrator</label>
+      </div>
+      <small class="text-muted block mt-1 ml-6">Administrators have unrestricted access to all databases and settings.</small>
+    </div>
+
+    <div class="pt-6 border-t" style="border-color: var(--border-color);">
+      <h3 class="text-lg font-medium leading-6">Database Permissions</h3>
+      
+      <div *ngIf="userForm.get('is_admin')?.value" class="mt-4 p-4 bg-gray-50 border rounded text-muted" style="border-color: var(--border-color);">
+        Database-specific permissions are ignored because this user is a System Administrator.
+      </div>
+
+      <div *ngIf="!userForm.get('is_admin')?.value" formArrayName="permissions" class="mt-4 space-y-4">
+        
+        <div *ngIf="permissions.controls.length === 0" class="text-muted text-sm">
+          No databases found in the system.
         </div>
-        <div class="checkbox-group">
-          <input id="can_create" type="checkbox" formControlName="can_create" class="form-checkbox">
-          <label for="can_create" class="form-label">Can Create</label>
-        </div>
-        <div class="checkbox-group">
-          <input id="can_edit" type="checkbox" formControlName="can_edit" class="form-checkbox">
-          <label for="can_edit" class="form-label">Can Edit</label>
-        </div>
-        <div class="checkbox-group">
-          <input id="can_delete" type="checkbox" formControlName="can_delete" class="form-checkbox">
-          <label for="can_delete" class="form-label">Can Delete</label>
-        </div>
-        <div class="checkbox-group">
-          <input id="is_admin" type="checkbox" formControlName="is_admin" class="form-checkbox">
-          <label for="is_admin" class="form-label">Is Admin</label>
+
+        <div *ngFor="let permGroup of permissions.controls; let i = index" [formGroupName]="i" class="p-4 border rounded" style="border-color: var(--border-color);">
+          <h4 class="font-semibold mb-3">{{ permGroup.get('database_name')?.value }}</h4>
+          
+          <div class="flex flex-wrap gap-x-6 gap-y-2">
+            <div class="checkbox-group">
+              <input [id]="'view_' + i" type="checkbox" formControlName="can_view" class="form-checkbox">
+              <label [for]="'view_' + i" class="form-label">View</label>
+            </div>
+            <div class="checkbox-group">
+              <input [id]="'create_' + i" type="checkbox" formControlName="can_create" class="form-checkbox">
+              <label [for]="'create_' + i" class="form-label">Create</label>
+            </div>
+            <div class="checkbox-group">
+              <input [id]="'edit_' + i" type="checkbox" formControlName="can_edit" class="form-checkbox">
+              <label [for]="'edit_' + i" class="form-label">Edit</label>
+            </div>
+            <div class="checkbox-group">
+              <input [id]="'delete_' + i" type="checkbox" formControlName="can_delete" class="form-checkbox">
+              <label [for]="'delete_' + i" class="form-label">Delete</label>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="form-actions">
-      <!-- UPDATED: Use global .btn classes -->
+    <div class="form-actions pt-4">
       <button type="button" (click)="closeModal()" class="btn btn-secondary">Cancel</button>
       <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid || isLoading">
         <span *ngIf="!isLoading">{{ isEditMode ? 'Update User' : 'Create User' }}</span>

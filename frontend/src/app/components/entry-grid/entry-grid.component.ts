@@ -1,8 +1,7 @@
-// frontend/src/app/components/entry-grid/entry-grid.component.ts
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
-import { Entry } from '../../models/api.models';
-import { DatabaseService } from '../../services/database.service';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Entry } from '../../models'; // UPDATED: Import from barrel
+import { EntryService } from '../../services/entry.service';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common'; // UPDATED: Added DecimalPipe
 import { SecureImageDirective } from '../../directives/secure-image.directive';
 
 @Component({
@@ -13,6 +12,7 @@ import { SecureImageDirective } from '../../directives/secure-image.directive';
   imports: [
     CommonModule, 
     DatePipe,
+    DecimalPipe, // UPDATED: Add to imports array
     SecureImageDirective
   ], 
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -20,6 +20,7 @@ import { SecureImageDirective } from '../../directives/secure-image.directive';
 export class EntryGridComponent implements OnChanges {
   @Input() entries: Entry[] = [];
   @Input() dbName: string | null = null;
+  
   // --- SELECTION INPUTS ---
   @Input() selectedIds = new Set<number>();
   
@@ -28,7 +29,7 @@ export class EntryGridComponent implements OnChanges {
 
   public failedImageIds = new Set<number>();
 
-  constructor(private databaseService: DatabaseService) {}
+  constructor(private entryservice: EntryService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['dbName'] || changes['entries']) {
@@ -38,18 +39,15 @@ export class EntryGridComponent implements OnChanges {
 
   public getPreviewUrl(entry: Entry): string {
     if (!this.dbName) return '';
-    return this.databaseService.getEntryPreviewUrl(this.dbName, entry.id);
+    return this.entryservice.getEntryPreviewUrl(this.dbName, entry.id);
   }
 
   public onEntryClick(entry: Entry): void {
     this.entryClicked.emit(entry);
   }
 
-  // Handle the checkbox click separately to prevent bubbling if needed,
-  // or handle it in the parent div click if we want entire card to toggle?
-  // Use case: Card click -> Detail. Checkbox click -> Select.
   public onCheckboxClick(entry: Entry, event: MouseEvent): void {
-    event.stopPropagation(); // Don't open details
+    event.stopPropagation(); 
     this.toggleSelection.emit({ entry, event });
   }
 
@@ -66,6 +64,6 @@ export class EntryGridComponent implements OnChanges {
   }
 
   public getEntryTitle(entry: Entry): string {
-    return `ID: ${entry.id}`; // Simplified
+    return entry.filename || `ID: ${entry.id}`; // UPDATED: Prefer filename if available
   }
 }

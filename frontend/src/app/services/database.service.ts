@@ -1,10 +1,10 @@
 // frontend/src/app/services/database.service.ts
+
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, Subject, throwError, of, timer } from 'rxjs';
-import { catchError, tap, map, switchMap, filter, take, finalize } from 'rxjs/operators';
-import { Database, Entry, HousekeepingReport, SearchRequest, DatabaseConfig, PartialEntryResponse } from '../models/api.models';
-import { AuthService } from './auth.service';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
+import { Database, HousekeepingReport, DatabaseConfig } from '../models';
 import { NotificationService } from './notification.service';
 import { Router } from '@angular/router';
 
@@ -17,33 +17,24 @@ export interface DatabaseUpdatePayload {
   providedIn: 'root',
 })
 export class DatabaseService {
-  private readonly apiUrl = '/api';
+  private readonly apiUrl = 'api';
 
+  // State specific to databases
   private databasesSubject = new BehaviorSubject<Database[]>([]);
   private selectedDatabaseSubject = new BehaviorSubject<Database | null>(null);
-  private selectedEntrySubject = new BehaviorSubject<Entry | null>(null);
-  private refreshNotifier = new Subject<void>();
-
-  private processingEntriesSubject = new BehaviorSubject<number[]>([]);
-  public processingEntries$ = this.processingEntriesSubject.asObservable();
 
   public databases$ = this.databasesSubject.asObservable();
   public selectedDatabase$ = this.selectedDatabaseSubject.asObservable();
-  public selectedEntry$ = this.selectedEntrySubject.asObservable();
-  public refreshRequired$ = this.refreshNotifier.asObservable();
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService,
     private notificationService: NotificationService,
     private router: Router
   ) {}
 
-  public triggerImageListRefresh(): void {
-    this.refreshNotifier.next();
-  }
-
-  // Centralized error handling for HTTP requests
+  /**
+   * Centralized error handler for HTTP requests.
+   */
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error("[DEBUG] DatabaseService: Full HTTP Error Response:", error);
 
@@ -78,51 +69,28 @@ export class DatabaseService {
     return throwError(() => new Error(errorMessage));
   }
 
+  // --- DATABASE ENDPOINTS ---
 
   public loadDatabases(): Observable<Database[]> {
     return this.http
       .get<Database[]>(`${this.apiUrl}/databases`)
       .pipe(
-        tap((databases) => {
-          this.databasesSubject.next(databases || []);
-        }),
+        tap((databases) => this.databasesSubject.next(databases || [])),
         catchError((err) => this.handleError(err))
       );
   }
 
   public selectDatabase(name: string): Observable<Database | null> {
-    const params = new HttpParams().set('name', name);
-
     return this.http
-      .get<Database>(`${this.apiUrl}/database`, { params })
+      .get<Database>(`${this.apiUrl}/database/${name}`)
       .pipe(
-        tap((db) => {
-          this.selectedDatabaseSubject.next(db);
-        }),
+        tap((db) => this.selectedDatabaseSubject.next(db)),
         catchError((err) => {
           this.selectedDatabaseSubject.next(null);
           this.handleError(err);
           return of(null);
         })
       );
-  }
-
-  public searchEntries(dbName: string, payload: SearchRequest): Observable<Entry[]> {
-    const params = new HttpParams().set('name', dbName);
-
-    return this.http
-      .post<Entry[]>(`${this.apiUrl}/database/entries/search`, payload, { params })
-      .pipe(
-        catchError((err) => this.handleError(err))
-      );
-  }
-
-  public selectEntry(entry: Entry): void {
-    this.selectedEntrySubject.next(entry);
-  }
-
-  public clearSelectedEntry(): void {
-    this.selectedEntrySubject.next(null);
   }
 
   public createDatabase(dbData: Partial<Database>): Observable<Database> {
@@ -137,9 +105,7 @@ export class DatabaseService {
   }
 
   public updateDatabase(dbName: string, updates: DatabaseUpdatePayload): Observable<Database> {
-    const params = new HttpParams().set('name', dbName);
-
-    return this.http.put<Database>(`${this.apiUrl}/database`, updates, { params }).pipe(
+    return this.http.put<Database>(`${this.apiUrl}/database/${dbName}`, updates).pipe(
       tap(updatedDb => {
         if (this.selectedDatabaseSubject.value?.name === dbName) {
             this.selectedDatabaseSubject.next(updatedDb);
@@ -156,25 +122,8 @@ export class DatabaseService {
     );
   }
 
-
-  public triggerHousekeeping(dbName: string): Observable<HousekeepingReport> {
-    const params = new HttpParams().set('name', dbName);
-
-    return this.http.post<HousekeepingReport>(`${this.apiUrl}/database/housekeeping`, null, { params }).pipe(
-      tap(report => {
-        this.notificationService.showSuccess(report.message || `Housekeeping complete for '${dbName}'.`);
-        if (this.selectedDatabaseSubject.value?.name === dbName) {
-            this.selectDatabase(dbName).subscribe();
-        }
-      }),
-      catchError((err) => this.handleError(err))
-    );
-  }
-
   public deleteDatabase(dbName: string): Observable<{ message: string }> {
-    const params = new HttpParams().set('name', dbName);
-
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/database`, { params }).pipe(
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/database/${dbName}`).pipe(
       tap(() => {
         this.notificationService.showSuccess(`Database '${dbName}' was successfully deleted.`);
         if (this.selectedDatabaseSubject.value?.name === dbName) {
@@ -187,162 +136,15 @@ export class DatabaseService {
     );
   }
 
-  // --- NEW: Bulk Actions ---
-
-  public bulkDeleteEntries(dbName: string, ids: number[]): Observable<any> {
-    const params = new HttpParams().set('name', dbName);
-    return this.http.post(`${this.apiUrl}/database/entries/delete`, { ids }, { params }).pipe(
-      tap(() => {
-        this.notificationService.showSuccess(`Successfully deleted ${ids.length} entries.`);
-        this.triggerImageListRefresh();
+  public triggerHousekeeping(dbName: string): Observable<HousekeepingReport> {
+    return this.http.post<HousekeepingReport>(`${this.apiUrl}/database/${dbName}/housekeeping`, null).pipe(
+      tap(report => {
+        this.notificationService.showSuccess(report.message || `Housekeeping complete for '${dbName}'.`);
+        if (this.selectedDatabaseSubject.value?.name === dbName) {
+            this.selectDatabase(dbName).subscribe();
+        }
       }),
       catchError((err) => this.handleError(err))
     );
-  }
-
-  public bulkExportEntries(dbName: string, ids: number[]): Observable<Blob> {
-    const params = new HttpParams().set('name', dbName);
-    return this.http.post(`${this.apiUrl}/database/entries/export`, { ids }, { 
-      params,
-      responseType: 'blob' // Important for file download
-    }).pipe(
-      catchError((err) => this.handleError(err))
-    );
-  }
-
-  // --- End Bulk Actions ---
-
-  public uploadEntry(dbName: string, metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, file: File): Observable<void> {
-    const params = new HttpParams().set('database_name', dbName);
-
-    const formData = new FormData();
-    formData.append('metadata', JSON.stringify(metadata));
-    formData.append('file', file, file.name);
-
-    return this.http.post<Entry | PartialEntryResponse>(`${this.apiUrl}/entry`, formData, { 
-      params,
-      observe: 'response'
-    }).pipe(
-      tap(response => {
-        if (response.status === 201) {
-          const entry = response.body as Entry;
-          this.notificationService.showSuccess('Entry uploaded successfully.');
-          
-          if (entry && entry.status === 'processing') {
-             this.addProcessingEntry(entry.id);
-             this.pollForEntryStatus(dbName, entry.id);
-          }
-
-          this.triggerImageListRefresh();
-        }
-        
-        if (response.status === 202) {
-          const partialEntry = response.body as PartialEntryResponse;
-          this.addProcessingEntry(partialEntry.id);
-          this.notificationService.showInfo(`Large file (ID: ${partialEntry.id}) is processing...`);
-          this.pollForEntryStatus(dbName, partialEntry.id);
-          this.triggerImageListRefresh();
-        }
-      }),
-      map(() => void 0),
-      catchError((err) => this.handleError(err))
-    );
-  }
-
-  public getEntryMeta(dbName: string, entryId: number): Observable<Entry> {
-    const params = new HttpParams()
-      .set('database_name', dbName)
-      .set('id', entryId.toString());
-
-    return this.http
-      .get<Entry>(`${this.apiUrl}/entry/meta`, { params })
-      .pipe(catchError((err) => this.handleError(err)));
-  }
-
-  public getEntryFileBlob(dbName: string, entryId: number): Observable<Blob> {
-    const params = new HttpParams()
-      .set('database_name', dbName)
-      .set('id', entryId.toString());
-
-    return this.http.get(`${this.apiUrl}/entry/file`, {
-        params,
-        responseType: 'blob',
-        headers: new HttpHeaders({ 'Accept': '*/*' })
-      })
-      .pipe(catchError((err) => this.handleError(err)));
-  }
-
-  public getEntryPreviewUrl(dbName: string, entryId: number): string {
-    return `${this.apiUrl}/entry/preview?database_name=${dbName}&id=${entryId}`;
-  }
-
-  public updateEntry(dbName: string, entryId: number, updates: Partial<Entry>): Observable<Entry> {
-    const params = new HttpParams()
-      .set('database_name', dbName)
-      .set('id', entryId.toString());
-
-    return this.http.patch<Entry>(`${this.apiUrl}/entry`, updates, { params }).pipe(
-      tap(() => {
-        this.notificationService.showSuccess(`Entry ${entryId} updated successfully.`);
-        this.triggerImageListRefresh();
-      }),
-      catchError(err => this.handleError(err))
-    );
-  }
-
-  public deleteEntry(dbName: string, entryId: number): Observable<{ message: string }> {
-    const params = new HttpParams()
-      .set('database_name', dbName)
-      .set('id', entryId.toString());
-
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/entry`, { params }).pipe(
-      tap(res => {
-        this.notificationService.showSuccess(res.message || `Entry ${entryId} deleted.`);
-        this.triggerImageListRefresh();
-      }),
-      catchError(err => this.handleError(err))
-    );
-  }
-
-  // --- HELPER METHODS FOR ASYNC UPLOAD ---
-
-  private addProcessingEntry(id: number): void {
-    const current = this.processingEntriesSubject.value;
-    if (!current.includes(id)) {
-      this.processingEntriesSubject.next([...current, id]);
-    }
-  }
-
-  private removeProcessingEntry(id: number): void {
-    const current = this.processingEntriesSubject.value;
-    this.processingEntriesSubject.next(current.filter(entryId => entryId !== id));
-  }
-
-  private pollForEntryStatus(dbName: string, entryId: number): void {
-    timer(2000, 2000).pipe(
-      switchMap(() => this.getEntryMeta(dbName, entryId)),
-      filter(entry => entry.status !== 'processing'),
-      take(1),
-      take(30),
-      finalize(() => {
-        if (this.processingEntriesSubject.value.includes(entryId)) {
-           this.removeProcessingEntry(entryId);
-        }
-      })
-    ).subscribe({
-      next: entry => {
-        this.removeProcessingEntry(entry.id);
-        if (entry.status === 'ready') {
-          this.triggerImageListRefresh();
-        } else if (entry.status === 'error') {
-          this.notificationService.showError(`Entry ${entry.id} failed to process.`);
-          this.triggerImageListRefresh();
-        }
-      },
-      error: err => {
-        this.removeProcessingEntry(entryId);
-        console.error(`Error polling for entry ${entryId}:`, err);
-      }
-    });
   }
 }

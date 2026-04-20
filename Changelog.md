@@ -1,3 +1,22 @@
+# v2.0
+Features:
+- add video file support
+- add fullscreen playback to frontend
+- user roles now on database level
+
+Breaking Changes:
+- all timestamps are now stored with millisecond precision
+- entry and database endpoint paths changed to use path variables
+- files are now stored in folders by `id` rather than by `date`
+- database schema changed significantly
+- running the server now requires the `serve` command
+- some config file entries were renamed
+- renamed environment variable prefix from `FDB_` to `MEDIAHUB_`
+
+Other:
+- publish multiarch docker build (ARM64, X86)
+- add Windows ARM64 binaries to release
+
 # v1.2
 Features:
 - make the "large file" threshold configurable.

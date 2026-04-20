@@ -1,10 +1,9 @@
-// frontend/src/app/components/database-settings/database-settings.component.ts
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Observable, Subject, of } from 'rxjs';
 import { switchMap, takeUntil, filter, take, finalize } from 'rxjs/operators';
-import { Database, User, DatabaseConfig } from '../../models/api.models';
+import { Database, User, DatabaseConfig } from '../../models';
 import { DatabaseService, DatabaseUpdatePayload } from '../../services/database.service';
 import { AuthService } from '../../services/auth.service';
 import { ModalService } from '../../services/modal.service';
@@ -23,6 +22,10 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   public isLoading = false;
 
   public currentDb: Database | null = null;
+  
+  public canEdit = false;
+  public canDelete = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -35,113 +38,154 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     this.selectedDatabase$ = this.databaseService.selectedDatabase$;
     this.currentUser$ = this.authService.currentUser$;
 
-    // --- UPDATED: Renamed 'create_previews' to 'create_preview' ---
+    // UPDATED: Split the housekeeping fields into values and units
     this.settingsForm = this.fb.group({
-      // Config fields
-      convert_to_jpeg: [false],
-      create_preview: [true], // RENAMED
-      auto_conversion: ['none'],
-
-      // Housekeeping fields
+      create_preview: [true],
+      auto_conversion: [''], 
       housekeeping: this.fb.group({
-        interval: ['', Validators.required],
-        disk_space: ['', Validators.required],
-        max_age: ['', Validators.required],
+        interval_value: [0, [Validators.required, Validators.min(0)]],
+        interval_unit: ['h'],
+        disk_space_value: [0, [Validators.required, Validators.min(0)]],
+        disk_space_unit: ['G'],
+        max_age_value: [0, [Validators.required, Validators.min(0)]],
+        max_age_unit: ['d'],
       }),
     });
   }
 
   ngOnInit(): void {
-    // When the route parameter changes, select the new database
     this.route.paramMap
       .pipe(
         takeUntil(this.destroy$),
         switchMap((params) => {
           const name = params.get('name');
-          // Clear form and set loading when navigating
           this.settingsForm.reset();
           this.isLoading = true; 
           return name ? this.databaseService.selectDatabase(name) : of(null);
         })
       )
-      .subscribe(); // The tap in the service handles the subject update
+      .subscribe();
 
-    // When the selected database changes, patch the form
     this.selectedDatabase$
-      .pipe(
-        takeUntil(this.destroy$),
-        // No filter here, handle null case explicitly
-      )
+      .pipe(takeUntil(this.destroy$))
       .subscribe((db) => {
-          this.isLoading = false; // Stop loading once data (or null) arrives
+          this.isLoading = false; 
           if (db) {
             this.currentDb = db;
-            // --- UPDATED: Patch config object and housekeeping ---
-            // This will now correctly patch 'create_preview'
+            
+            // Extract numerical values and string units from the DB payload
+            const interval = this.parseHousekeepingString(db.housekeeping.interval, 'h');
+            const diskSpace = this.parseHousekeepingString(db.housekeeping.disk_space, 'G');
+            const maxAge = this.parseHousekeepingString(db.housekeeping.max_age, 'd');
+
             this.settingsForm.patchValue({
-              ...db.config, // Patches 'create_preview'
-              housekeeping: db.housekeeping,
+              ...db.config, 
+              housekeeping: {
+                interval_value: interval.value,
+                interval_unit: interval.unit,
+                disk_space_value: diskSpace.value,
+                disk_space_unit: diskSpace.unit,
+                max_age_value: maxAge.value,
+                max_age_unit: maxAge.unit
+              }
             });
-            this.updateFormEnabledState();
           } else {
-            // Handle case where database is not found or cleared
             this.currentDb = null;
-            this.settingsForm.reset(); // Clear form if no DB selected
-            this.settingsForm.disable(); // Disable if no DB
+            this.settingsForm.reset(); 
           }
+          this.updatePermissions();
         });
 
-    // When the user changes, update form editability
-    this.currentUser$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.updateFormEnabledState();
-    });
+    this.currentUser$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.updatePermissions();
+      });
   }
 
-  private updateFormEnabledState(): void {
+  /**
+   * Helper method to break apart strings like "100G" or "24h"
+   */
+  private parseHousekeepingString(val: string | number | undefined, defaultUnit: string): { value: number, unit: string } {
+    if (!val || val === 0 || val === '0') {
+      return { value: 0, unit: defaultUnit };
+    }
+    const str = String(val).trim();
+    // Match the numeric part and the unit part (e.g. 100 and G)
+    const match = str.match(/^(\d+)([a-zA-Z]*)$/);
+    
+    if (match) {
+      const numericVal = parseInt(match[1], 10);
+      const stringUnit = match[2] ? match[2] : defaultUnit;
+      return { value: numericVal, unit: stringUnit };
+    }
+    return { value: 0, unit: defaultUnit };
+  }
+
+  private updatePermissions(): void {
     const user = this.authService.getCurrentUser();
-    // Also check if there's a currentDb to edit
-    if (user && !user.can_edit || !this.currentDb) {
+    
+    if (!user || !this.currentDb) {
+      this.canEdit = false;
+      this.canDelete = false;
       this.settingsForm.disable();
-    } else if (user && user.can_edit && this.currentDb) {
+      return;
+    }
+
+    if (user.is_admin) {
+      this.canEdit = true;
+      this.canDelete = true;
+    } else {
+      const dbPermission = user.permissions?.find(p => p.database_name === this.currentDb!.name);
+      this.canEdit = dbPermission?.can_edit || false;
+      this.canDelete = dbPermission?.can_delete || false;
+    }
+
+    if (this.canEdit) {
       this.settingsForm.enable();
+    } else {
+      this.settingsForm.disable();
     }
   }
 
   onSaveSettings(): void {
-    if (this.settingsForm.invalid || !this.currentDb) {
+    if (this.settingsForm.invalid || !this.currentDb || !this.canEdit) {
       return;
     }
     this.isLoading = true;
 
-    // --- UPDATED: Build dynamic config object ---
     const formValue = this.settingsForm.value;
     const config: DatabaseConfig = {};
     
-    // Dynamically add config properties based on content type
-    if (this.currentDb.content_type === 'image') {
-      config.convert_to_jpeg = formValue.convert_to_jpeg;
-      config.create_preview = formValue.create_preview; // RENAMED
-    } else if (this.currentDb.content_type === 'audio') {
+    if (['image', 'audio', 'video'].includes(this.currentDb.content_type)) {
+      config.create_preview = formValue.create_preview;
       config.auto_conversion = formValue.auto_conversion;
-      config.create_preview = formValue.create_preview; // RENAMED
     }
-    // 'file' type has no config
+
+    // Reconstruct the strings (e.g. {value: 100, unit: "G"} => "100G")
+    // If the value is 0, we send "0" to disable it as per concept spec
+    const hkForm = formValue.housekeeping;
+    const reconstructedHousekeeping = {
+      interval: hkForm.interval_value > 0 ? `${hkForm.interval_value}${hkForm.interval_unit}` : "0",
+      disk_space: hkForm.disk_space_value > 0 ? `${hkForm.disk_space_value}${hkForm.disk_space_unit}` : "0",
+      max_age: hkForm.max_age_value > 0 ? `${hkForm.max_age_value}${hkForm.max_age_unit}` : "0",
+    };
 
     const payload: DatabaseUpdatePayload = {
       config: config,
-      housekeeping: this.settingsForm.get('housekeeping')?.value,
+      housekeeping: reconstructedHousekeeping,
     };
 
     this.databaseService
       .updateDatabase(this.currentDb.name, payload)
       .pipe(finalize(() => (this.isLoading = false)))
       .subscribe(() => {
-        this.settingsForm.markAsPristine(); // Mark form as saved
+        this.settingsForm.markAsPristine(); 
       });
   }
 
   onTriggerHousekeeping(): void {
-    if (!this.currentDb) return;
+    if (!this.currentDb || !this.canDelete) return;
     this.isLoading = true;
     this.databaseService
       .triggerHousekeeping(this.currentDb.name)
@@ -150,7 +194,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onDeleteDatabase(): void {
-    if (!this.currentDb) return;
+    if (!this.currentDb || !this.canDelete) return;
 
     const modalData: ConfirmationModalData = {
       title: 'Confirm Database Deletion',

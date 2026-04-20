@@ -1,23 +1,36 @@
 [server]
-  host = "0.0.0.0"
-  port = 8080
-  max_sync_upload_size = "8MB" # Threshold for switching from synchronous (RAM) to asynchronous (Disk) processing
+host = "0.0.0.0"   # The host address to bind to
+port = 8080        # Default port (can be overridden by flag/env)
+basepath = "/"     # For the case of a reverse proxy
+max_sync_upload_size = "4MB" # Threshold for switching from RAM to Disk processing
+cors_allowed_origins = []
 
 [database]
-  path = "mediahub.db"
-  storage_root = "storage_root"
+# Relative or absolute path to the .db file (e.g., "mediahub.db")
+source = "mediahub.db"
+
+[storage.local]
+root = "storage_root"
 
 [logging]
-  level = "info"
-  audit_enabled = false # (v1.2+) Set to true to enable detailed audit logging. False saves I/O.
+level = "info" # Standard application logging level
 
+[logging.audit]
+type = "stdio" # Where to store audit logs: "stdio" or "database"
+enabled = false # Toggle audit logging on or off
+retention = "31d" # How long to keep audit logs (e.g., "7d" for 7 days)
 
-[jwt]
-  access_duration_min = 5
-  refresh_duration_hours = 24
+[media]
+# Optional: Path to the FFmpeg executable.
+# If empty, the server will check the system PATH.
+ffmpeg_path = ""
 
-## Uncomment to provide the path to ffmpeg and ffprobe binaries,
-## if they are not available in the PATH
-# [media]
-#   ffmpeg_path = "path/to/ffmpeg.exe"
-#   ffprobe_path = "path/to/ffprobe.exe"
+# Optional: Path to the FFprobe executable.
+# If empty, the server will check near ffmpeg_path, then the system PATH.
+ffprobe_path = ""
+
+[auth.jwt]
+# Token expiration settings
+access_duration = "5min"
+refresh_duration = "24h"
+

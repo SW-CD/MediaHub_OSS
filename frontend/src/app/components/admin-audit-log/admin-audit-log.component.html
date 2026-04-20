@@ -1,0 +1,82 @@
+<div class="audit-log-container">
+  
+  <div class="header">
+    <h2>System Audit Logs</h2>
+  </div>
+
+  <div class="filters-container">
+    <div class="form-group flex-1">
+      <label class="form-label">Start Date (Local)</label>
+      <input type="datetime-local" class="form-control" [(ngModel)]="startDate" [disabled]="isLoading" appDatetimeDefault>
+    </div>
+    
+    <div class="form-group flex-1">
+      <label class="form-label">End Date (Local)</label>
+      <input type="datetime-local" class="form-control" [(ngModel)]="endDate" [disabled]="isLoading" appDatetimeDefault>
+    </div>
+    
+    <div class="filter-actions">
+      <button class="btn btn-secondary" (click)="clearFilters()" [disabled]="isLoading || (!startDate && !endDate)">
+        Clear Filters
+      </button>
+      <button class="btn btn-primary btn-icon" (click)="refresh()" [disabled]="isLoading">
+        <img src="assets/icons/refresh-icon.svg" alt="Refresh" class="refresh-icon" [class.spin]="isLoading">
+        {{ isLoading ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading && logs.length === 0" class="loading-state">
+    <p>Loading audit logs...</p>
+  </div>
+
+  <div class="table-wrapper" *ngIf="!isLoading || logs.length > 0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width: 80px;">ID</th>
+          <th style="width: 200px;">Timestamp</th>
+          <th style="width: 150px;">Action</th>
+          <th style="width: 150px;">Actor</th>
+          <th style="width: 250px;">Resource</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="logs.length === 0 && !isLoading">
+          <td colspan="6" class="empty-state text-center">
+            No audit logs found matching the criteria.
+          </td>
+        </tr>
+        
+        <tr *ngFor="let log of logs">
+          <td class="log-id">#{{ log.id }}</td>
+          <td>{{ log.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>
+            <span class="action-badge">{{ log.action }}</span>
+          </td>
+          <td style="font-weight: 500; color: var(--text-primary);">
+            {{ log.actor }}
+          </td>
+          <td class="resource-text">
+            {{ log.resource }}
+          </td>
+          <td class="details-text">
+            {{ formatDetails(log.details) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination-controls" *ngIf="logs.length > 0 || currentPage > 1">
+    <button class="btn btn-secondary" [disabled]="offset === 0 || isLoading" (click)="previousPage()">
+      &laquo; Previous
+    </button>
+    <span class="page-indicator">Page {{ currentPage }}</span>
+    <button class="btn btn-secondary" [disabled]="!hasNextPage || isLoading" (click)="nextPage()">
+      Next &raquo;
+    </button>
+  </div>
+
+</div>

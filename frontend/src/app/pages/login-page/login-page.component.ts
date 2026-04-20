@@ -1,11 +1,13 @@
-// src/app/pages/login-page/login-page.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
-import { finalize } from 'rxjs/operators';
-import { HttpErrorResponse } from '@angular/common/http'; // Import HttpErrorResponse
+import { AppInfoService } from '../../services/app-info.service';
+import { AppInfo } from '../../models';
+import { finalize, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-login-page',
@@ -13,19 +15,21 @@ import { HttpErrorResponse } from '@angular/common/http'; // Import HttpErrorRes
   styleUrls: ['./login-page.component.css'],
   standalone: false
 })
-export class LoginPageComponent implements OnInit {
-  loginForm: FormGroup; // <-- FIX: Removed `!`
+export class LoginPageComponent implements OnInit, OnDestroy {
+  loginForm: FormGroup;
   isLoading = false;
   loginError: string | null = null;
+  appInfo: AppInfo | null = null;
+  
+  private destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private appInfoService: AppInfoService
   ) {
-    console.log('[LOGIN] Constructor - Initializing form.');
-    // FIX: Initialize the form in the constructor to prevent race conditions.
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', Validators.required],
@@ -33,52 +37,72 @@ export class LoginPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    console.log('[LOGIN] ngOnInit - Component Initialized.');
     if (this.authService.getCurrentUser()) {
-      console.log('[LOGIN] User is already logged in. Navigating to dashboard.');
       this.router.navigate(['/dashboard']);
+      return;
     }
+
+    // Load AppInfo to check OIDC settings
+    this.appInfoService.loadInfo().pipe(takeUntil(this.destroy$)).subscribe(info => {
+      this.appInfo = info;
+      
+      // UPDATED: Check nested oidc object properties
+      if (this.appInfo?.oidc?.enabled && this.appInfo?.oidc?.login_page_disabled) {
+        // Automatically redirect to OIDC if the local login page is disabled
+        this.redirectToOIDC();
+      }
+    });
   }
 
   onSubmit(): void {
-    console.log('[LOGIN] onSubmit - Login form submitted.');
-    if (this.loginForm.invalid) {
-      console.log('[LOGIN] Form is invalid. Aborting submission.');
-      return;
-    }
+    if (this.loginForm.invalid) return;
+    
     this.isLoading = true;
     this.loginError = null;
     this.notificationService.clearGlobalError();
+    
     const { username, password } = this.loginForm.value;
-    console.log(`[LOGIN] Calling authService.login for user: '${username}'`);
-    this.authService
-      .login(username, password)
-      .pipe(
-        finalize(() => {
-          this.isLoading = false;
-          console.log('[LOGIN] Login request finalized.');
-        })
-      )
-      .subscribe({
-        next: (user) => {
-          console.log('[LOGIN] Login successful. Navigating to dashboard.');
-          this.router.navigate(['/dashboard']);
-        },
-        // --- FIX: Update error handler to expect HttpErrorResponse ---
-        error: (err: HttpErrorResponse) => {
-          console.error('[LOGIN] Login failed:', err); // This log will now show the full HttpErrorResponse
+    
+    // UPDATED: Call the new basicAuthLogin method
+    this.authService.basicAuthLogin(username, password).pipe(
+      finalize(() => this.isLoading = false)
+    ).subscribe({
+      next: () => this.router.navigate(['/dashboard']),
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 401) {
+          this.loginError = 'Invalid username or password.';
+        } else if (err.status === 403) {
+          this.loginError = 'Local login is disabled by the server configuration.';
+        } else {
+          this.loginError = 'A server error occurred. Please try again later.';
+        }
+      },
+    });
+  }
 
-          if (err.status === 401) {
-            this.loginError = 'Invalid username or password.';
-          } else if (err.status && err.status >= 500) {
-            this.loginError = 'A server error occurred. Please try again later.';
-            this.notificationService.showGlobalError(
-              'Server error. Please try again later.'
-            );
-          } else {
-            this.loginError = 'An unexpected error occurred.';
-          }
-        },
-      });
+  redirectToOIDC(): void {
+    // Simplify access by grabbing the nested object
+    const oidcConfig = this.appInfo?.oidc;
+
+    // UPDATED: Check the nested properties
+    if (!oidcConfig?.issuer_url || !oidcConfig?.client_id) {
+      this.loginError = 'OIDC configuration is missing from the server.';
+      return;
+    }
+    
+    // Construct the standard OIDC Authorization URL using the nested object
+    const authEndpoint = `${oidcConfig.issuer_url}/protocol/openid-connect/auth`;
+    const clientId = encodeURIComponent(oidcConfig.client_id);
+    const redirectUri = encodeURIComponent(oidcConfig.redirect_url || window.location.origin + '/login');
+    
+    const oidcUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid`;
+    
+    // Redirect the browser to Keycloak
+    window.location.href = oidcUrl;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

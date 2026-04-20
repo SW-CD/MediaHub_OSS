@@ -3,11 +3,13 @@
 export enum ContentType {
   Image = 'image',
   Audio = 'audio',
+  Video = 'video',
   File = 'file'
 }
 
 export enum EntryStatus {
   Processing = 'processing',
   Ready = 'ready',
-  Error = 'error'
+  Error = 'error',
+  Deleted = `deleted`
 }

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, AbstractControl } from '@angular/forms';
-import { SearchFilter } from '../../models/api.models';
+import { SearchFilter } from '../../models';
 
 export interface FilterChangedEvent {
   filter: SearchFilter | undefined;
@@ -37,7 +37,6 @@ export class EntryFilterComponent implements OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If the available filters change (e.g. DB changed), reset the custom filters
     if (changes['availableFilters'] && !changes['availableFilters'].firstChange) {
       this.customFilters.clear();
       this.filterForm.patchValue({ tstart: '', tend: '' });
@@ -55,11 +54,19 @@ export class EntryFilterComponent implements OnChanges {
       value: ['', Validators.required]
     });
 
-    // Update operator when field changes
+    // UPDATED: Automatically adjust operator and value when field changes
     newGroup.get('field')?.valueChanges.subscribe(() => {
       const fieldType = this.getSelectedFieldTypeForGroup(newGroup);
       const defaultOp = this.getOperatorsForFieldType(fieldType)[0] || '=';
+      
       newGroup.get('operator')?.setValue(defaultOp);
+      
+      // Set sensible default values based on the new type
+      if (fieldType === 'BOOLEAN') {
+        newGroup.get('value')?.setValue('true'); // Select dropdown default
+      } else {
+        newGroup.get('value')?.setValue('');
+      }
     });
 
     this.customFilters.push(newGroup);
@@ -111,8 +118,12 @@ export class EntryFilterComponent implements OnChanges {
             const lowerVal = filterValue.toLowerCase();
             if (lowerVal === 'true' || lowerVal === '1') { filterValue = true; }
             else if (lowerVal === 'false' || lowerVal === '0') { filterValue = false; }
+          } else if (fieldDefinition.type === 'TEXT' && filter.operator === 'LIKE') {
+            // NEW: Automatically wrap the value in '%' wildcards for a "contains" search
+            filterValue = `%${filterValue}%`;
           }
         }
+        
         conditions.push({
           field: filter.field,
           operator: filter.operator,
@@ -134,8 +145,6 @@ export class EntryFilterComponent implements OnChanges {
       limit: formValue.limitPerPage
     };
   }
-
-  // --- Helpers ---
 
   getOperatorsForFieldType(fieldType: string | null | undefined): string[] {
     switch (fieldType) {
@@ -167,9 +176,12 @@ export class EntryFilterComponent implements OnChanges {
     try {
       const date = new Date(dateTimeLocal);
       if (isNaN(date.getTime())) return null;
-      return Math.floor(date.getTime() / 1000);
+      
+      // Return the native milliseconds directly instead of dividing by 1000
+      return date.getTime(); 
     } catch (e) {
       return null;
     }
   }
+
 }

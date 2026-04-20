@@ -1,5 +1,3 @@
-// frontend/src/app/app-routing.module.ts
-
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginPageComponent } from './pages/login-page/login-page.component';
@@ -7,8 +5,9 @@ import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.co
 import { PageNotFoundComponent } from './pages/page-not-found/page-not-found.component';
 import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
-// UPDATED: Import renamed EntryListComponent
+import { DatabaseGuard } from './guards/database.guard';
 import { EntryListComponent } from './components/entry-list/entry-list.component';
+import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit-log.component';
 import { DatabaseSettingsComponent } from './components/database-settings/database-settings.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
 
@@ -23,28 +22,36 @@ const routes: Routes = [
   {
     path: 'dashboard',
     component: DashboardPageComponent,
-    canActivate: [AuthGuard], // Protect this route and its children
+    canActivate: [AuthGuard], // Protect this route and ALL its children with AuthGuard
     children: [
       // Child routes for the dashboard's <router-outlet>
       {
         path: 'db/:name', // e.g., /dashboard/db/MyDatabase
-        // UPDATED: Use renamed EntryListComponent
         component: EntryListComponent,
+        canActivate: [DatabaseGuard], // NEW: Enforce database-level CanView permissions
       },
       {
         path: 'settings/:name', // e.g., /dashboard/settings/MyDatabase
         component: DatabaseSettingsComponent,
+        canActivate: [AdminGuard], // NEW: Only global admins can access database settings
       },
       {
         path: 'admin/users',
         component: AdminUserListComponent,
-        canActivate: [AdminGuard],
+        canActivate: [AdminGuard], // Enforce global admin permission
       },
       {
         path: '',
-        // UPDATED: Load EntryListComponent directly
+        // Note: If the user navigates directly to /dashboard without a database name,
+        // this component will load. You might want to display a "Welcome" or "Select a Database"
+        // view here instead of the EntryListComponent if the list requires a :name parameter!
         component: EntryListComponent,
         pathMatch: 'full',
+      },
+      {
+        path: 'admin/audit',
+        component: AdminAuditLogComponent,
+        canActivate: [AdminGuard],
       },
     ],
   },

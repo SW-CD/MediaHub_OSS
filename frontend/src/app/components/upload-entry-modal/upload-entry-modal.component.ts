@@ -1,9 +1,9 @@
-// frontend/src/app/components/upload-entry-modal/upload-entry-modal.component.ts
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil, filter, finalize } from 'rxjs/operators';
-import { Database, CustomField } from '../../models/api.models';
+import { Database, CustomField } from '../../models'; 
+import { EntryService } from '../../services/entry.service';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { isMimeTypeAllowed } from '../../utils/mime-types';
@@ -29,6 +29,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
   constructor(
     private fb: FormBuilder,
     private databaseService: DatabaseService,
+    private enryService: EntryService,
     private modalService: ModalService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef
@@ -52,7 +53,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
         if (event.action === 'open') {
-           // Reset file state on open if no file passed
            if (event.data?.droppedFile) {
               this.handleFile(event.data.droppedFile);
            } else {
@@ -62,11 +62,13 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       });
   }
 
-  private updateFileAcceptString(contentType: 'image' | 'audio' | 'file'): void {
+  private updateFileAcceptString(contentType: string): void {
     if (contentType === 'image') {
       this.fileAcceptString = 'image/jpeg,image/png,image/gif,image/webp';
     } else if (contentType === 'audio') {
       this.fileAcceptString = 'audio/mpeg,audio/wav,audio/flac,audio/opus,audio/ogg';
+    } else if (contentType === 'video') {
+      this.fileAcceptString = 'video/mp4,video/x-matroska,video/webm,video/ogg,video/quicktime,video/x-msvideo,video/x-flv';
     } else {
       this.fileAcceptString = null; 
     }
@@ -86,7 +88,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     this.uploadForm.addControl('timestamp', this.fb.control(this.getLocalISOString(new Date()), Validators.required));
     this.uploadForm.addControl('file', this.fb.control(null, Validators.required));
     
-    this.resetFileState(); // Ensure clean state
+    this.resetFileState(); 
 
     if (this.currentDatabase) {
       this.currentDatabase.custom_fields.forEach((field: CustomField) => {
@@ -99,7 +101,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
   private resetFileState(): void {
     this.selectedFile = null;
     this.selectedFileName = null;
-    // We use emitEvent: false to prevent triggering listeners unnecessarily during reset
     this.uploadForm.get('file')?.setValue(null, { emitEvent: false });
   }
 
@@ -110,12 +111,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     if (fileList && fileList.length > 0) {
       const file = fileList[0];
       this.handleFile(file);
-      
-      // Reset the input value safely
-      // This allows selecting the same file again if needed,
-      // and prevents the browser from holding onto a file reference we've processed.
-      // However, doing this *during* the event can cause the DOMException in some browsers.
-      // We simply let the native input be. We don't need to clear it unless we close the modal.
     }
   }
 
@@ -127,22 +122,14 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
     if (this.currentDatabase && !isMimeTypeAllowed(this.currentDatabase.content_type, file.type)) {
         this.notificationService.showError(`Invalid file type (${file.type}). Allowed: ${this.currentDatabase.content_type}`);
-        // Don't clear the form here, let the user see they made a mistake but keep the modal open
         return; 
     }
 
     this.selectedFile = file;
     this.selectedFileName = file.name;
     
-    // Patch the form value with the File object.
-    // NOTE: Some browsers throw the DOMException if you try to set the value of a 
-    // file input programmatically to a File object.
-    // However, 'file' here is an internal FormControl, NOT the native DOM input.
-    // Angular handles this, but to be safe and avoid the error, we should pass
-    // the File object to the control, but ensure we aren't trying to write it back to the DOM.
     this.uploadForm.patchValue({ file: this.selectedFile });
     
-    // Mark touched and FORCE validation update
     this.uploadForm.get('file')?.markAsTouched();
     this.uploadForm.get('file')?.updateValueAndValidity();
     
@@ -157,20 +144,35 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
 
-    const { timestamp, file, ...customFields } = this.uploadForm.value;
+    // Destructure to separate the core fields from the dynamic custom fields
+    const { timestamp, file, ...rawCustomFields } = this.uploadForm.value;
 
-    const metadata = {
-        timestamp: Math.floor(new Date(timestamp).getTime() / 1000),
-        ...customFields
-    };
+    const custom_fields: Record<string, any> = {};
 
     this.currentDatabase.custom_fields.forEach(field => {
-        if (field.type === 'BOOLEAN' && metadata.hasOwnProperty(field.name)) {
-            metadata[field.name] = !!metadata[field.name]; 
+        if (rawCustomFields.hasOwnProperty(field.name)) {
+            let value = rawCustomFields[field.name];
+            
+            // Strictly enforce data types based on the schema before sending to the backend
+            if (field.type === 'BOOLEAN') {
+                value = !!value; 
+            } else if ((field.type === 'INTEGER' || field.type === 'REAL') && value !== '' && value !== null) {
+                value = Number(value);
+            }
+            
+            custom_fields[field.name] = value;
         }
     });
 
-    this.databaseService.uploadEntry(this.currentDatabase.name, metadata, this.selectedFile)
+    // FIXED: Removed the / 1000 division to keep the timestamp in milliseconds
+    // FIXED: Added the filename explicitly to the metadata payload
+    const metadata = {
+        timestamp: new Date(timestamp).getTime(),
+        filename: this.selectedFile.name,
+        custom_fields: custom_fields 
+    };
+
+    this.enryService.uploadEntry(this.currentDatabase.name, metadata as any, this.selectedFile)
       .pipe(finalize(() => this.isLoading = false))
       .subscribe({
         next: () => {
@@ -184,8 +186,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.modalService.close();
-    // Reset form logic is handled in ngOnInit or initializeForm when re-opened
-    // But we can clear it here too to be safe
     if (this.currentDatabase) {
       this.initializeForm();
     }

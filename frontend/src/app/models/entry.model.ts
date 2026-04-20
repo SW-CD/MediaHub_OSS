@@ -1,0 +1,56 @@
+import { EntryStatus } from './enums'; // Make sure you have this enum defined!
+
+export interface MediaFields {
+  width?: number;
+  height?: number;
+  duration?: number;
+  channels?: number;
+}
+
+export interface Entry {
+  id: number;
+  timestamp: number;
+  status: EntryStatus | string; 
+  database_name?: string;
+  
+  // These might be undefined if the entry is still 'processing' (Async upload)
+  mime_type?: string;
+  filesize?: number;
+  preview_filesize?: number; 
+  filename?: string;
+
+  // Grouped metadata arrays (Used consistently across all GET endpoints now)
+  media_fields?: MediaFields;
+  custom_fields?: Record<string, any>;
+}
+
+export interface PartialEntryResponse {
+  id: number;
+  timestamp: number;
+  database_name: string;
+  status: EntryStatus | string;
+  custom_fields?: Record<string, any>; 
+}
+
+export interface SearchFilter {
+  operator: string;
+  conditions?: SearchFilter[];
+  field?: string;
+  value?: any;
+}
+
+export interface SearchSort {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface SearchPagination {
+  offset?: number;
+  limit: number;
+}
+
+export interface SearchRequest {
+  filter?: SearchFilter;
+  sort?: SearchSort;
+  pagination: SearchPagination;
+}

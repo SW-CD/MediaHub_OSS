@@ -2,7 +2,8 @@
   <div class="detail-container" *ngIf="entryForMetadata && currentDatabase; else loading">
     
     <div class="entry-preview">
-      <div [ngSwitch]="entryForMetadata.mime_type | slice:0:5">
+      <div [ngSwitch]="fileUrl ? ((entryForMetadata.mime_type || 'file') | slice:0:5) : 'fallback'">
+        
         <img *ngSwitchCase="'image'" 
              [src]="fileUrl" 
              class="preview-image"
@@ -15,9 +16,16 @@
           <audio controls [src]="fileUrl" class="audio-controls"></audio>
         </div>
 
+        <video *ngSwitchCase="'video'" 
+               controls 
+               [src]="fileUrl" 
+               class="preview-video" 
+               style="max-width: 100%; max-height: 400px; display: block; margin: 0 auto;"></video>
+
         <div *ngSwitchDefault class="generic-file-preview">
           <img src="assets/icons/file-icon.svg" class="file-icon" alt="File Icon" />
-          <p>No preview available for {{ entryForMetadata.mime_type }}</p>
+          <p class="mt-2 text-muted fw-bold">No preview available for {{ entryForMetadata.mime_type || 'Unknown' }}</p>
+          <p class="small text-muted">Use the download button below to view this file locally.</p>
         </div>
       </div>
 
@@ -41,20 +49,28 @@
               <td>{{ entryForMetadata.filename || 'N/A' }}</td>
             </tr>
             <tr>
-              <th>Size</th>
+              <th>File Size</th>
               <td>{{ entryForMetadata.filesize | formatBytes }}</td>
             </tr>
             <tr>
+              <th>Preview Size</th>
+              <td>{{ entryForMetadata.preview_filesize ? (entryForMetadata.preview_filesize | formatBytes) : 'N/A' }}</td>
+            </tr>
+            <tr>
               <th>Type</th>
-              <td>{{ entryForMetadata.mime_type }}</td>
+              <td>{{ entryForMetadata.mime_type || 'Processing...' }}</td>
             </tr>
             <tr>
               <th>Status</th>
-              <td>{{ entryForMetadata.status | titlecase }}</td>
+              <td>
+                <span [ngClass]="{'text-warning': entryForMetadata.status === 'processing', 'text-danger': entryForMetadata.status === 'error'}">
+                  {{ entryForMetadata.status | titlecase }}
+                </span>
+              </td>
             </tr>
             <tr>
               <th>Created</th>
-              <td>{{ entryForMetadata.timestamp * 1000 | date:'yyyy.MM.dd HH:mm:ss' }}</td>
+              <td>{{ entryForMetadata.timestamp | date:'yyyy.MM.dd HH:mm:ss' }}</td>
             </tr>
           </tbody>
         </table>
@@ -65,24 +81,38 @@
         <ng-container [ngSwitch]="currentDatabase.content_type">
           <ng-container *ngSwitchCase="'image'">
             <h3>Image Properties</h3>
-            <table class="metadata-table">
+            <table class="metadata-table" *ngIf="entryForMetadata.media_fields">
               <tr>
                 <th>Dimensions</th>
-                <td>{{ entryForMetadata.width }} x {{ entryForMetadata.height }} px</td>
+                <td>{{ entryForMetadata.media_fields.width }} x {{ entryForMetadata.media_fields.height }} px</td>
               </tr>
             </table>
           </ng-container>
 
           <ng-container *ngSwitchCase="'audio'">
             <h3>Audio Properties</h3>
-            <table class="metadata-table">
+            <table class="metadata-table" *ngIf="entryForMetadata.media_fields">
               <tr>
                 <th>Duration</th>
-                <td>{{ entryForMetadata.duration_sec | number:'1.1-2' }} sec</td>
+                <td>{{ entryForMetadata.media_fields.duration | number:'1.1-2' }} sec</td>
               </tr>
               <tr>
                 <th>Channels</th>
-                <td>{{ entryForMetadata.channels }}</td>
+                <td>{{ entryForMetadata.media_fields.channels }}</td>
+              </tr>
+            </table>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'video'">
+            <h3>Video Properties</h3>
+            <table class="metadata-table" *ngIf="entryForMetadata.media_fields">
+              <tr>
+                <th>Dimensions</th>
+                <td>{{ entryForMetadata.media_fields.width }} x {{ entryForMetadata.media_fields.height }} px</td>
+              </tr>
+              <tr>
+                <th>Duration</th>
+                <td>{{ entryForMetadata.media_fields.duration | number:'1.1-2' }} sec</td>
               </tr>
             </table>
           </ng-container>
@@ -95,12 +125,12 @@
               <tr *ngFor="let field of currentDatabase.custom_fields">
                 <th>{{ field.name }}</th>
                 <td *ngIf="field.type === 'BOOLEAN'">
-                   <span [class.text-green]="entryForMetadata[field.name]" [class.text-muted]="!entryForMetadata[field.name]">
-                     {{ entryForMetadata[field.name] ? 'True' : 'False' }}
+                   <span [class.text-green]="entryForMetadata.custom_fields?.[field.name]" [class.text-muted]="!entryForMetadata.custom_fields?.[field.name]">
+                     {{ entryForMetadata.custom_fields?.[field.name] ? 'True' : 'False' }}
                    </span>
                 </td>
                 <td *ngIf="field.type !== 'BOOLEAN'">
-                  {{ entryForMetadata[field.name] }}
+                  {{ entryForMetadata.custom_fields?.[field.name] !== undefined ? entryForMetadata.custom_fields?.[field.name] : 'N/A' }}
                 </td>
               </tr>
             </tbody>
@@ -110,11 +140,11 @@
 
     </div>
 
-    <div class="modal-actions" *ngIf="currentUser$ | async as user">
+    <div class="modal-actions">
       
       <div class="action-group-left">
         <button 
-          *ngIf="user.can_delete"
+          *ngIf="canDelete"
           type="button" 
           class="btn btn-danger" 
           (click)="onDelete()"
@@ -123,7 +153,7 @@
         </button>
 
         <button 
-          *ngIf="user.can_edit"
+          *ngIf="canEdit"
           type="button" 
           class="btn btn-secondary" 
           (click)="onEdit()"
