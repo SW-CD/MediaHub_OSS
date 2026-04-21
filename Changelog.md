@@ -10,7 +10,7 @@ Breaking Changes:
 - files are now stored in folders by `id` rather than by `date`
 - database schema changed significantly
 - running the server now requires the `serve` command
-- some config file entries were renamed
+- configuration file has renamed configs
 - renamed environment variable prefix from `FDB_` to `MEDIAHUB_`
 
 Other:

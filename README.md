@@ -41,11 +41,12 @@ You can download prebuild binaries for different architectures using the provide
 | :--- | :--- | :--- |
 | Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_linux_aarch64) |
 | Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_linux_x86_64) |
+| Windows | AArch64 (ARM 64-bit) | [mediahub\_windows\_aarch64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_windows_aarch64.exe) |
 | Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_windows_x86_64.exe) |
 
 A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/config.toml).
 
-As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub.
+As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub. Place your config file in a folder `mediahub_config` and run:
 
 ```bash
 docker run -d \
@@ -54,7 +55,7 @@ docker run -d \
   -v $(pwd)/mediahub_config:/config \
   -v $(pwd)/mediahub_storage:/storage \
   -e MEDIAHUB_PASSWORD="your-secure-password" \
-  denglerchr/mediahub_oss:latest
+  denglerchr/mediahub_oss:2.0.0-beta1
 ```
 
 -----
