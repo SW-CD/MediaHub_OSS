@@ -164,7 +164,7 @@ host = "0.0.0.0"   # The host address to bind to
 port = 8080        # Default port (can be overridden by flag/env)
 basepath = "/"     # For the case of a reverse proxy
 max_sync_upload_size = "8MB" # Threshold for switching from RAM to Disk processing
-# cors_allowed_origins = ["http://localhost:4200"] # Noop in 2.0.0-beta1
+# cors_allowed_origins = ["http://localhost:4200"]
 
 [database]
 source = "mediahub.db"
