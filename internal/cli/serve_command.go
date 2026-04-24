@@ -148,7 +148,7 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 
 	// Parse and apply initconfig
 	if err := processInitConfig(ctx, repo, logger); err != nil {
-		return fmt.Errorf("failed to process initialization config: %w", err)
+		logger.Warn("Initialization config processing failed", "error", err)
 	}
 
 	// 4. Initialize Core Background Services
