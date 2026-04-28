@@ -83,8 +83,8 @@ type PaginationPayload struct {
 
 // Returned in case of sync file handling or entry requests
 type EntryResponse struct {
-	DBName       string         `json:"database_name"`
-	ID           int64          `json:"id"`
+	DatabaseID   string         `json:"database_id"`
+	EntryID      int64          `json:"id"`
 	FileName     string         `json:"filename"`
 	Size         uint64         `json:"filesize"`
 	PreviewSize  uint64         `json:"preview_filesize"`
@@ -97,8 +97,8 @@ type EntryResponse struct {
 
 // Returned in case of async file handling
 type PartialEntryResponse struct {
-	DBName       string         `json:"database_name"`
-	ID           int64          `json:"id"`
+	DatabaseID   string         `json:"database_id"`
+	EntryID      int64          `json:"id"`
 	Status       string         `json:"status"`
 	Timestamp    int64          `json:"timestamp"`
 	MimeType     string         `json:"mime_type"`
@@ -115,7 +115,7 @@ type FileJSONResponse struct {
 
 // BulkDeleteResponse defines the success payload for a bulk delete operation.
 type BulkDeleteResponse struct {
-	DatabaseName    string `json:"database_name"`
+	DatabaseID      string `json:"database_id"`
 	DeletedCount    int    `json:"deleted_count"`
 	SpaceFreedBytes uint64 `json:"space_freed_bytes"`
 	Message         string `json:"message"`
@@ -136,5 +136,5 @@ type EntryWithID interface {
 }
 
 // Add the method to both structs so they satisfy the interface
-func (e EntryResponse) GetID() int64        { return e.ID }
-func (p PartialEntryResponse) GetID() int64 { return p.ID }
+func (e EntryResponse) GetID() int64        { return e.EntryID }
+func (p PartialEntryResponse) GetID() int64 { return p.EntryID }

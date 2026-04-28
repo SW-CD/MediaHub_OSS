@@ -199,7 +199,7 @@ func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions r
 	// If Roles is empty, the intention is to delete the permission entry.
 	if permissions.Roles == "" {
 		query, args, err := r.Builder.Delete("database_permissions").
-			Where(squirrel.Eq{"user_id": permissions.UserID, "database_name": permissions.Database}).
+			Where(squirrel.Eq{"user_id": permissions.UserID, "database_id": permissions.DatabaseID}).
 			ToSql()
 		if err != nil {
 			return fmt.Errorf("failed to build delete permissions query: %w", err)
@@ -216,9 +216,9 @@ func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions r
 	canView, canCreate, canEdit, canDelete := parseRolesString(permissions.Roles)
 
 	query, args, err := r.Builder.Insert("database_permissions").
-		Columns("user_id", "database_name", "can_view", "can_create", "can_edit", "can_delete").
-		Values(permissions.UserID, permissions.Database, canView, canCreate, canEdit, canDelete).
-		Suffix("ON CONFLICT (user_id, database_name) DO UPDATE SET can_view = excluded.can_view, can_create = excluded.can_create, can_edit = excluded.can_edit, can_delete = excluded.can_delete").
+		Columns("user_id", "database_id", "can_view", "can_create", "can_edit", "can_delete").
+		Values(permissions.UserID, permissions.DatabaseID, canView, canCreate, canEdit, canDelete).
+		Suffix("ON CONFLICT (user_id, database_id) DO UPDATE SET can_view = excluded.can_view, can_create = excluded.can_create, can_edit = excluded.can_edit, can_delete = excluded.can_delete").
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build upsert permissions query: %w", err)
@@ -233,10 +233,10 @@ func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions r
 }
 
 // GetUserPermissions retrieves the exact rights a user has for a specific database.
-func (r *SQLiteRepository) GetUserPermissions(ctx context.Context, userID int64, dbname string) (repo.UserPermissions, error) {
+func (r *SQLiteRepository) GetUserPermissions(ctx context.Context, userID int64, dbID string) (repo.UserPermissions, error) {
 	query, args, err := r.Builder.Select("can_view", "can_create", "can_edit", "can_delete").
 		From("database_permissions").
-		Where(squirrel.Eq{"user_id": userID, "database_name": dbname}).
+		Where(squirrel.Eq{"user_id": userID, "database_id": dbID}).
 		ToSql()
 	if err != nil {
 		return repo.UserPermissions{}, fmt.Errorf("failed to build get permissions query: %w", err)
@@ -252,15 +252,15 @@ func (r *SQLiteRepository) GetUserPermissions(ctx context.Context, userID int64,
 	}
 
 	return repo.UserPermissions{
-		UserID:   userID,
-		Database: dbname,
-		Roles:    buildRolesString(canView, canCreate, canEdit, canDelete),
+		UserID:     userID,
+		DatabaseID: dbID,
+		Roles:      buildRolesString(canView, canCreate, canEdit, canDelete),
 	}, nil
 }
 
 // GetAllUserPermissions retrieves every specific database right assigned to a given user.
 func (r *SQLiteRepository) GetAllUserPermissions(ctx context.Context, userID int64) ([]repo.UserPermissions, error) {
-	query, args, err := r.Builder.Select("database_name", "can_view", "can_create", "can_edit", "can_delete").
+	query, args, err := r.Builder.Select("database_id", "can_view", "can_create", "can_edit", "can_delete").
 		From("database_permissions").
 		Where(squirrel.Eq{"user_id": userID}).
 		ToSql()
@@ -276,17 +276,17 @@ func (r *SQLiteRepository) GetAllUserPermissions(ctx context.Context, userID int
 
 	var permissions []repo.UserPermissions
 	for rows.Next() {
-		var dbname string
+		var dbID string
 		var canView, canCreate, canEdit, canDelete bool
 
-		if err := rows.Scan(&dbname, &canView, &canCreate, &canEdit, &canDelete); err != nil {
+		if err := rows.Scan(&dbID, &canView, &canCreate, &canEdit, &canDelete); err != nil {
 			return nil, fmt.Errorf("failed to scan permissions row: %w", err)
 		}
 
 		permissions = append(permissions, repo.UserPermissions{
-			UserID:   userID,
-			Database: dbname,
-			Roles:    buildRolesString(canView, canCreate, canEdit, canDelete),
+			UserID:     userID,
+			DatabaseID: dbID,
+			Roles:      buildRolesString(canView, canCreate, canEdit, canDelete),
 		})
 	}
 

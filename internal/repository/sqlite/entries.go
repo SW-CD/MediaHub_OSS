@@ -61,8 +61,8 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 	}
 	defer tx.Rollback()
 
-	// Insert the Entry
-	tableName := fmt.Sprintf(`"entries_%s"`, db.Name)
+	// Insert the Entry using the db.ID
+	tableName := fmt.Sprintf(`"entries_%s"`, db.ID)
 	insertQuery, args, err := r.Builder.Insert(tableName).SetMap(insertData).ToSql()
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to build insert query: %w", err)
@@ -79,14 +79,14 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 	}
 	entry.ID = insertedID
 
-	// Atomically update parent Database stats
+	// Atomically update parent Database stats using db.ID
 	// Calculate total size delta (main file + preview)
 	totalSizeDelta := entry.Size + entry.PreviewSize
 
 	statsQuery, statsArgs, err := r.Builder.Update("databases").
 		Set("entry_count", squirrel.Expr("entry_count + 1")).
 		Set("total_disk_space_bytes", squirrel.Expr("total_disk_space_bytes + ?", totalSizeDelta)).
-		Where(squirrel.Eq{"name": db.Name}).
+		Where(squirrel.Eq{"id": db.ID}).
 		ToSql()
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to build stats update query: %w", err)
@@ -96,7 +96,7 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 		return repo.Entry{}, fmt.Errorf("failed to update database stats: %w", err)
 	}
 
-	// 7. Commit
+	// Commit
 	if err := tx.Commit(); err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -105,8 +105,8 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 }
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
-func (r *SQLiteRepository) GetEntry(ctx context.Context, dbname string, id int64) (repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) (repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"id": id}).ToSql()
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to build query: %w", err)
@@ -127,8 +127,8 @@ func (r *SQLiteRepository) GetEntry(ctx context.Context, dbname string, id int64
 }
 
 // GetEntries retrieves a paginated list of entries, optionally filtered by a time range.
-func (r *SQLiteRepository) GetEntries(ctx context.Context, dbname string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	builder := r.Builder.Select("*").From(tableName)
 
 	// Apply time filters only if they differ from the absolute minimum/maximum
@@ -172,8 +172,8 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbname string, limit,
 }
 
 // UpdateEntry modifies an existing entry's metadata and safely adjusts the parent database's size statistics.
-func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbname string, entry repo.Entry) (repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry repo.Entry) (repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var entryTime time.Time
 	if !entry.Timestamp.IsZero() {
@@ -242,7 +242,7 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbname string, entry
 	if delta != 0 {
 		statsQuery, statsArgs, err := r.Builder.Update("databases").
 			Set("total_disk_space_bytes", squirrel.Expr("total_disk_space_bytes + ?", delta)).
-			Where(squirrel.Eq{"name": dbname}).
+			Where(squirrel.Eq{"id": dbID}).
 			ToSql()
 		if err != nil {
 			return repo.Entry{}, fmt.Errorf("failed to build stats update query: %w", err)
@@ -262,12 +262,12 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbname string, entry
 }
 
 // UpdateEntriesStatus efficiently modifies the async processing status of multiple entries at once.
-func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbname string, entryIDs []int64, status uint8) error {
+func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error {
 	if len(entryIDs) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	now := time.Now().UnixMilli()
 
 	// squirrel.Eq with a slice automatically translates to an 'IN (?, ?, ...)' SQL clause
@@ -294,8 +294,8 @@ func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbname strin
 }
 
 // DeleteEntry removes a single entry and atomically decrements the parent database's statistics.
-func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbname string, id int64) (repo.DeletedEntryMeta, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID string, id int64) (repo.DeletedEntryMeta, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	// 1. Begin SQL Transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -327,7 +327,7 @@ func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbname string, id in
 	statsQuery, statsArgs, err := r.Builder.Update("databases").
 		Set("entry_count", squirrel.Expr("MAX(0, entry_count - 1)")).
 		Set("total_disk_space_bytes", squirrel.Expr("MAX(0, total_disk_space_bytes - ?)", totalDeletedSize)).
-		Where(squirrel.Eq{"name": dbname}).
+		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
 	if err != nil {
 		return repo.DeletedEntryMeta{}, fmt.Errorf("failed to build stats update query: %w", err)
@@ -346,12 +346,12 @@ func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbname string, id in
 }
 
 // DeleteEntries removes multiple entries in a single transaction and updates the database statistics once.
-func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbname string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
 	if len(entryIDs) == 0 {
 		return nil, customerrors.ErrNotFound
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	// 1. Begin SQL Transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -406,7 +406,7 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbname string, ent
 	statsQuery, statsArgs, err := r.Builder.Update("databases").
 		Set("entry_count", squirrel.Expr("MAX(0, entry_count - ?)", deletedCount)).
 		Set("total_disk_space_bytes", squirrel.Expr("MAX(0, total_disk_space_bytes - ?)", totalDeletedSize)).
-		Where(squirrel.Eq{"name": dbname}).
+		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build stats bulk update query: %w", err)
@@ -425,8 +425,8 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbname string, ent
 }
 
 // SearchEntries retrieves entries matching complex nested filter criteria.
-func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbname string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbname)
+func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	builder := r.Builder.Select("*").From(tableName)
 
 	// 1. Build Filter Conditions securely

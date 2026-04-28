@@ -33,7 +33,7 @@ func (r PostgresRepository) CreateDatabase(ctx context.Context, db repo.Database
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetDatabase(ctx context.Context, name string) (repo.Database, error) {
+func (r PostgresRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
@@ -45,13 +45,13 @@ func (r PostgresRepository) UpdateDatabase(ctx context.Context, db repo.Database
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteDatabase(ctx context.Context, name string) error {
+func (r PostgresRepository) DeleteDatabase(ctx context.Context, dbID string) error {
 	// CONSIDERATION: Needs to DROP the dynamically created "entries_XYZ" table
 	// before or alongside deleting the row from the `databases` table.
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetDatabaseStats(ctx context.Context, name string) (repo.DatabaseStats, error) {
+func (r PostgresRepository) GetDatabaseStats(ctx context.Context, dbID string) (repo.DatabaseStats, error) {
 	return repo.DatabaseStats{}, customerrors.ErrNotImplemented
 }
 
@@ -59,7 +59,7 @@ func (r PostgresRepository) HouseKeepingRequired(ctx context.Context) ([]repo.Da
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbname string) (time.Time, error) {
+func (r PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) {
 	return time.Time{}, customerrors.ErrNotImplemented
 }
 
@@ -67,22 +67,22 @@ func (r PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbname st
 func (r PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, entry repo.Entry) (repo.Entry, error) {
 	// TRANSACTION REQUIRED:
 	// 1. Begin SQL Transaction.
-	// 2. Insert the new entry into the dynamic "entries_[dbname]" table. Set created_at and updated_at using the server time.
+	// 2. Insert the new entry into the dynamic "entries_[dbID]" table. Set created_at and updated_at using the server time.
 	// 3. Atomically update the parent database stats:
 	//    UPDATE databases SET entry_count = entry_count + 1, total_disk_space_bytes = total_disk_space_bytes + $1 WHERE name = $2;
 	// 4. Commit Transaction.
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntry(ctx context.Context, dbname string, id int64) (repo.Entry, error) {
+func (r PostgresRepository) GetEntry(ctx context.Context, dbID string, id int64) (repo.Entry, error) {
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntries(ctx context.Context, dbname string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
+func (r PostgresRepository) GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateEntry(ctx context.Context, dbname string, entry repo.Entry) (repo.Entry, error) {
+func (r PostgresRepository) UpdateEntry(ctx context.Context, dbID string, entry repo.Entry) (repo.Entry, error) {
 	// TRANSACTION REQUIRED:
 	// 1. Begin SQL Transaction.
 	// 2. Query the current size (filesize + previewsize) of the entry *before* updating.
@@ -95,28 +95,28 @@ func (r PostgresRepository) UpdateEntry(ctx context.Context, dbname string, entr
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbname string, entryIDs []int64, status uint8) error {
+func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error {
 	// CONSIDERATION: Use Postgres's `UPDATE ... WHERE id = ANY($1)` array binding for efficient bulk updates.
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteEntry(ctx context.Context, dbname string, id int64) (repo.DeletedEntryMeta, error) {
+func (r PostgresRepository) DeleteEntry(ctx context.Context, dbID string, id int64) (repo.DeletedEntryMeta, error) {
 	// TRANSACTION REQUIRED:
 	// 1. Begin SQL Transaction.
-	// 2. Delete the row from the dynamic "entries_[dbname]" table and retrieve its size (using RETURNING clause in Postgres).
+	// 2. Delete the row from the dynamic "entries_[dbID]" table and retrieve its size (using RETURNING clause in Postgres).
 	// 3. Atomically decrement the parent database stats:
 	//    UPDATE databases SET entry_count = entry_count - 1, total_disk_space_bytes = total_disk_space_bytes - $deletedSize WHERE name = $name;
 	// 4. Commit Transaction.
 	return repo.DeletedEntryMeta{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteEntries(ctx context.Context, dbname string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+func (r PostgresRepository) DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
 	// TRANSACTION REQUIRED:
 	// Similar to DeleteEntry, but sum the sizes of all deleted rows and decrement the database stats in one atomic operation to maintain performance.
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) SearchEntries(ctx context.Context, dbname string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
+func (r PostgresRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
 	// CONSIDERATION: You must whitelist the 'field' and 'operator' strings to prevent SQL injection.
 	// Ensure you use a query builder (like Squirrel) and double-quote the dynamic table name.
 	return nil, customerrors.ErrNotImplemented
@@ -157,7 +157,7 @@ func (r PostgresRepository) SetUserPermissions(ctx context.Context, permissions 
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID int64, dbname string) (repo.UserPermissions, error) {
+func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID int64, dbID string) (repo.UserPermissions, error) {
 	return repo.UserPermissions{}, customerrors.ErrNotImplemented
 }
 

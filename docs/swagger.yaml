@@ -57,6 +57,8 @@ definitions:
         type: array
       housekeeping:
         $ref: '#/definitions/databasehandler.DatabaseResponseHK'
+      id:
+        type: string
       name:
         type: string
       stats:
@@ -87,6 +89,8 @@ definitions:
         $ref: '#/definitions/databasehandler.ConfigPayload'
       housekeeping:
         $ref: '#/definitions/databasehandler.HousekeepingPayload'
+      name:
+        type: string
     type: object
   databasehandler.HousekeepingPayload:
     properties:
@@ -99,6 +103,8 @@ definitions:
     type: object
   databasehandler.HousekeepingResponse:
     properties:
+      database_id:
+        type: string
       database_name:
         type: string
       entries_deleted:
@@ -117,7 +123,7 @@ definitions:
     type: object
   entryhandler.BulkDeleteResponse:
     properties:
-      database_name:
+      database_id:
         type: string
       deleted_count:
         type: integer
@@ -133,7 +139,7 @@ definitions:
       custom_fields:
         additionalProperties: {}
         type: object
-      database_name:
+      database_id:
         type: string
       filename:
         type: string
@@ -175,7 +181,7 @@ definitions:
       custom_fields:
         additionalProperties: {}
         type: object
-      database_name:
+      database_id:
         type: string
       id:
         type: integer
@@ -312,7 +318,7 @@ definitions:
         type: boolean
       can_view:
         type: boolean
-      database_name:
+      database_id:
         type: string
     type: object
   userhandler.UpdateMePayload:
@@ -564,14 +570,14 @@ paths:
       summary: Create a new database
       tags:
       - database
-  /database/{dbname}:
+  /database/{database_id}:
     delete:
       description: Deletes a database, its entry table, and all of its associated
         entries and metadata.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       produces:
@@ -582,7 +588,7 @@ paths:
           schema:
             $ref: '#/definitions/utils.MessageResponse'
         "400":
-          description: Missing dbname path parameter or invalid name
+          description: Missing database_id path parameter
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "404":
@@ -602,9 +608,9 @@ paths:
       description: Retrieves details, custom fields, and statistics for a specific
         database.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       produces:
@@ -615,7 +621,7 @@ paths:
           schema:
             $ref: '#/definitions/databasehandler.DatabaseResponse'
         "400":
-          description: Missing dbname path parameter
+          description: Missing id path parameter
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "404":
@@ -634,14 +640,15 @@ paths:
     put:
       consumes:
       - application/json
-      description: Updates the housekeeping rules for a specific database.
+      description: Updates the mutable configuration fields for a specific database,
+        including its name.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
-      - description: Housekeeping Rules or Config flag
+      - description: Configuration and Housekeeping Rules
         in: body
         name: housekeeping
         required: true
@@ -655,7 +662,7 @@ paths:
           schema:
             $ref: '#/definitions/databasehandler.DatabaseResponse'
         "400":
-          description: Invalid request payload or missing dbname path parameter
+          description: Invalid request payload or missing id path parameter
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "404":
@@ -668,17 +675,17 @@ paths:
             $ref: '#/definitions/utils.ErrorResponse'
       security:
       - BasicAuth: []
-      summary: Update database housekeeping rules
+      summary: Update database housekeeping rules or rename
       tags:
       - database
-  /database/{dbname}/entries:
+  /database/{database_id}/entries:
     get:
       description: Retrieves a paginated list of entries from a specific database.
         Only supports time-based filters.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Number of entries to return (default 30)
@@ -713,7 +720,7 @@ paths:
               $ref: '#/definitions/entryhandler.EntryResponse'
             type: array
         "400":
-          description: Missing name param or invalid parameter formats
+          description: Missing id param or invalid parameter formats
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "401":
@@ -737,16 +744,16 @@ paths:
       summary: Get entries from a database (basic)
       tags:
       - database
-  /database/{dbname}/entries/delete:
+  /database/{database_id}/entries/delete:
     post:
       consumes:
       - application/json
       description: Deletes multiple entries in a single atomic transaction. Updates
         database statistics only once.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: JSON object containing a list of Entry IDs to delete
@@ -763,7 +770,7 @@ paths:
           schema:
             $ref: '#/definitions/entryhandler.BulkDeleteResponse'
         "400":
-          description: Invalid request, missing name, or empty IDs list
+          description: Invalid request, missing id, or empty IDs list
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "401":
@@ -787,16 +794,16 @@ paths:
       summary: Bulk delete entries
       tags:
       - database
-  /database/{dbname}/entries/export:
+  /database/{database_id}/entries/export:
     post:
       consumes:
       - application/json
       description: Streams a ZIP archive containing the files and metadata (CSV) for
         the specified entries using io.Pipe.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: List of Entry IDs to export
@@ -813,7 +820,7 @@ paths:
           schema:
             type: file
         "400":
-          description: Missing name query parameter or empty IDs list
+          description: Missing id query parameter or empty IDs list
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "401":
@@ -837,16 +844,16 @@ paths:
       summary: Export entries as ZIP
       tags:
       - database
-  /database/{dbname}/entries/search:
+  /database/{database_id}/entries/search:
     post:
       consumes:
       - application/json
       description: Retrieves a list of entry metadata matching the complex, nested
         filter criteria provided in the request body.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: JSON body defining filter, sort, and pagination logic
@@ -865,7 +872,7 @@ paths:
               $ref: '#/definitions/entryhandler.EntryResponse'
             type: array
         "400":
-          description: Missing name, invalid JSON, missing limit, or invalid filter/sort
+          description: Missing id, invalid JSON, missing limit, or invalid filter/sort
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "401":
@@ -889,7 +896,7 @@ paths:
       summary: Search for entries in a database (complex)
       tags:
       - database
-  /database/{dbname}/entry:
+  /database/{database_id}/entry:
     post:
       consumes:
       - multipart/form-data
@@ -901,9 +908,9 @@ paths:
         - **Small files (<= Configured Limit):** Processed synchronously. Returns `201 Created` with the full entry metadata.
         - **Large files (> Configured Limit):** Processed asynchronously. Returns `202 Accepted` with a partial response. The client should poll `GET /api/entry/meta` until the `status` field is 'ready'.
       parameters:
-      - description: Database Name
-        in: query
-        name: database_name
+      - description: Database ID
+        in: path
+        name: database_id
         required: true
         type: string
       - description: JSON metadata for the entry
@@ -948,13 +955,13 @@ paths:
       summary: Upload an entry
       tags:
       - entry
-  /database/{dbname}/entry/{id}:
+  /database/{database_id}/entry/{id}:
     delete:
       description: Deletes an entry file from disk and its metadata from the database.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Entry ID
@@ -997,9 +1004,9 @@ paths:
     get:
       description: Retrieves all metadata for a single entry, including custom fields.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Entry ID
@@ -1042,9 +1049,9 @@ paths:
       description: Updates an entry's mutable metadata, including custom fields, the
         'timestamp' and the 'filename'.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Entry ID
@@ -1091,14 +1098,14 @@ paths:
       summary: Update entry metadata
       tags:
       - entry
-  /database/{dbname}/entry/{id}/file:
+  /database/{database_id}/entry/{id}/file:
     get:
       description: Retrieves a raw entry file. Supports Content Negotiation (JSON
         vs Binary) and HTTP Range Requests (Streaming).
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Entry ID
@@ -1168,14 +1175,14 @@ paths:
       summary: Get an entry file
       tags:
       - entry
-  /database/{dbname}/entry/{id}/preview:
+  /database/{database_id}/entry/{id}/preview:
     get:
       description: Retrieves a 200x200 WebP preview of an entry. Supports Content
         Negotiation via Accept header.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       - description: Entry ID
@@ -1217,14 +1224,14 @@ paths:
       summary: Get an entry preview
       tags:
       - entry
-  /database/{dbname}/housekeeping:
+  /database/{database_id}/housekeeping:
     post:
       description: Manually triggers the housekeeping maintenance task for a specific
         database.
       parameters:
-      - description: Database Name
+      - description: Database ID
         in: path
-        name: dbname
+        name: database_id
         required: true
         type: string
       produces:
@@ -1235,7 +1242,7 @@ paths:
           schema:
             $ref: '#/definitions/databasehandler.HousekeepingResponse'
         "400":
-          description: Missing dbname path parameter
+          description: Missing database_id path parameter
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "401":

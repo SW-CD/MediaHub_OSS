@@ -47,20 +47,20 @@ func DeleteSafe(ctx context.Context, repo repository.Repository, storage storage
 // Returns
 // - entry data of deleted files
 // - error if any
-func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbName string, ids []int64) ([]repository.DeletedEntryMeta, error) {
+func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbID string, ids []int64) ([]repository.DeletedEntryMeta, error) {
 
 	// PHASE 1: LOCK
 	// Mark as "Deleting" so they disappear from normal API usage
-	if err := repo.UpdateEntriesStatus(ctx, dbName, ids, repository.EntryStatusDeleting); err != nil {
+	if err := repo.UpdateEntriesStatus(ctx, dbID, ids, repository.EntryStatusDeleting); err != nil {
 		return make([]repository.DeletedEntryMeta, 0), err // Abort early; database untouched, files untouched!
 	}
 
 	// PHASE 2: STORAGE DELETION
-	delResult, err := storage.DeleteMultiple(ctx, dbName, ids)
+	delResult, err := storage.DeleteMultiple(ctx, dbID, ids)
 
 	// We only try to delete previews for the files where the main file deletion succeeded
 	if len(delResult.Success) > 0 {
-		_, _ = storage.DeleteMultiplePreviews(ctx, dbName, delResult.Success)
+		_, _ = storage.DeleteMultiplePreviews(ctx, dbID, delResult.Success)
 	}
 
 	// PHASE 3: COMMIT OR ROLLBACK
@@ -69,13 +69,13 @@ func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage
 
 	// Commit: Hard delete the records that were successfully wiped from disk
 	if len(delResult.Success) > 0 {
-		deletedMeta, newerr = repo.DeleteEntries(ctx, dbName, delResult.Success)
+		deletedMeta, newerr = repo.DeleteEntries(ctx, dbID, delResult.Success)
 		err = errors.Join(err, newerr)
 	}
 
 	// Rollback: Revert stuck files to Error status so admins can investigate
 	if len(delResult.Failed) > 0 {
-		_ = repo.UpdateEntriesStatus(ctx, dbName, delResult.Failed, repository.EntryStatusError)
+		_ = repo.UpdateEntriesStatus(ctx, dbID, delResult.Failed, repository.EntryStatusError)
 	}
 
 	return deletedMeta, err

@@ -318,7 +318,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}": {
+        "/database/{database_id}": {
             "get": {
                 "security": [
                     {
@@ -336,8 +336,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     }
@@ -350,7 +350,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing dbname path parameter",
+                        "description": "Missing id path parameter",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -375,7 +375,7 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Updates the housekeeping rules for a specific database.",
+                "description": "Updates the mutable configuration fields for a specific database, including its name.",
                 "consumes": [
                     "application/json"
                 ],
@@ -385,17 +385,17 @@ const docTemplate = `{
                 "tags": [
                     "database"
                 ],
-                "summary": "Update database housekeeping rules",
+                "summary": "Update database housekeeping rules or rename",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Housekeeping Rules or Config flag",
+                        "description": "Configuration and Housekeeping Rules",
                         "name": "housekeeping",
                         "in": "body",
                         "required": true,
@@ -412,7 +412,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request payload or missing dbname path parameter",
+                        "description": "Invalid request payload or missing id path parameter",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -448,8 +448,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     }
@@ -462,7 +462,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing dbname path parameter or invalid name",
+                        "description": "Missing database_id path parameter",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -482,7 +482,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entries": {
+        "/database/{database_id}/entries": {
             "get": {
                 "security": [
                     {
@@ -500,8 +500,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -549,7 +549,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing name param or invalid parameter formats",
+                        "description": "Missing id param or invalid parameter formats",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -581,7 +581,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entries/delete": {
+        "/database/{database_id}/entries/delete": {
             "post": {
                 "security": [
                     {
@@ -602,8 +602,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -625,7 +625,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request, missing name, or empty IDs list",
+                        "description": "Invalid request, missing id, or empty IDs list",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -657,7 +657,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entries/export": {
+        "/database/{database_id}/entries/export": {
             "post": {
                 "security": [
                     {
@@ -678,8 +678,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -701,7 +701,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing name query parameter or empty IDs list",
+                        "description": "Missing id query parameter or empty IDs list",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -733,7 +733,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entries/search": {
+        "/database/{database_id}/entries/search": {
             "post": {
                 "security": [
                     {
@@ -754,8 +754,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -780,7 +780,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing name, invalid JSON, missing limit, or invalid filter/sort",
+                        "description": "Missing id, invalid JSON, missing limit, or invalid filter/sort",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -812,7 +812,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entry": {
+        "/database/{database_id}/entry": {
             "post": {
                 "security": [
                     {
@@ -833,9 +833,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "database_name",
-                        "in": "query",
+                        "description": "Database ID",
+                        "name": "database_id",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -893,7 +893,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entry/{id}": {
+        "/database/{database_id}/entry/{id}": {
             "get": {
                 "security": [
                     {
@@ -911,8 +911,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -975,8 +975,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -1047,8 +1047,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -1110,7 +1110,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entry/{id}/file": {
+        "/database/{database_id}/entry/{id}/file": {
             "get": {
                 "security": [
                     {
@@ -1132,8 +1132,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -1226,7 +1226,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/entry/{id}/preview": {
+        "/database/{database_id}/entry/{id}/preview": {
             "get": {
                 "security": [
                     {
@@ -1245,8 +1245,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     },
@@ -1299,7 +1299,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/database/{dbname}/housekeeping": {
+        "/database/{database_id}/housekeeping": {
             "post": {
                 "security": [
                     {
@@ -1317,8 +1317,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Database Name",
-                        "name": "dbname",
+                        "description": "Database ID",
+                        "name": "database_id",
                         "in": "path",
                         "required": true
                     }
@@ -1331,7 +1331,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing dbname path parameter",
+                        "description": "Missing database_id path parameter",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -1867,6 +1867,9 @@ const docTemplate = `{
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.DatabaseResponseHK"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1911,6 +1914,9 @@ const docTemplate = `{
                 },
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.HousekeepingPayload"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -1931,6 +1937,9 @@ const docTemplate = `{
         "databasehandler.HousekeepingResponse": {
             "type": "object",
             "properties": {
+                "database_id": {
+                    "type": "string"
+                },
                 "database_name": {
                     "type": "string"
                 },
@@ -1959,7 +1968,7 @@ const docTemplate = `{
         "entryhandler.BulkDeleteResponse": {
             "type": "object",
             "properties": {
-                "database_name": {
+                "database_id": {
                     "type": "string"
                 },
                 "deleted_count": {
@@ -1983,7 +1992,7 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": {}
                 },
-                "database_name": {
+                "database_id": {
                     "type": "string"
                 },
                 "filename": {
@@ -2046,7 +2055,7 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": {}
                 },
-                "database_name": {
+                "database_id": {
                     "type": "string"
                 },
                 "id": {
@@ -2255,7 +2264,7 @@ const docTemplate = `{
                 "can_view": {
                     "type": "boolean"
                 },
-                "database_name": {
+                "database_id": {
                     "type": "string"
                 }
             }

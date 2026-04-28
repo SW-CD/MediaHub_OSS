@@ -15,7 +15,7 @@ func (dbc DatabaseCreatePayload) toModel() repository.Database {
 		customFields[i] = cf.toModel()
 	}
 
-	// create return object
+	// create return object (ID will be generated automatically by the repository)
 	return repository.Database{
 		Name:        dbc.Name,
 		ContentType: dbc.ContentType,
@@ -101,6 +101,7 @@ func mapToDatabaseResponse(db repository.Database) DatabaseResponse {
 
 	// create return object
 	return DatabaseResponse{
+		ID:          db.ID,
 		Name:        db.Name,
 		ContentType: db.ContentType,
 		Config: ConfigPayload{

@@ -30,6 +30,7 @@ type DatabaseCustomField struct {
 
 // DatabaseUpdatePayload defines the required JSON payload for PUT /api/database.
 type DatabaseUpdatePayload struct {
+	Name         string              `json:"name"`
 	Config       ConfigPayload       `json:"config"`
 	Housekeeping HousekeepingPayload `json:"housekeeping"`
 }
@@ -50,6 +51,7 @@ type HousekeepingPayload struct {
 
 // HousekeepingResponse defines the JSON payload returned after triggering housekeeping.
 type HousekeepingResponse struct {
+	DatabaseID      string `json:"database_id"`
 	DatabaseName    string `json:"database_name"`
 	EntriesDeleted  int    `json:"entries_deleted"`
 	SpaceFreedBytes uint64 `json:"space_freed_bytes"`
@@ -58,6 +60,7 @@ type HousekeepingResponse struct {
 
 // DatabaseResponse defines the JSON structure for outbound database data.
 type DatabaseResponse struct {
+	ID           string                `json:"id"`
 	Name         string                `json:"name"`
 	ContentType  string                `json:"content_type"`
 	Config       ConfigPayload         `json:"config"`

@@ -16,13 +16,13 @@ import (
 // @Description Retrieves details, custom fields, and statistics for a specific database.
 // @Tags database
 // @Produce  json
-// @Param    dbname  path  string  true  "Database Name"
+// @Param    database_id  path  string  true  "Database ID"
 // @Success 200 {object} DatabaseResponse
-// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter"
+// @Failure 400 {object} utils.ErrorResponse "Missing id path parameter"
 // @Failure 404 {object} utils.ErrorResponse "Database not found"
 // @Failure 500 {object} utils.ErrorResponse "Failed to calculate stats"
 // @Security BasicAuth
-// @Router /database/{dbname} [get]
+// @Router /database/{database_id} [get]
 func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
 	var ctx = r.Context()
 
@@ -32,19 +32,19 @@ func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbname := r.PathValue("dbname")
-	if dbname == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+	id := r.PathValue("database_id")
+	if id == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: database_id")
 		return
 	}
 
-	db, err := h.Repo.GetDatabase(ctx, dbname)
+	db, err := h.Repo.GetDatabase(ctx, id)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return
 	}
 
-	h.Auditor.Log(ctx, "database.get", user.Username, dbname, nil)
+	h.Auditor.Log(ctx, "database.get", user.Username, id, map[string]any{"name": db.Name})
 
 	dbResp := mapToDatabaseResponse(db)
 	utils.RespondWithJSON(w, http.StatusOK, dbResp)
@@ -84,19 +84,19 @@ func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Build an O(1) lookup map of databases the user is allowed to see
+		// Build an O(1) lookup map of databases the user is allowed to see using the ULID
 		allowedDBs := make(map[string]bool)
 		for _, perm := range permissions {
 			// Check if the user has a non-empty Roles string
 			if len(perm.Roles) > 0 {
-				allowedDBs[perm.Database] = true
+				allowedDBs[perm.DatabaseID] = true
 			}
 		}
 
 		// Filter the original database list into a new slice
 		var filteredDBs []repository.Database
 		for _, db := range dbs {
-			if allowedDBs[db.Name] {
+			if allowedDBs[db.ID] {
 				filteredDBs = append(filteredDBs, db)
 			}
 		}
@@ -174,7 +174,8 @@ func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Audit Log
-	h.Auditor.Log(ctx, "database.create", user.Username, createdDB.Name, map[string]any{
+	h.Auditor.Log(ctx, "database.create", user.Username, createdDB.ID, map[string]any{
+		"name":         createdDB.Name,
 		"content_type": createdDB.ContentType,
 	})
 
@@ -182,31 +183,31 @@ func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request)
 	utils.RespondWithJSON(w, http.StatusCreated, resp)
 }
 
-// @Summary Update database housekeeping rules
-// @Description Updates the housekeeping rules for a specific database.
+// @Summary Update database housekeeping rules or rename
+// @Description Updates the mutable configuration fields for a specific database, including its name.
 // @Tags database
 // @Accept   json
 // @Produce  json
-// @Param    dbname  path  string  true  "Database Name"
-// @Param    housekeeping  body  DatabaseUpdatePayload  true  "Housekeeping Rules or Config flag"
+// @Param    database_id  path  string  true  "Database ID"
+// @Param    housekeeping  body  DatabaseUpdatePayload  true  "Configuration and Housekeeping Rules"
 // @Success 200 {object} DatabaseResponse
-// @Failure 400 {object} utils.ErrorResponse "Invalid request payload or missing dbname path parameter"
+// @Failure 400 {object} utils.ErrorResponse "Invalid request payload or missing id path parameter"
 // @Failure 404 {object} utils.ErrorResponse "Database not found"
 // @Failure 500 {object} utils.ErrorResponse "Failed to update database"
 // @Security BasicAuth
-// @Router /database/{dbname} [put]
+// @Router /database/{database_id} [put]
 func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request) {
 
 	var ctx = r.Context()
 
 	// Parse request
-	dbname := r.PathValue("dbname")
-	if dbname == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+	id := r.PathValue("database_id")
+	if id == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: id")
 		return
 	}
 
-	db, err := h.Repo.GetDatabase(ctx, dbname)
+	db, err := h.Repo.GetDatabase(ctx, id)
 	if errors.Is(err, customerrors.ErrNotFound) {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return
@@ -228,20 +229,25 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// update database
-	newconfig := updates.getConfig()
-	newhk := updates.getHK(db.Housekeeping.LastHkRun)
-	db.Config = newconfig
-	db.Housekeeping = newhk
+	// update database (Apply new name if provided)
+	if updates.Name != "" {
+		db.Name = updates.Name
+	}
+	db.Config = updates.getConfig()
+	db.Housekeeping = updates.getHK(db.Housekeeping.LastHkRun)
 
 	updatedDB, err := h.Repo.UpdateDatabase(ctx, db)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error updating database: %v", err))
+		if errors.Is(err, customerrors.ErrDatabaseExists) {
+			utils.RespondWithError(w, http.StatusConflict, "Database name already in use.")
+		} else {
+			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error updating database: %v", err))
+		}
 		return
 	}
 
 	// Audit Log
-	h.Auditor.Log(ctx, "database.update", user.Username, dbname, nil)
+	h.Auditor.Log(ctx, "database.update", user.Username, updatedDB.ID, nil)
 
 	resp := mapToDatabaseResponse(updatedDB)
 	utils.RespondWithJSON(w, http.StatusOK, resp)
@@ -251,19 +257,19 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 // @Description Deletes a database, its entry table, and all of its associated entries and metadata.
 // @Tags database
 // @Produce  json
-// @Param    dbname  path  string  true  "Database Name"
+// @Param    database_id  path  string  true  "Database ID"
 // @Success 200 {object} utils.MessageResponse "Success message"
-// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter or invalid name"
+// @Failure 400 {object} utils.ErrorResponse "Missing database_id path parameter"
 // @Failure 404 {object} utils.ErrorResponse "Database not found"
 // @Failure 500 {object} utils.ErrorResponse "Failed to delete database record or folder"
 // @Security BasicAuth
-// @Router /database/{dbname} [delete]
+// @Router /database/{database_id} [delete]
 func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request) {
 	var ctx = r.Context()
 
-	dbname := r.PathValue("dbname")
-	if dbname == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: dbname")
+	id := r.PathValue("database_id")
+	if id == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: id")
 		return
 	}
 
@@ -273,7 +279,7 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.Repo.DeleteDatabase(ctx, dbname); err != nil {
+	if err := h.Repo.DeleteDatabase(ctx, id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		} else if strings.Contains(err.Error(), "invalid database name") {
@@ -286,11 +292,11 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Audit Log
-	h.Auditor.Log(ctx, "database.delete", user.Username, dbname, nil)
+	h.Auditor.Log(ctx, "database.delete", user.Username, id, nil)
 
-	h.Logger.Info("Database deleted successfully.", "database", dbname)
+	h.Logger.Info("Database deleted successfully.", "database_id", id)
 	utils.RespondWithJSON(w, http.StatusOK, utils.MessageResponse{
-		Message: "Database '" + dbname + "' and all its contents were successfully deleted.",
+		Message: "Database '" + id + "' and all its contents were successfully deleted.",
 	})
 }
 
@@ -298,16 +304,16 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 // @Description Manually triggers the housekeeping maintenance task for a specific database.
 // @Tags database
 // @Produce json
-// @Param    dbname path string true "Database Name"
+// @Param    database_id path string true "Database ID"
 // @Success 200 {object} HousekeepingResponse "Returns a report of actions taken."
-// @Failure 400 {object} utils.ErrorResponse "Missing dbname path parameter"
+// @Failure 400 {object} utils.ErrorResponse "Missing database_id path parameter"
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Failure 403 {object} utils.ErrorResponse "Forbidden (Requires CanDelete role)"
 // @Failure 404 {object} utils.ErrorResponse "Database not found"
 // @Failure 409 {object} utils.ErrorResponse "Lock not acquired"
 // @Failure 500 {object} utils.ErrorResponse "Internal server error"
 // @Security BasicAuth
-// @Router /database/{dbname}/housekeeping [post]
+// @Router /database/{database_id}/housekeeping [post]
 func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -318,15 +324,15 @@ func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// 2. Extract database name from path
-	dbName := r.PathValue("dbname")
-	if dbName == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required parameter: dbname")
+	// 2. Extract database ID from path
+	id := r.PathValue("database_id")
+	if id == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required parameter: id")
 		return
 	}
 
 	// 3. Verify the database exists
-	db, err := h.Repo.GetDatabase(ctx, dbName)
+	db, err := h.Repo.GetDatabase(ctx, id)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found")
 		return
@@ -335,25 +341,27 @@ func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Req
 	// 4. Execute Housekeeping Logic
 	deletedCount, spaceFreed, err := h.HouseKeeper.RunDBHousekeeping(ctx, db)
 	if errors.Is(err, customerrors.ErrLockNotAcquired) {
-		h.Logger.Error("Skipping housekeeping", "error", err, "database", dbName)
+		h.Logger.Error("Skipping housekeeping", "error", err, "database_id", db.ID, "database_name", db.Name)
 		utils.RespondWithError(w, http.StatusConflict, "Lock not acquired")
 		return
 	}
 	if err != nil {
-		h.Logger.Error("Manual housekeeping failed", "error", err, "database", dbName)
+		h.Logger.Error("Manual housekeeping failed", "error", err, "database_id", db.ID, "database_name", db.Name)
 		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Housekeeping task failed. Error: %v", err))
 		return
 	}
 
 	// 5. Audit Log the manual trigger
-	h.Auditor.Log(ctx, "database.housekeeping", user.Username, dbName, map[string]any{
+	h.Auditor.Log(ctx, "database.housekeeping", user.Username, id, map[string]any{
+		"name":            db.Name,
 		"entries_deleted": deletedCount,
 		"space_freed":     spaceFreed,
 	})
 
 	// 6. Respond with the summary
 	resp := HousekeepingResponse{
-		DatabaseName:    dbName,
+		DatabaseID:      id,
+		DatabaseName:    db.Name,
 		EntriesDeleted:  deletedCount,
 		SpaceFreedBytes: spaceFreed,
 		Message:         fmt.Sprintf("Housekeeping complete. %d entries deleted due to age or disk space limits.", deletedCount),

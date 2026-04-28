@@ -13,12 +13,12 @@ import (
 
 // getFilePath generates a highly optimized, immutable path based purely on the ID.
 // Files are sharded into buckets of 1000 files each to ensure maximum filesystem index performance.
-func getFilePath(rootPath string, dbname string, id int64) string {
+func getFilePath(rootPath string, dbID string, id int64) string {
 	// e.g., ID 10232 -> bucket "10"
 	bucketDir := fmt.Sprintf("%d", id/1000)
 	fileName := fmt.Sprintf("%d", id)
 
-	return filepath.Join(rootPath, dbname, bucketDir, fileName)
+	return filepath.Join(rootPath, dbID, bucketDir, fileName)
 }
 
 // removeFile safely deletes a file, ignoring "file not found" errors for idempotency.
@@ -77,13 +77,13 @@ func getFileStats(filepath string) (storage.FileInfo, error) {
 // - slice of ids that were deleted
 // - slice of ids where the delete failed
 // - slice of errors indicating why the delete failed
-func deleteMultiple(rootPath string, dbname string, ids []int64) ([]int64, []int64, []error) {
+func deleteMultiple(rootPath string, dbID string, ids []int64) ([]int64, []int64, []error) {
 	var deletedIDs []int64
 	var failedIDs []int64
 	var errs []error
 
 	for _, id := range ids {
-		fullPath := getFilePath(rootPath, dbname, id)
+		fullPath := getFilePath(rootPath, dbID, id)
 		if err := removeFile(fullPath); err != nil {
 			failedIDs = append(failedIDs, id)
 			errs = append(errs, err)

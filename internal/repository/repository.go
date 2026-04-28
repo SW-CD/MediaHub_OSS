@@ -21,26 +21,26 @@ type Repository interface {
 
 	// Database
 	CreateDatabase(ctx context.Context, db Database) (Database, error)
-	GetDatabase(ctx context.Context, name string) (Database, error)
+	GetDatabase(ctx context.Context, dbID string) (Database, error)
 	GetDatabases(ctx context.Context) ([]Database, error)
 	UpdateDatabase(ctx context.Context, db Database) (Database, error)
-	DeleteDatabase(ctx context.Context, name string) error
-	GetDatabaseStats(ctx context.Context, name string) (DatabaseStats, error)
+	DeleteDatabase(ctx context.Context, dbID string) error
+	GetDatabaseStats(ctx context.Context, dbID string) (DatabaseStats, error)
 
 	// Housekeeping
-	HouseKeepingRequired(ctx context.Context) ([]Database, error)                // return all databases where the last housekeeping run was longer ago than the provided interval
-	HouseKeepingWasCalled(ctx context.Context, dbname string) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
+	HouseKeepingRequired(ctx context.Context) ([]Database, error)              // return all databases where the last housekeeping run was longer ago than the provided interval
+	HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
 
 	// Entry
 	// Deleting or creating entries will also update the database statistics
 	CreateEntry(ctx context.Context, db Database, entry Entry) (Entry, error)
-	GetEntry(ctx context.Context, dbname string, id int64) (Entry, error)
-	GetEntries(ctx context.Context, dbname string, limit, offset int, order string, tstart, tend time.Time) ([]Entry, error)
-	UpdateEntry(ctx context.Context, dbname string, entry Entry) (Entry, error)
-	UpdateEntriesStatus(ctx context.Context, dbname string, entryIDs []int64, status uint8) error
-	DeleteEntry(ctx context.Context, dbname string, id int64) (DeletedEntryMeta, error)
-	DeleteEntries(ctx context.Context, dbname string, entryIDs []int64) ([]DeletedEntryMeta, error)
-	SearchEntries(ctx context.Context, dbname string, req SearchRequest, customFields []CustomField) ([]Entry, error)
+	GetEntry(ctx context.Context, dbID string, id int64) (Entry, error)
+	GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]Entry, error)
+	UpdateEntry(ctx context.Context, dbID string, entry Entry) (Entry, error)
+	UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error
+	DeleteEntry(ctx context.Context, dbID string, id int64) (DeletedEntryMeta, error)
+	DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]DeletedEntryMeta, error)
+	SearchEntries(ctx context.Context, dbID string, req SearchRequest, customFields []CustomField) ([]Entry, error)
 
 	// User
 	CreateUser(ctx context.Context, user User) (User, error)
@@ -51,7 +51,7 @@ type Repository interface {
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	SetUserPermissions(ctx context.Context, permissions UserPermissions) error // create or update or delete (in case of empty Roles)
-	GetUserPermissions(ctx context.Context, userID int64, dbname string) (UserPermissions, error)
+	GetUserPermissions(ctx context.Context, userID int64, dbID string) (UserPermissions, error)
 	GetAllUserPermissions(ctx context.Context, userID int64) ([]UserPermissions, error)
 
 	// Token

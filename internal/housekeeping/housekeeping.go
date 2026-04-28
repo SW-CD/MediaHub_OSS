@@ -111,15 +111,15 @@ func (s *HouseKeeper) runDBTasks(ctx context.Context) {
 	}
 
 	for _, db := range reqDbs {
-		s.Logger.Debug("Triggering scheduled housekeeping", "database", db.Name)
+		s.Logger.Debug("Triggering scheduled housekeeping", "database_id", db.ID, "database_name", db.Name)
 
 		// Run synchronously to avoid spiking CPU/Disk I/O with concurrent sweeps
 		_, _, err := s.RunDBHousekeeping(ctx, db)
 		if err != nil {
 			if errors.Is(err, customerrors.ErrLockNotAcquired) {
-				s.Logger.Debug("Skipping scheduled housekeeping; locked by another instance", "database", db.Name)
+				s.Logger.Debug("Skipping scheduled housekeeping; locked by another instance", "database_id", db.ID, "database_name", db.Name)
 			} else {
-				s.Logger.Error("Scheduled housekeeping failed", "database", db.Name, "error", err)
+				s.Logger.Error("Scheduled housekeeping failed", "database_id", db.ID, "database_name", db.Name, "error", err)
 			}
 		}
 	}
@@ -128,7 +128,7 @@ func (s *HouseKeeper) runDBTasks(ctx context.Context) {
 // RunDBHousekeeping executes the cleanup logic for a single database.
 // This can be called by the scheduler or manually via the API.
 func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Database) (int, uint64, error) {
-	var lockName = "hk_" + db.Name
+	var lockName = "hk_" + db.ID
 	var totalDeleted int = 0
 	var totalFreed uint64 = 0
 	var err error
@@ -165,9 +165,9 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 		for {
 			// We process in batches of 100 to prevent memory spikes.
-			entries, err := s.Repo.GetEntries(ctx, db.Name, 100, 0, "asc", time.Time{}, cutoff)
+			entries, err := s.Repo.GetEntries(ctx, db.ID, 100, 0, "asc", time.Time{}, cutoff)
 			if err != nil {
-				s.Logger.Error("Housekeeper failed to fetch entries for MaxAge", "error", err, "database", db.Name)
+				s.Logger.Error("Housekeeper failed to fetch entries for MaxAge", "error", err, "database_id", db.ID, "database_name", db.Name)
 				break
 			}
 
@@ -176,12 +176,12 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 				break
 			}
 
-			delCount, freed, err := s.deleteEntriesBatch(ctx, db.Name, entries)
+			delCount, freed, err := s.deleteEntriesBatch(ctx, db.ID, entries)
 			totalDeleted += delCount
 			totalFreed += freed
 
 			if err != nil {
-				s.Logger.Error("Housekeeper failed during MaxAge batch deletion", "error", err, "database", db.Name)
+				s.Logger.Error("Housekeeper failed during MaxAge batch deletion", "error", err, "database_id", db.ID, "database_name", db.Name)
 				break
 			}
 		}
@@ -195,7 +195,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 		for currentSpace > limit {
 			// Fetch the absolute oldest entries in the DB, regardless of age
-			entries, err := s.Repo.GetEntries(ctx, db.Name, 100, 0, "asc", time.Time{}, time.Time{})
+			entries, err := s.Repo.GetEntries(ctx, db.ID, 100, 0, "asc", time.Time{}, time.Time{})
 			if err != nil || len(entries) == 0 {
 				break // Cannot fetch or no entries left
 			}
@@ -214,13 +214,13 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 				}
 			}
 
-			delCount, freed, err := s.deleteEntriesBatch(ctx, db.Name, entries[:slideEnd])
+			delCount, freed, err := s.deleteEntriesBatch(ctx, db.ID, entries[:slideEnd])
 			totalDeleted += delCount
 			totalFreed += freed
 			currentSpace -= freed // Update our running total to know when to stop
 
 			if err != nil {
-				s.Logger.Error("Housekeeper failed during DiskSpace batch deletion", "error", err, "database", db.Name)
+				s.Logger.Error("Housekeeper failed during DiskSpace batch deletion", "error", err, "database_id", db.ID, "database_name", db.Name)
 				break
 			}
 		}
@@ -229,10 +229,10 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 	// Update LastHkRun utilizing the new atomic database method to prevent stat overwrites
 	_, err = s.Repo.HouseKeepingWasCalled(ctx, db.Name)
 	if err != nil {
-		s.Logger.Error("Housekeeper failed to update LastHkRun", "error", err, "database", db.Name)
+		s.Logger.Error("Housekeeper failed to update LastHkRun", "error", err, "database_id", db.ID, "database_name", db.Name)
 	}
 
-	s.Logger.Info("Housekeeping completed", "database", db.Name, "deleted", totalDeleted, "freed_bytes", totalFreed)
+	s.Logger.Info("Housekeeping completed", "database_id", db.ID, "database_name", db.Name, "deleted", totalDeleted, "freed_bytes", totalFreed)
 	return totalDeleted, totalFreed, nil
 }
 
@@ -241,7 +241,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 // - number of files deleted
 // - disk space that was freed
 // - error if any
-func (s *HouseKeeper) deleteEntriesBatch(ctx context.Context, dbName string, entries []repository.Entry) (int, uint64, error) {
+func (s *HouseKeeper) deleteEntriesBatch(ctx context.Context, dbID string, entries []repository.Entry) (int, uint64, error) {
 	if len(entries) == 0 {
 		return 0, 0, nil
 	}
@@ -253,7 +253,7 @@ func (s *HouseKeeper) deleteEntriesBatch(ctx context.Context, dbName string, ent
 	}
 
 	// 2. Delete the files and entries
-	deletedMeta, err := shared.DeleteMultipleSafe(ctx, s.Repo, s.Storage, dbName, ids)
+	deletedMeta, err := shared.DeleteMultipleSafe(ctx, s.Repo, s.Storage, dbID, ids)
 
 	// 3. Calculate disk space freed
 	var freed uint64 = 0

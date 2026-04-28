@@ -44,9 +44,9 @@ type UserResponse struct {
 
 // DatabasePermission defines the boolean flags for a user's rights on a specific database.
 type DatabasePermission struct {
-	DatabaseName string `json:"database_name"`
-	CanView      bool   `json:"can_view"`
-	CanCreate    bool   `json:"can_create"`
-	CanEdit      bool   `json:"can_edit"`
-	CanDelete    bool   `json:"can_delete"`
+	DatabaseID string `json:"database_id"`
+	CanView    bool   `json:"can_view"`
+	CanCreate  bool   `json:"can_create"`
+	CanEdit    bool   `json:"can_edit"`
+	CanDelete  bool   `json:"can_delete"`
 }

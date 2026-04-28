@@ -77,12 +77,12 @@ func (h *EntryHandler) createPreliminaryEntry(ctx context.Context, db repo.Datab
 }
 
 // Helper to map DB Entry to API Response
-func mapToEntryResponse(dbName string, entry repo.Entry) EntryResponse {
+func mapToEntryResponse(db_id string, entry repo.Entry) EntryResponse {
 	statusStr := repo.GetEntryStatusString(entry.Status)
 
 	return EntryResponse{
-		DBName:       dbName,
-		ID:           entry.ID,
+		DatabaseID:   db_id,
+		EntryID:      entry.ID,
 		FileName:     entry.FileName,
 		Size:         entry.Size,
 		PreviewSize:  entry.PreviewSize,

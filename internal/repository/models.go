@@ -5,6 +5,7 @@ import (
 )
 
 type Database struct {
+	ID           string // ULID
 	Name         string
 	ContentType  string
 	Config       DatabaseConfig
@@ -58,9 +59,9 @@ type User struct {
 
 // defines a role that a user has in a specific database (CanView, CanCreate, CanEdit, CanDelete)
 type UserPermissions struct {
-	UserID   int64
-	Database string
-	Roles    string // a comma separated list of roles, e.g., "CanView,CanEdit"
+	UserID     int64
+	DatabaseID string
+	Roles      string // a comma separated list of roles, e.g., "CanView,CanEdit"
 }
 
 // Pagination controls the subset of results returned.

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 	"strings"
 
@@ -23,17 +24,22 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 		return repo.Database{}, fmt.Errorf("%w: database name contains invalid characters", customerrors.ErrInvalidName)
 	}
 
+	// Generate ULID if not provided by the handler
+	if db.ID == "" {
+		db.ID = shared.GenerateULID()
+	}
+
 	var hkLastRunMs int64 = 0
 	if !db.Housekeeping.LastHkRun.IsZero() {
 		hkLastRunMs = db.Housekeeping.LastHkRun.UnixMilli()
 	}
 
-	// 1. Generate the dynamic schema and index queries
-	createTableSQL, err := r.buildDynamicTableSchema(db.Name, db.ContentType, db.CustomFields)
+	// 1. Generate the dynamic schema and index queries using the ID instead of Name
+	createTableSQL, err := r.buildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
-	indexSQLs := buildIndexesSQL(db.Name, db.CustomFields)
+	indexSQLs := buildIndexesSQL(db.ID, db.CustomFields)
 
 	customFieldsJSON, err := json.Marshal(db.CustomFields)
 	if err != nil {
@@ -49,8 +55,9 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 	// Insert metadata into the main databases table
 	query, args, err := r.Builder.Insert("databases").
-		Columns("name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run").
+		Columns("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run").
 		Values(
+			db.ID,
 			db.Name,
 			db.ContentType,
 			db.Housekeeping.Interval.Milliseconds(), // Converted to ms
@@ -67,7 +74,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	}
 
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-		// SQLite error 19 is UNIQUE constraint failed, meaning database already exists
+		// SQLite error 19 is UNIQUE constraint failed, meaning database name already exists
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return repo.Database{}, customerrors.ErrDatabaseExists
 		}
@@ -93,11 +100,11 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	return db, nil
 }
 
-// GetDatabase retrieves a single database configuration by its name.
-func (r *SQLiteRepository) GetDatabase(ctx context.Context, name string) (repo.Database, error) {
-	query, args, err := r.Builder.Select("name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+// GetDatabase retrieves a single database configuration by its ULID.
+func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
-		Where(squirrel.Eq{"name": name}).
+		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("failed to build select query: %w", err)
@@ -109,7 +116,7 @@ func (r *SQLiteRepository) GetDatabase(ctx context.Context, name string) (repo.D
 
 // GetDatabases retrieves all available database configurations.
 func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, error) {
-	query, args, err := r.Builder.Select("name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		ToSql()
 	if err != nil {
@@ -138,7 +145,7 @@ func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, e
 	return databases, nil
 }
 
-// UpdateDatabase updates the mutable configuration fields of a database. (everything but name, content_type)
+// UpdateDatabase updates the mutable configuration fields of a database, including its name.
 func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database) (repo.Database, error) {
 
 	var hkLastRunMs int64 = 0
@@ -147,6 +154,7 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 	}
 
 	query, args, err := r.Builder.Update("databases").
+		Set("name", db.Name).                                        // We can now safely update the name!
 		Set("hk_interval", db.Housekeeping.Interval.Milliseconds()). // Converted to ms
 		Set("hk_disk_space", db.Housekeeping.DiskSpace).
 		Set("hk_max_age", db.Housekeeping.MaxAge.Milliseconds()). // Converted to ms
@@ -155,7 +163,7 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 		Set("auto_conversion", db.Config.AutoConversion).
 		Set("entry_count", db.Stats.EntryCount).
 		Set("total_disk_space_bytes", db.Stats.TotalDiskSpaceBytes).
-		Where(squirrel.Eq{"name": db.Name}).
+		Where(squirrel.Eq{"id": db.ID}).
 		ToSql()
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("failed to build update query: %w", err)
@@ -171,25 +179,25 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 		return repo.Database{}, customerrors.ErrNotFound
 	}
 
-	return r.GetDatabase(ctx, db.Name)
+	return r.GetDatabase(ctx, db.ID)
 }
 
 // DeleteDatabase permanently removes a database, its entries table, and cascades to permissions.
-func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, name string) error {
+func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID string) error {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Drop the dynamic entry table
-	dropTableSQL := fmt.Sprintf(`DROP TABLE IF EXISTS "entries_%s"`, name)
+	// Drop the dynamic entry table using the ULID
+	dropTableSQL := fmt.Sprintf(`DROP TABLE IF EXISTS "entries_%s"`, dbID)
 	if _, err := tx.ExecContext(ctx, dropTableSQL); err != nil {
 		return fmt.Errorf("failed to drop dynamic table: %w", err)
 	}
 
 	// Delete from the main metadata table (permissions cascade automatically)
-	query, args, err := r.Builder.Delete("databases").Where(squirrel.Eq{"name": name}).ToSql()
+	query, args, err := r.Builder.Delete("databases").Where(squirrel.Eq{"id": dbID}).ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build delete query: %w", err)
 	}
@@ -211,11 +219,11 @@ func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, name string) erro
 	return nil
 }
 
-// GetDatabaseStats retrieves live statistics for a specific database.
-func (r *SQLiteRepository) GetDatabaseStats(ctx context.Context, name string) (repo.DatabaseStats, error) {
+// GetDatabaseStats retrieves live statistics for a specific database by its ID.
+func (r *SQLiteRepository) GetDatabaseStats(ctx context.Context, dbID string) (repo.DatabaseStats, error) {
 	query, args, err := r.Builder.Select("entry_count", "total_disk_space_bytes").
 		From("databases").
-		Where(squirrel.Eq{"name": name}).
+		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
 	if err != nil {
 		return repo.DatabaseStats{}, fmt.Errorf("failed to build select query: %w", err)

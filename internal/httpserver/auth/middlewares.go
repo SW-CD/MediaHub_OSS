@@ -114,7 +114,7 @@ func (am *AuthMiddleware) RequireGlobalRole(role string) func(http.Handler) http
 
 // RequireDatabasePermission returns a middleware that checks if the user has
 // a specific permission (e.g., "CanView", "CanCreate") for the database
-// specified in the URL path parameter "{dbname}".
+// specified in the URL path parameter "{database_id}".
 func (am *AuthMiddleware) RequireDatabasePermission(perm string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,17 +130,17 @@ func (am *AuthMiddleware) RequireDatabasePermission(perm string) func(http.Handl
 				return
 			}
 
-			// 2. Extract database name from the URL path (Go 1.22 feature)
-			// This expects the route to be registered like "/api/database/{dbname}/..."
-			dbName := r.PathValue("dbname")
-			if dbName == "" {
+			// 2. Extract database ID from the URL path (Go 1.22 feature)
+			// This expects the route to be registered like "/api/database/{database_id}/..."
+			dbID := r.PathValue("database_id")
+			if dbID == "" {
 				http.Error(w, "Bad Request: Missing database context", http.StatusBadRequest)
 				return
 			}
 
 			// 3. Check specific permission
-			if !am.hasPerm(user, dbName, perm) {
-				http.Error(w, fmt.Sprintf("Forbidden: You lack '%s' rights on '%s'", perm, dbName), http.StatusForbidden)
+			if !am.hasPerm(user, dbID, perm) {
+				http.Error(w, fmt.Sprintf("Forbidden: You lack '%s' rights on database '%s'", perm, dbID), http.StatusForbidden)
 				return
 			}
 

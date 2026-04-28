@@ -23,7 +23,7 @@ func (h *EntryHandler) handleSmallFileSync(ctx context.Context, file multipart.F
 	cleanupOnError := func(uploadErr error) {
 		h.Logger.Error("Upload failed", "entry", createdEntry.ID, "error", uploadErr)
 		createdEntry.Status = repo.EntryStatusError
-		_, _ = h.Repo.UpdateEntry(ctx, db.Name, createdEntry)
+		_, _ = h.Repo.UpdateEntry(ctx, db.ID, createdEntry)
 	}
 
 	// 1. EXTRACT METADATA FIRST!
@@ -70,7 +70,7 @@ func (h *EntryHandler) handleSmallFileSync(ctx context.Context, file multipart.F
 		return EntryResponse{}, fmt.Errorf("failed to seek file stream before storage: %w", err)
 	}
 
-	fileSize, err := h.Storage.Write(ctx, db.Name, createdEntry.ID, streamToUpload)
+	fileSize, err := h.Storage.Write(ctx, db.ID, createdEntry.ID, streamToUpload)
 	if err != nil {
 		cleanupOnError(err)
 		return EntryResponse{}, fmt.Errorf("failed to write to storage provider: %w", err)
@@ -103,7 +103,7 @@ func (h *EntryHandler) handleSmallFileSync(ctx context.Context, file multipart.F
 				bgEntry.Status = repo.EntryStatusReady
 				bgEntry.PreviewSize = previewSize
 
-				if _, err := h.Repo.UpdateEntry(context.Background(), db.Name, bgEntry); err != nil {
+				if _, err := h.Repo.UpdateEntry(context.Background(), db.ID, bgEntry); err != nil {
 					h.Logger.Error("Failed to update status to ready after async preview", "entry", bgEntry.ID, "error", err)
 				}
 			}(createdEntry)
@@ -113,10 +113,10 @@ func (h *EntryHandler) handleSmallFileSync(ctx context.Context, file multipart.F
 	}
 
 	// 5. FINALIZE DB ENTRY
-	finalEntry, err := h.Repo.UpdateEntry(ctx, db.Name, createdEntry)
+	finalEntry, err := h.Repo.UpdateEntry(ctx, db.ID, createdEntry)
 	if err != nil {
 		return EntryResponse{}, fmt.Errorf("failed to finalize entry metadata: %w", err)
 	}
 
-	return mapToEntryResponse(db.Name, finalEntry), nil
+	return mapToEntryResponse(db.ID, finalEntry), nil
 }

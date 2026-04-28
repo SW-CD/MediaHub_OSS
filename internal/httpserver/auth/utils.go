@@ -75,12 +75,13 @@ func (am *AuthMiddleware) validateBasicAuth(encodedValue string) (repository.Use
 	return user, nil
 }
 
-func (am *AuthMiddleware) hasPerm(user *repository.User, dbname string, perm string) bool {
+// hasPerm checks if the user has the requested permission for the given database ID.
+func (am *AuthMiddleware) hasPerm(user *repository.User, dbID string, perm string) bool {
 	if user == nil {
 		return false
 	}
 
-	perms, err := am.Repo.GetUserPermissions(context.Background(), user.ID, dbname)
+	perms, err := am.Repo.GetUserPermissions(context.Background(), user.ID, dbID)
 	if err != nil {
 		return false
 	}

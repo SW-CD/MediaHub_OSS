@@ -42,8 +42,8 @@ func (h *EntryHandler) handleLargeFileAsync(ctx context.Context, file *os.File, 
 
 	// 5. Return Partial Response immediately
 	return PartialEntryResponse{
-		DBName:       db.Name,
-		ID:           createdEntry.ID,
+		DatabaseID:   db.ID,
+		EntryID:      createdEntry.ID,
 		Status:       "processing", // Translate uint8 to string for frontend
 		Timestamp:    createdEntry.Timestamp.UnixMilli(),
 		MimeType:     createdEntry.MimeType,
@@ -69,7 +69,7 @@ func (h *EntryHandler) processEntry(ctx context.Context, db repo.Database, entry
 		if processErr != nil {
 			h.Logger.Error("Worker: FAILED processing", "entry", entry.ID, "error", processErr)
 			entry.Status = repo.EntryStatusError
-			if _, updateErr := h.Repo.UpdateEntry(ctx, db.Name, entry); updateErr != nil {
+			if _, updateErr := h.Repo.UpdateEntry(ctx, db.ID, entry); updateErr != nil {
 				h.Logger.Error("Worker: CRITICAL: Failed to set status error", "entry", entry.ID, "error", updateErr)
 			}
 		}
@@ -126,7 +126,7 @@ func (h *EntryHandler) processEntry(ctx context.Context, db repo.Database, entry
 			errChan <- err
 		}()
 
-		if previewSize, err := h.Storage.WritePreview(ctx, db.Name, entry.ID, pr); err != nil {
+		if previewSize, err := h.Storage.WritePreview(ctx, db.ID, entry.ID, pr); err != nil {
 			h.Logger.Error("Worker: Failed to save preview to storage", "entry", entry.ID, "error", err)
 		} else if genErr := <-errChan; genErr != nil {
 			h.Logger.Error("Worker: Failed to generate preview", "entry", entry.ID, "error", genErr)
@@ -142,7 +142,7 @@ func (h *EntryHandler) processEntry(ctx context.Context, db repo.Database, entry
 		return
 	}
 
-	fileSize, err = h.Storage.Write(ctx, db.Name, entry.ID, finalFile)
+	fileSize, err = h.Storage.Write(ctx, db.ID, entry.ID, finalFile)
 	finalFile.Close()
 
 	if err != nil {
@@ -155,7 +155,7 @@ func (h *EntryHandler) processEntry(ctx context.Context, db repo.Database, entry
 	entry.Size = uint64(fileSize)
 	entry.MediaFields = meta
 
-	if _, err := h.Repo.UpdateEntry(ctx, db.Name, entry); err != nil {
+	if _, err := h.Repo.UpdateEntry(ctx, db.ID, entry); err != nil {
 		processErr = fmt.Errorf("failed to update final database stats: %w", err)
 		return
 	}

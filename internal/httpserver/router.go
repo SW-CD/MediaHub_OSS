@@ -66,7 +66,7 @@ func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 
 // addDatabaseRoutes configures database routes AND nested entry routes.
 func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
-	// Stack: Auth -> Check Permission for {dbname}
+	// Stack: Auth -> Check Permission for {database_id}
 	ReqPerm := func(perm string, h http.HandlerFunc) http.Handler {
 		return Chain(h, am.AuthMiddleware, am.RequireDatabasePermission(perm))
 	}
@@ -79,31 +79,31 @@ func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware)
 	mux.Handle("GET /api/databases", Chain(h.DatabaseHandler.GetDatabases, am.AuthMiddleware))
 
 	// 2. Database Admin Operations (Global Admin Only)
-	mux.Handle("DELETE /api/database/{dbname}", ReqAdmin(h.DatabaseHandler.DeleteDatabase))
-	mux.Handle("PUT /api/database/{dbname}", ReqAdmin(h.DatabaseHandler.UpdateDatabase))
+	mux.Handle("DELETE /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.DeleteDatabase))
+	mux.Handle("PUT /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.UpdateDatabase))
 
 	// 3. Database View Operations (CanView)
 	// Covers getting DB stats, searching entries, and viewing specific entries
-	mux.Handle("GET /api/database/{dbname}", ReqPerm("CanView", h.DatabaseHandler.GetDatabase))
+	mux.Handle("GET /api/database/{database_id}", ReqPerm("CanView", h.DatabaseHandler.GetDatabase))
 
 	// Bulk Operations (List/Search/Export)
-	mux.Handle("GET /api/database/{dbname}/entries", ReqPerm("CanView", h.EntryHandler.QueryEntries))
-	mux.Handle("POST /api/database/{dbname}/entries/search", ReqPerm("CanView", h.EntryHandler.SearchEntries))
-	mux.Handle("POST /api/database/{dbname}/entries/export", ReqPerm("CanView", h.EntryHandler.ExportEntries))
+	mux.Handle("GET /api/database/{database_id}/entries", ReqPerm("CanView", h.EntryHandler.QueryEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/search", ReqPerm("CanView", h.EntryHandler.SearchEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/export", ReqPerm("CanView", h.EntryHandler.ExportEntries))
 
 	// Single Entry Read Operations
-	mux.Handle("GET /api/database/{dbname}/entry/{id}", ReqPerm("CanView", h.EntryHandler.GetEntryMeta))
-	mux.Handle("GET /api/database/{dbname}/entry/{id}/file", ReqPerm("CanView", h.EntryHandler.GetEntryFile))
-	mux.Handle("GET /api/database/{dbname}/entry/{id}/preview", ReqPerm("CanView", h.EntryHandler.GetEntryPreview))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}", ReqPerm("CanView", h.EntryHandler.GetEntryMeta))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}/file", ReqPerm("CanView", h.EntryHandler.GetEntryFile))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}/preview", ReqPerm("CanView", h.EntryHandler.GetEntryPreview))
 
 	// 4. Database Write Operations (CanCreate / CanEdit)
-	mux.Handle("POST /api/database/{dbname}/entry", ReqPerm("CanCreate", h.EntryHandler.PostEntry))
-	mux.Handle("PATCH /api/database/{dbname}/entry/{id}", ReqPerm("CanEdit", h.EntryHandler.PatchEntry))
+	mux.Handle("POST /api/database/{database_id}/entry", ReqPerm("CanCreate", h.EntryHandler.PostEntry))
+	mux.Handle("PATCH /api/database/{database_id}/entry/{id}", ReqPerm("CanEdit", h.EntryHandler.PatchEntry))
 
 	// 5. Database Delete Operations (CanDelete)
-	mux.Handle("POST /api/database/{dbname}/housekeeping", ReqPerm("CanDelete", h.DatabaseHandler.TriggerHousekeeping))
-	mux.Handle("POST /api/database/{dbname}/entries/delete", ReqPerm("CanDelete", h.EntryHandler.DeleteEntries))
-	mux.Handle("DELETE /api/database/{dbname}/entry/{id}", ReqPerm("CanDelete", h.EntryHandler.DeleteEntry))
+	mux.Handle("POST /api/database/{database_id}/housekeeping", ReqPerm("CanDelete", h.DatabaseHandler.TriggerHousekeeping))
+	mux.Handle("POST /api/database/{database_id}/entries/delete", ReqPerm("CanDelete", h.EntryHandler.DeleteEntries))
+	mux.Handle("DELETE /api/database/{database_id}/entry/{id}", ReqPerm("CanDelete", h.EntryHandler.DeleteEntry))
 }
 
 func addFrontendRoutes(mux *http.ServeMux, frontendFS http.FileSystem, indexFile string, basePath string) {

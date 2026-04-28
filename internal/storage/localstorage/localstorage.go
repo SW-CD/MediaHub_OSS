@@ -20,37 +20,37 @@ type limitedReadCloser struct {
 }
 
 // Write streams the file content to the local filesystem and returns the amount of bytes written.
-func (ds *LocalStorage) Write(ctx context.Context, dbname string, id int64, content io.Reader) (int64, error) {
-	// Generate the file path (e.g. rootPath/dbname/bucket/ID)
-	fullPath := getFilePath(ds.RootPath, dbname, id)
+func (ds *LocalStorage) Write(ctx context.Context, dbID string, id int64, content io.Reader) (int64, error) {
+	// Generate the file path (e.g. rootPath/dbID/bucket/ID)
+	fullPath := getFilePath(ds.RootPath, dbID, id)
 	return writeFileStream(fullPath, content)
 }
 
 // WritePreview streams the preview file to the local filesystem's preview directory.
-func (ds *LocalStorage) WritePreview(ctx context.Context, dbname string, id int64, preview io.Reader) (int64, error) {
+func (ds *LocalStorage) WritePreview(ctx context.Context, dbID string, id int64, preview io.Reader) (int64, error) {
 	// Previews are stored in a separate root folder (e.g., .../storage_root/previews/)
 	previewRoot := filepath.Join(ds.RootPath, "previews")
-	fullPath := getFilePath(previewRoot, dbname, id)
+	fullPath := getFilePath(previewRoot, dbID, id)
 
 	return writeFileStream(fullPath, preview)
 }
 
 // Stat retrieves metadata about the main file without reading the content.
-func (ds *LocalStorage) Stat(ctx context.Context, dbname string, id int64) (storage.FileInfo, error) {
-	fullPath := getFilePath(ds.RootPath, dbname, id)
+func (ds *LocalStorage) Stat(ctx context.Context, dbID string, id int64) (storage.FileInfo, error) {
+	fullPath := getFilePath(ds.RootPath, dbID, id)
 	return getFileStats(fullPath)
 }
 
 // StatPreview retrieves metadata about the preview file without reading the content.
-func (ds *LocalStorage) StatPreview(ctx context.Context, dbname string, id int64) (storage.FileInfo, error) {
+func (ds *LocalStorage) StatPreview(ctx context.Context, dbID string, id int64) (storage.FileInfo, error) {
 	previewRoot := filepath.Join(ds.RootPath, "previews")
-	fullPath := getFilePath(previewRoot, dbname, id)
+	fullPath := getFilePath(previewRoot, dbID, id)
 	return getFileStats(fullPath)
 }
 
 // Read retrieves a stream of the file content, supporting byte-range requests.
-func (ds *LocalStorage) Read(ctx context.Context, dbname string, id int64, offset int64, length int64) (io.ReadCloser, error) {
-	fullPath := getFilePath(ds.RootPath, dbname, id)
+func (ds *LocalStorage) Read(ctx context.Context, dbID string, id int64, offset int64, length int64) (io.ReadCloser, error) {
+	fullPath := getFilePath(ds.RootPath, dbID, id)
 
 	f, err := os.Open(fullPath)
 	if err != nil {
@@ -79,9 +79,9 @@ func (ds *LocalStorage) Read(ctx context.Context, dbname string, id int64, offse
 }
 
 // ReadPreview retrieves a stream of the preview file content.
-func (ds *LocalStorage) ReadPreview(ctx context.Context, dbname string, id int64) (io.ReadCloser, error) {
+func (ds *LocalStorage) ReadPreview(ctx context.Context, dbID string, id int64) (io.ReadCloser, error) {
 	previewRoot := filepath.Join(ds.RootPath, "previews")
-	fullPath := getFilePath(previewRoot, dbname, id)
+	fullPath := getFilePath(previewRoot, dbID, id)
 
 	f, err := os.Open(fullPath)
 	if err != nil {
@@ -92,15 +92,15 @@ func (ds *LocalStorage) ReadPreview(ctx context.Context, dbname string, id int64
 }
 
 // Delete removes the main file from storage.
-func (ds *LocalStorage) Delete(ctx context.Context, dbname string, id int64) error {
-	fullPath := getFilePath(ds.RootPath, dbname, id)
+func (ds *LocalStorage) Delete(ctx context.Context, dbID string, id int64) error {
+	fullPath := getFilePath(ds.RootPath, dbID, id)
 	return removeFile(fullPath)
 }
 
 // DeleteMultiple removes multiple main files from storage.
-func (ds *LocalStorage) DeleteMultiple(ctx context.Context, dbname string, ids []int64) (storage.BulkDeleteResult, error) {
+func (ds *LocalStorage) DeleteMultiple(ctx context.Context, dbID string, ids []int64) (storage.BulkDeleteResult, error) {
 
-	deletedIDs, failedIDs, errs := deleteMultiple(ds.RootPath, dbname, ids)
+	deletedIDs, failedIDs, errs := deleteMultiple(ds.RootPath, dbID, ids)
 
 	result := storage.BulkDeleteResult{
 		Success: deletedIDs,
@@ -110,19 +110,19 @@ func (ds *LocalStorage) DeleteMultiple(ctx context.Context, dbname string, ids [
 }
 
 // DeletePreview removes the generated preview file from storage.
-func (ds *LocalStorage) DeletePreview(ctx context.Context, dbname string, id int64) error {
+func (ds *LocalStorage) DeletePreview(ctx context.Context, dbID string, id int64) error {
 	previewRoot := filepath.Join(ds.RootPath, "previews")
-	fullPath := getFilePath(previewRoot, dbname, id)
+	fullPath := getFilePath(previewRoot, dbID, id)
 
 	return removeFile(fullPath)
 }
 
 // DeleteMultiplePreviews removes multiple preview files from storage.
-func (ds *LocalStorage) DeleteMultiplePreviews(ctx context.Context, dbname string, ids []int64) (storage.BulkDeleteResult, error) {
+func (ds *LocalStorage) DeleteMultiplePreviews(ctx context.Context, dbID string, ids []int64) (storage.BulkDeleteResult, error) {
 
 	previewRoot := filepath.Join(ds.RootPath, "previews")
 
-	deletedIDs, failedIDs, errs := deleteMultiple(previewRoot, dbname, ids)
+	deletedIDs, failedIDs, errs := deleteMultiple(previewRoot, dbID, ids)
 
 	result := storage.BulkDeleteResult{
 		Success: deletedIDs,
@@ -132,14 +132,14 @@ func (ds *LocalStorage) DeleteMultiplePreviews(ctx context.Context, dbname strin
 }
 
 // Walk iterates over all main files in the storage for a given database.
-func (ds *LocalStorage) Walk(ctx context.Context, dbname string, walkFn func(id int64, info storage.FileInfo) error) error {
-	basePath := filepath.Join(ds.RootPath, dbname)
+func (ds *LocalStorage) Walk(ctx context.Context, dbID string, walkFn func(id int64, info storage.FileInfo) error) error {
+	basePath := filepath.Join(ds.RootPath, dbID)
 	return ds.walkDirectory(basePath, walkFn)
 }
 
 // WalkPreview iterates over all preview files in the storage for a given database.
-func (ds *LocalStorage) WalkPreview(ctx context.Context, dbname string, walkFn func(id int64, info storage.FileInfo) error) error {
+func (ds *LocalStorage) WalkPreview(ctx context.Context, dbID string, walkFn func(id int64, info storage.FileInfo) error) error {
 	previewRoot := filepath.Join(ds.RootPath, "previews")
-	basePath := filepath.Join(previewRoot, dbname)
+	basePath := filepath.Join(previewRoot, dbID)
 	return ds.walkDirectory(basePath, walkFn)
 }

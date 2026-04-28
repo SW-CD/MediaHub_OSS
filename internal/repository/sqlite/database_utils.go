@@ -17,13 +17,14 @@ type scanner interface {
 }
 
 // scanDatabaseRow maps an SQL row from the databases table into the repository.Database struct.
-// scanDatabaseRow maps an SQL row from the databases table into the repository.Database struct.
 func scanDatabaseRow(s scanner) (repo.Database, error) {
 	var db repo.Database
 	var customFieldsJSON string
 	var intervalMs, maxAgeMs, HKLastRun int64 // Intermediate variables for millisecond values
 
+	// Make sure ID is the first scanned column matching the modified Select queries
 	err := s.Scan(
+		&db.ID,
 		&db.Name,
 		&db.ContentType,
 		&intervalMs, // Scan into intermediate variable
@@ -58,9 +59,9 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 	return db, nil
 }
 
-// buildDynamicTableSchema generates the CREATE TABLE statement based on content type constraints.
-func (r *SQLiteRepository) buildDynamicTableSchema(name, contentType string, customFields []repo.CustomField) (string, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, name)
+// buildDynamicTableSchema generates the CREATE TABLE statement using the database ID.
+func (r *SQLiteRepository) buildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomField) (string, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n", tableName))
@@ -110,16 +111,16 @@ func (r *SQLiteRepository) buildDynamicTableSchema(name, contentType string, cus
 	return sb.String(), nil
 }
 
-// buildIndexesSQL creates the indexing statements for the standard fields and any custom fields.
-func buildIndexesSQL(name string, customFields []repo.CustomField) []string {
-	tableName := fmt.Sprintf(`"entries_%s"`, name)
+// buildIndexesSQL creates the indexing statements using the database ID.
+func buildIndexesSQL(dbID string, customFields []repo.CustomField) []string {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	var sqls []string
 
-	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_time" ON %s(timestamp);`, name, tableName))
-	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_status" ON %s(status);`, name, tableName))
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_time" ON %s(timestamp);`, dbID, tableName))
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_status" ON %s(status);`, dbID, tableName))
 
 	for _, cf := range customFields {
-		sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s" ON %s("%s");`, name, cf.Name, tableName, cf.Name))
+		sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s" ON %s("%s");`, dbID, cf.Name, tableName, cf.Name))
 	}
 
 	return sqls

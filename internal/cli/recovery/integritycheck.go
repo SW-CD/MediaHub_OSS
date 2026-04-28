@@ -33,7 +33,7 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 		orphanFileIDs, calculatedTotalBytes, err := s.checkOrphanFiles(ctx, db, stats)
 		if err != nil {
 			fmt.Println() // Break the \r progress line
-			s.logger.Error("Failed walking main storage", "database", db.Name, "error", err)
+			s.logger.Error("Failed walking main storage", "database_id", db.ID, "database_name", db.Name, "error", err)
 			return err // Abort on error to prevent saving corrupted stats
 		}
 
@@ -42,7 +42,7 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 		calculatedTotalBytes += calculatedPreviewBytes
 		if err != nil {
 			fmt.Println() // Break the \r progress line
-			s.logger.Error("Failed walking preview storage", "database", db.Name, "error", err)
+			s.logger.Error("Failed walking preview storage", "database_id", db.ID, "database_name", db.Name, "error", err)
 			return err // Abort on error to prevent saving corrupted stats
 		}
 
@@ -57,19 +57,18 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 		if !s.dryRun {
 			// Delete the database entries for files that no longer exist on disk
 			if len(missingFileIDs) > 0 {
-				_, _ = s.storage.DeleteMultiplePreviews(ctx, db.Name, missingFileIDs)
-
-				_, _ = s.repo.DeleteEntries(ctx, db.Name, missingFileIDs)
+				_, _ = s.storage.DeleteMultiplePreviews(ctx, db.ID, missingFileIDs)
+				_, _ = s.repo.DeleteEntries(ctx, db.ID, missingFileIDs)
 			}
 
 			// Delete physical files that have no database record
 			if len(orphanFileIDs) > 0 {
-				_, _ = s.storage.DeleteMultiple(ctx, db.Name, orphanFileIDs)
+				_, _ = s.storage.DeleteMultiple(ctx, db.ID, orphanFileIDs)
 			}
 
 			// Delete physical preview files that have no database record
 			if len(orphanPreviewIDs) > 0 {
-				_, _ = s.storage.DeleteMultiplePreviews(ctx, db.Name, orphanPreviewIDs)
+				_, _ = s.storage.DeleteMultiplePreviews(ctx, db.ID, orphanPreviewIDs)
 			}
 
 			// --- PHASE 2.5: Sync Statistics ---
@@ -83,7 +82,7 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 			// Save it back
 			_, err = s.repo.UpdateDatabase(ctx, db)
 			if err != nil {
-				s.logger.Error("Failed to sync database stats", "database", db.Name, "error", err)
+				s.logger.Error("Failed to sync database stats", "database_id", db.ID, "database_name", db.Name, "error", err)
 			}
 		}
 
@@ -112,7 +111,7 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 
 	// DB -> Storage (Find missing files)
 	for offset := 0; true; offset += limit {
-		entries, err := s.repo.GetEntries(ctx, db.Name, limit, offset, "id asc", time.Time{}, time.Time{})
+		entries, err := s.repo.GetEntries(ctx, db.ID, limit, offset, "id asc", time.Time{}, time.Time{})
 		if err != nil {
 			return missingFileIDs, totalEntries, fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
 		}
@@ -130,19 +129,20 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 
 			// Only verify "ready" files, as Step 1 already handled "processing" and "deleting"
 			if entry.Status == repository.EntryStatusReady {
-				info, err := s.storage.Stat(ctx, db.Name, entry.ID)
+				info, err := s.storage.Stat(ctx, db.ID, entry.ID)
 
 				if errors.Is(err, customerrors.ErrNotFound) {
 					missingFileIDs = append(missingFileIDs, entry.ID)
 				} else if err != nil {
 					fmt.Println() // Break the \r progress line
-					s.logger.Error("Storage stat failed", "database", db.Name, "id", entry.ID, "error", err)
+					s.logger.Error("Storage stat failed", "database_id", db.ID, "database_name", db.Name, "id", entry.ID, "error", err)
 				} else {
 					// File exists! Cross-check the recorded size against the actual physical size
 					if entry.Size != uint64(info.Size) {
 						fmt.Println() // Break the \r progress line
 						s.logger.Warn("File size mismatch detected (Possible corruption)",
-							"database", db.Name,
+							"database_id", db.ID,
+							"database_name", db.Name,
 							"id", entry.ID,
 							"repo_size_bytes", entry.Size,
 							"storage_size_bytes", info.Size,
@@ -168,7 +168,7 @@ func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Da
 	}
 
 	processedStorage := uint64(0)
-	err := s.storage.Walk(ctx, db.Name, func(id int64, info storage.FileInfo) error {
+	err := s.storage.Walk(ctx, db.ID, func(id int64, info storage.FileInfo) error {
 		processedStorage++
 		percent := (processedStorage * 100) / divisor
 		if percent > 99 {
@@ -177,12 +177,12 @@ func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Da
 		fmt.Printf("\r- Step 2: Integrity check: %d%% (Scanning Disk->DB Main)...", percent)
 
 		// Check if the file exists in the database
-		_, err := s.repo.GetEntry(ctx, db.Name, id)
+		_, err := s.repo.GetEntry(ctx, db.ID, id)
 		if errors.Is(err, customerrors.ErrNotFound) {
 			orphanFileIDs = append(orphanFileIDs, id)
 		} else if err != nil {
 			fmt.Println() // Break the \r progress line
-			s.logger.Error("Database lookup failed during main file walk", "database", db.Name, "id", id, "error", err)
+			s.logger.Error("Database lookup failed during main file walk", "database_id", db.ID, "database_name", db.Name, "id", id, "error", err)
 			// Return the error to abort! If we ignore it, calculatedTotalBytes
 			// will be artificially low and corrupt the database stats.
 			return err
@@ -206,7 +206,7 @@ func (s *RecoveryService) checkOrphanPreviewFiles(ctx context.Context, db reposi
 	}
 
 	processedStorage := uint64(0)
-	err := s.storage.WalkPreview(ctx, db.Name, func(id int64, info storage.FileInfo) error {
+	err := s.storage.WalkPreview(ctx, db.ID, func(id int64, info storage.FileInfo) error {
 		processedStorage++
 		percent := (processedStorage * 100) / divisor
 		if percent > 99 {
@@ -215,12 +215,12 @@ func (s *RecoveryService) checkOrphanPreviewFiles(ctx context.Context, db reposi
 		fmt.Printf("\r- Step 2: Integrity check: %d%% (Scanning Disk->DB Previews)...", percent)
 
 		// Check if the file exists in the database
-		_, err := s.repo.GetEntry(ctx, db.Name, id)
+		_, err := s.repo.GetEntry(ctx, db.ID, id)
 		if errors.Is(err, customerrors.ErrNotFound) {
 			orphanFileIDs = append(orphanFileIDs, id)
 		} else if err != nil {
 			fmt.Println() // Break the \r progress line
-			s.logger.Error("Database lookup failed during preview file walk", "database", db.Name, "id", id, "error", err)
+			s.logger.Error("Database lookup failed during preview file walk", "database_id", db.ID, "database_name", db.Name, "id", id, "error", err)
 			// Return the error to abort!
 			return err
 		} else {

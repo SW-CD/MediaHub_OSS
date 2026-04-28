@@ -49,7 +49,6 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. For non-admins, retrieve their specific database permissions
-	// Note: You will need to add this method to your repository.Repository interface!
 	rawPerms, err := h.Repo.GetAllUserPermissions(ctx, user.ID)
 	if err != nil {
 		h.Logger.Error("Failed to fetch user permissions", "error", err, "user_id", user.ID)
@@ -60,11 +59,11 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	// 5. Parse the comma-separated roles string into boolean flags
 	for _, rp := range rawPerms {
 		response.Permissions = append(response.Permissions, DatabasePermission{
-			DatabaseName: rp.Database,
-			CanView:      strings.Contains(rp.Roles, "CanView"),
-			CanCreate:    strings.Contains(rp.Roles, "CanCreate"),
-			CanEdit:      strings.Contains(rp.Roles, "CanEdit"),
-			CanDelete:    strings.Contains(rp.Roles, "CanDelete"),
+			DatabaseID: rp.DatabaseID, // Updated to DatabaseID
+			CanView:    strings.Contains(rp.Roles, "CanView"),
+			CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
+			CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
+			CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
 		})
 	}
 
@@ -192,11 +191,11 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 			// 5. Parse the comma-separated roles into boolean flags
 			for _, rp := range rawPerms {
 				userRes.Permissions = append(userRes.Permissions, DatabasePermission{
-					DatabaseName: rp.Database,
-					CanView:      strings.Contains(rp.Roles, "CanView"),
-					CanCreate:    strings.Contains(rp.Roles, "CanCreate"),
-					CanEdit:      strings.Contains(rp.Roles, "CanEdit"),
-					CanDelete:    strings.Contains(rp.Roles, "CanDelete"),
+					DatabaseID: rp.DatabaseID, // Updated to DatabaseID
+					CanView:    strings.Contains(rp.Roles, "CanView"),
+					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
+					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
+					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
 				})
 			}
 		}
@@ -251,11 +250,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Validate for duplicate database permissions
 	seenDBs := make(map[string]bool)
 	for _, p := range payload.Permissions {
-		if seenDBs[p.DatabaseName] {
-			utils.RespondWithError(w, http.StatusBadRequest, "Duplicate database names in permissions list")
+		if seenDBs[p.DatabaseID] {
+			utils.RespondWithError(w, http.StatusBadRequest, "Duplicate database IDs in permissions list")
 			return
 		}
-		seenDBs[p.DatabaseName] = true
+		seenDBs[p.DatabaseID] = true
 	}
 
 	// 3. Hash Password
@@ -276,7 +275,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	createdUser, err := h.Repo.CreateUser(ctx, newUser)
 	if err != nil {
 		// A simple check for a unique constraint violation.
-		// Depending on your DB driver, you might want to check against specific custom errors (e.g., customerrors.ErrUserExists).
 		if errors.Is(err, customerrors.ErrUserExists) {
 			utils.RespondWithError(w, http.StatusConflict, "User already exists")
 		} else {
@@ -311,14 +309,13 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 			// Only save if at least one role is assigned
 			if roleStr != "" {
 				repoPerm := repo.UserPermissions{
-					UserID:   createdUser.ID,
-					Database: perm.DatabaseName,
-					Roles:    roleStr,
+					UserID:     createdUser.ID,
+					DatabaseID: perm.DatabaseID, // Updated to map DatabaseID
+					Roles:      roleStr,
 				}
 
-				// Note: You need to add this method to your repository!
 				if err := h.Repo.SetUserPermissions(ctx, repoPerm); err != nil {
-					h.Logger.Error("Failed to set user permissions", "error", err, "user_id", createdUser.ID, "database", perm.DatabaseName)
+					h.Logger.Error("Failed to set user permissions", "error", err, "user_id", createdUser.ID, "database_id", perm.DatabaseID) // Updated log
 					// We continue rather than fail the whole request, as the user was successfully created
 				} else {
 					appliedPermissions = append(appliedPermissions, perm)
@@ -461,13 +458,13 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			}
 
 			repoPerm := repo.UserPermissions{
-				UserID:   userID,
-				Database: perm.DatabaseName,
-				Roles:    strings.Join(roles, ","),
+				UserID:     userID,
+				DatabaseID: perm.DatabaseID, // Updated to use DatabaseID
+				Roles:      strings.Join(roles, ","),
 			}
 
 			if err := h.Repo.SetUserPermissions(ctx, repoPerm); err != nil {
-				h.Logger.Error("Failed to update user permission", "error", err, "user_id", userID, "database", perm.DatabaseName)
+				h.Logger.Error("Failed to update user permission", "error", err, "user_id", userID, "database_id", perm.DatabaseID) // Updated log
 			}
 		}
 	}
@@ -479,11 +476,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			for _, rp := range rawPerms {
 				finalPermissions = append(finalPermissions, DatabasePermission{
-					DatabaseName: rp.Database,
-					CanView:      strings.Contains(rp.Roles, "CanView"),
-					CanCreate:    strings.Contains(rp.Roles, "CanCreate"),
-					CanEdit:      strings.Contains(rp.Roles, "CanEdit"),
-					CanDelete:    strings.Contains(rp.Roles, "CanDelete"),
+					DatabaseID: rp.DatabaseID,
+					CanView:    strings.Contains(rp.Roles, "CanView"),
+					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
+					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
+					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
 				})
 			}
 		}

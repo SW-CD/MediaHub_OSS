@@ -3,6 +3,7 @@ package initconfig
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -16,10 +17,21 @@ import (
 
 // Apply executes the initialization configuration against the repository.
 func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, logger *slog.Logger, filePath string) error {
+	// 0. Pre-fetch existing databases to build a Name -> ID resolution map.
+	// This is required because the config uses names, but the DB uses ULIDs.
+	existingDBs, err := repo.GetDatabases(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch existing databases for init config resolution: %w", err)
+	}
+
+	dbNameToID := make(map[string]string)
+	for _, db := range existingDBs {
+		dbNameToID[db.Name] = db.ID
+	}
+
 	// 1. Initialize Databases
 	for _, dbInit := range config.Databases {
-		_, err := repo.GetDatabase(ctx, dbInit.Name)
-		if errors.Is(err, customerrors.ErrNotFound) {
+		if _, exists := dbNameToID[dbInit.Name]; !exists {
 			hk, err := dbInit.GetHousekeeping()
 			if err != nil {
 				logger.Error("Failed to parse housekeeping config", "database", dbInit.Name, "error", err)
@@ -37,13 +49,14 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 				CustomFields: dbInit.CustomFields,
 			}
 
-			if _, err := repo.CreateDatabase(ctx, db); err != nil {
+			createdDB, err := repo.CreateDatabase(ctx, db)
+			if err != nil {
 				logger.Error("Failed to create init database", "database", dbInit.Name, "error", err)
 			} else {
 				logger.Info("Created database from init config", "database", dbInit.Name)
+				// Add the newly generated ULID to our resolution map so user permissions can use it!
+				dbNameToID[createdDB.Name] = createdDB.ID
 			}
-		} else if err != nil {
-			logger.Error("Error checking database existence", "database", dbInit.Name, "error", err)
 		} else {
 			logger.Debug("Database from init config already exists, skipping", "database", dbInit.Name)
 		}
@@ -77,6 +90,13 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 
 			// Assign Permissions
 			for _, permInit := range userInit.Permissions {
+				// Resolve the database name to its ULID
+				dbID, ok := dbNameToID[permInit.DatabaseName]
+				if !ok {
+					logger.Error("Cannot set permission, database not found", "user", userInit.Name, "database_name", permInit.DatabaseName)
+					continue
+				}
+
 				var roles []string
 				if permInit.CanView {
 					roles = append(roles, "CanView")
@@ -92,9 +112,9 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 				}
 
 				err := repo.SetUserPermissions(ctx, repository.UserPermissions{
-					UserID:   createdUser.ID,
-					Database: permInit.DatabaseName,
-					Roles:    strings.Join(roles, ","),
+					UserID:     createdUser.ID,
+					DatabaseID: dbID, // Use the resolved ULID here!
+					Roles:      strings.Join(roles, ","),
 				})
 
 				if err != nil {

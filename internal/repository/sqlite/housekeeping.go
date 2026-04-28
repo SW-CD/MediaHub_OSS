@@ -19,7 +19,7 @@ func (r *SQLiteRepository) HouseKeepingRequired(ctx context.Context) ([]repo.Dat
 	// 2. We compare (last_run + interval) against the current SQLite millisecond timestamp.
 
 	query, args, err := r.Builder.Select(
-		"name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age",
+		"id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age",
 		"create_preview", "auto_conversion", "custom_fields", "hk_last_run",
 		"entry_count", "total_disk_space_bytes").
 		From("databases").
@@ -54,14 +54,14 @@ func (r *SQLiteRepository) HouseKeepingRequired(ctx context.Context) ([]repo.Dat
 
 // HouseKeepingWasCalled sets the LastHkRun to now (server timestamp),
 // used by housekeeping to track when the last run was.
-func (r *SQLiteRepository) HouseKeepingWasCalled(ctx context.Context, dbname string) (time.Time, error) {
+func (r *SQLiteRepository) HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) {
 	// Get current server time in milliseconds
 	now := time.Now()
 
 	// Build the update query
 	query, args, err := r.Builder.Update("databases").
 		Set("hk_last_run", now.UnixMilli()).
-		Where(squirrel.Eq{"name": dbname}).
+		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to build housekeeping update query: %w", err)

@@ -1,6 +1,7 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS databases (
-    name VARCHAR(32) PRIMARY KEY NOT NULL CHECK(length(name) <= 32),
+    id TEXT(26) PRIMARY KEY NOT NULL, -- ULID
+    name VARCHAR(32) UNIQUE NOT NULL CHECK(length(name) <= 32),
     content_type VARCHAR(32) NOT NULL DEFAULT 'image',
     hk_interval INTEGER NOT NULL DEFAULT 3600000, -- 1 hour in milliseconds
     hk_disk_space INTEGER NOT NULL DEFAULT 107374182400, -- 100GB in bytes
@@ -27,14 +28,14 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS database_permissions (
     user_id INTEGER NOT NULL,
-    database_name VARCHAR(32) NOT NULL,
+    database_id VARCHAR(26) NOT NULL,
     can_view BOOLEAN NOT NULL DEFAULT FALSE,
     can_create BOOLEAN NOT NULL DEFAULT FALSE,
     can_edit BOOLEAN NOT NULL DEFAULT FALSE,
     can_delete BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (user_id, database_name),
+    PRIMARY KEY (user_id, database_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (database_name) REFERENCES databases(name) ON DELETE CASCADE
+    FOREIGN KEY (database_id) REFERENCES databases(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     timestamp BIGINT NOT NULL DEFAULT CAST(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000 AS BIGINT),
     action TEXT NOT NULL,
     actor TEXT NOT NULL,
