@@ -29,7 +29,8 @@ type CreateUserPayload struct {
 
 // UpdateUserPayload defines the expected JSON body for PATCH /api/user.
 type UpdateUserPayload struct {
-	Password    *string              `json:"password"`
+	Username    string               `json:"username"`
+	Password    string               `json:"password"`
 	IsAdmin     *bool                `json:"is_admin"`
 	Permissions []DatabasePermission `json:"permissions"`
 }

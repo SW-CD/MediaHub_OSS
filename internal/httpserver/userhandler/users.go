@@ -402,8 +402,13 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// 4. Update core user fields if provided
 	userChanged := false
 
-	if payload.Password != nil && *payload.Password != "" {
-		hashBytes, err := bcrypt.GenerateFromPassword([]byte(*payload.Password), bcrypt.DefaultCost)
+	if payload.Username != "" && payload.Username != existingUser.Username {
+		existingUser.Username = payload.Username
+		userChanged = true
+	}
+
+	if payload.Password != "" {
+		hashBytes, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 		if err != nil {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to hash password")
 			return
