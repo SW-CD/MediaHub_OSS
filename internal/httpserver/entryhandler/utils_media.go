@@ -97,7 +97,7 @@ func (h *EntryHandler) generateAndStorePreview(ctx context.Context, db repo.Data
 	}()
 
 	// The main thread blocks here, reading from the pipe and writing to storage
-	previewSize, err := h.Storage.WritePreview(ctx, db.Name, entryID, pr)
+	previewSize, err := h.Storage.WritePreview(ctx, db.ID, entryID, pr)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save preview to storage: %w", err)
 	}
