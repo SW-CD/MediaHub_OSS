@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, AbstractControl } from '@angular/forms';
 import { SearchFilter } from '../../models';
 
@@ -19,13 +19,14 @@ export interface AvailableFilter {
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: false
 })
-export class EntryFilterComponent implements OnChanges {
+export class EntryFilterComponent implements OnInit, OnChanges {
   @Input() availableFilters: AvailableFilter[] = [];
   @Input() isLoading = false;
   
   @Output() filterApplied = new EventEmitter<FilterChangedEvent>();
 
   public filterForm: FormGroup;
+  public isCollapsed = false;
 
   constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef) {
     this.filterForm = this.fb.group({
@@ -34,6 +35,46 @@ export class EntryFilterComponent implements OnChanges {
       tend: [''],
       customFilters: this.fb.array([])
     });
+  }
+
+  ngOnInit(): void {
+    this.checkMobileState();
+    
+    // Automatically re-evaluate the active filters count if the form changes
+    this.filterForm.valueChanges.subscribe(() => {
+      this.cdr.markForCheck();
+    });
+  }
+
+  // Determine initial state based on window size
+  private checkMobileState(): void {
+    if (window.innerWidth < 768) {
+      this.isCollapsed = true;
+    }
+  }
+
+  toggleCollapse(): void {
+    this.isCollapsed = !this.isCollapsed;
+  }
+
+  /**
+   * Dynamically calculates how many filter conditions are actively set
+   */
+  get activeFiltersCount(): number {
+    let count = 0;
+    const formValue = this.filterForm.value;
+    
+    if (formValue.tstart) count++;
+    if (formValue.tend) count++;
+
+    formValue.customFilters.forEach((filter: any) => {
+      // Only count custom filters that actually have a field and a value selected
+      if (filter.field && filter.value !== null && String(filter.value).trim() !== '') {
+        count++;
+      }
+    });
+    
+    return count;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -54,22 +95,26 @@ export class EntryFilterComponent implements OnChanges {
       value: ['', Validators.required]
     });
 
-    // UPDATED: Automatically adjust operator and value when field changes
     newGroup.get('field')?.valueChanges.subscribe(() => {
       const fieldType = this.getSelectedFieldTypeForGroup(newGroup);
       const defaultOp = this.getOperatorsForFieldType(fieldType)[0] || '=';
       
       newGroup.get('operator')?.setValue(defaultOp);
       
-      // Set sensible default values based on the new type
       if (fieldType === 'BOOLEAN') {
-        newGroup.get('value')?.setValue('true'); // Select dropdown default
+        newGroup.get('value')?.setValue('true'); 
       } else {
         newGroup.get('value')?.setValue('');
       }
     });
 
     this.customFilters.push(newGroup);
+    
+    // Automatically expand the panel if a user clicks "+ Add Filter" programmatically 
+    // or if a filter is added via another method
+    if (this.isCollapsed) {
+      this.isCollapsed = false;
+    }
   }
 
   removeCustomFilter(index: number): void {
@@ -84,6 +129,11 @@ export class EntryFilterComponent implements OnChanges {
 
     const event = this.buildFilterEvent();
     this.filterApplied.emit(event);
+    
+    // Auto-collapse on mobile after applying to get the filter out of the way of the results
+    if (window.innerWidth < 768) {
+      this.isCollapsed = true;
+    }
   }
 
   private buildFilterEvent(): FilterChangedEvent {
@@ -119,7 +169,6 @@ export class EntryFilterComponent implements OnChanges {
             if (lowerVal === 'true' || lowerVal === '1') { filterValue = true; }
             else if (lowerVal === 'false' || lowerVal === '0') { filterValue = false; }
           } else if (fieldDefinition.type === 'TEXT' && filter.operator === 'LIKE') {
-            // NEW: Automatically wrap the value in '%' wildcards for a "contains" search
             filterValue = `%${filterValue}%`;
           }
         }
@@ -177,11 +226,9 @@ export class EntryFilterComponent implements OnChanges {
       const date = new Date(dateTimeLocal);
       if (isNaN(date.getTime())) return null;
       
-      // Return the native milliseconds directly instead of dividing by 1000
       return date.getTime(); 
     } catch (e) {
       return null;
     }
   }
-
 }

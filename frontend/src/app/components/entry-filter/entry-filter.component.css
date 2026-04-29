@@ -1,23 +1,78 @@
 /* frontend/src/app/components/entry-filter/entry-filter.component.css */
 
-.filter-bar {
+.filter-wrapper {
   background-color: var(--content-bg);
-  padding: 1rem 1.5rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
+  overflow: hidden; /* Keeps the rounded corners clean when collapsed */
+}
+
+/* --- NEW: Collapsible Header --- */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  background-color: var(--sidebar-bg); /* Slightly darker to look like a header */
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.filter-header:hover {
+  background-color: var(--item-bg-hover);
+}
+
+.filter-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-badge {
+  background-color: var(--button-primary-bg);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: bold;
+}
+
+.toggle-icon {
+  color: var(--text-muted);
+  transition: transform 0.3s ease;
+}
+
+.toggle-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* --- Body Layout --- */
+.filter-body {
+  padding: 1rem 1.5rem;
+  display: block;
+}
+
+.filter-body.collapsed {
+  display: none;
 }
 
 .filter-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  align-items: center;
+  align-items: flex-end; /* Align to bottom so labels line up */
 }
 
 /* Reusing global form styles, but refining layout */
 .form-group {
   margin-bottom: 0; /* Override default for this row */
+  flex: 1 1 min-content; /* Allow shrinking */
+  min-width: 120px;
 }
 
 .limit-group {
@@ -32,17 +87,22 @@
   display: flex;
   gap: 0.5rem;
   align-items: center; 
-  flex-basis: 100%; /* Force new line on small screens if needed */
+  flex-basis: 100%; /* Force new line on small screens */
+  flex-wrap: wrap; /* Allow wrapping on very tiny screens */
 }
 
 @media (min-width: 1024px) {
   .custom-filter-row {
     flex-basis: auto; 
+    flex-wrap: nowrap;
   }
 }
 
+/* FIXED: Prevent inputs (especially date pickers) from overflowing their container */
 .custom-filter-row .form-control {
-  min-width: 120px;
+  min-width: 0; /* Crucial: Allows flex items to shrink below their intrinsic size */
+  flex: 1 1 120px; /* Grow and shrink, base size 120px */
+  width: 100%;
 }
 
 .filter-actions {
@@ -50,7 +110,14 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding-bottom: 0.25rem; /* Align with inputs */
+  width: 100%; /* Force to full width on mobile... */
+  justify-content: flex-end; /* ...and align buttons to the right */
+}
+
+@media (min-width: 768px) {
+  .filter-actions {
+    width: auto; /* Revert to auto width on desktop */
+  }
 }
 
 /* Button override */
@@ -65,7 +132,9 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0; /* Prevent the remove button from shrinking */
 }
+
 .btn-remove:hover {
   color: var(--button-danger-bg);
   background-color: var(--item-bg-hover);

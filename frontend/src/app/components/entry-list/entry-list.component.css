@@ -9,18 +9,24 @@
 /* --- Header Bar & View Toggle --- */
 .header-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  /* MOBILE FIRST: Stack items, but reverse the order so buttons are on top */
+  flex-direction: column-reverse; 
+  align-items: flex-end; /* Push the buttons to the right edge */
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
 .header-bar .header {
   margin-bottom: 0; 
+  width: 100%; /* Force the title wrapper to take the full width on mobile */
+  align-self: flex-start; /* Ensure the title text stays aligned to the left */
 }
 
 .header-bar .header h2 {
   margin: 0;
   color: var(--text-primary);
+  /* Ensure super long unbroken text wraps nicely instead of stretching the screen */
+  word-break: break-word; 
 }
 
 .view-mode-toggle {
@@ -29,6 +35,23 @@
   border: 1px solid var(--border-color-light);
   border-radius: 0.375rem;
   overflow: hidden;
+  flex-shrink: 0; 
+}
+
+/* DESKTOP RESPONSIVE BREAKPOINT */
+@media (min-width: 768px) {
+  .header-bar {
+    flex-direction: row; /* Switch back to side-by-side layout */
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .header-bar .header {
+    width: auto;
+    flex: 1 1 min-content; /* Allow shrinking but take remaining space */
+    min-width: 0; 
+    align-self: auto;
+  }
 }
 
 .toggle-btn {
@@ -38,6 +61,10 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .toggle-btn:hover {
   color: var(--text-primary);
