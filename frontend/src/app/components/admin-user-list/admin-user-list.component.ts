@@ -17,7 +17,7 @@ import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmati
 })
 export class AdminUserListComponent implements OnInit, OnDestroy {
   public users: User[] = [];
-  public availableDatabases: string[] = [];
+  public availableDatabases: { id: string, name: string }[] = [];
   public isLoading = true;
   
   // Master-Detail State
@@ -64,9 +64,6 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
   /**
    * Fetches both users and databases simultaneously.
    */
-/**
-   * Fetches both users and databases simultaneously.
-   */
   loadData(): void {
     this.isLoading = true;
     this.cdr.markForCheck(); // Ensure the UI knows we are loading
@@ -76,7 +73,7 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       this.databaseService.databases$ 
     ])
     .pipe(
-      take(1), // <--- THE FIX: Forces the stream to complete after 1 emission
+      take(1), // Forces the stream to complete after 1 emission
       takeUntil(this.destroy$),
       finalize(() => {
         this.isLoading = false;
@@ -86,7 +83,8 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     .subscribe({
       next: ([users, databases]) => {
         this.users = users;
-        this.availableDatabases = databases.map(db => db.name);
+        // Store both id and name for form generation
+        this.availableDatabases = databases.map(db => ({ id: db.id, name: db.name }));
         
         // If we reloaded data and a user is selected, refresh their form data
         if (this.selectedUser) {
@@ -151,11 +149,12 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.permissions.clear();
 
     // Dynamically build a permission group for every available database
-    this.availableDatabases.forEach(dbName => {
-      const existingPerm = user.permissions?.find(p => p.database_name === dbName);
+    this.availableDatabases.forEach(db => {
+      const existingPerm = user.permissions?.find(p => p.database_id === db.id);
       
       this.permissions.push(this.fb.group({
-        database_name: [dbName],
+        database_id: [db.id], // Core identifier for the backend
+        database_name: [db.name], // Kept strictly for display in the HTML template
         can_view: [existingPerm?.can_view || false],
         can_create: [existingPerm?.can_create || false],
         can_edit: [existingPerm?.can_edit || false],
@@ -201,11 +200,21 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     }
 
     this.isSaving = true;
-    const formData = this.detailForm.getRawValue(); // getRawValue includes disabled fields (like permissions if is_admin is true)
+    
+    // Deep copy the form data so we can safely strip the display-only properties
+    const formData = JSON.parse(JSON.stringify(this.detailForm.getRawValue()));
 
     // Remove empty password field so backend doesn't try to set it to blank
     if (!formData.password) {
       delete formData.password;
+    }
+
+    // Strip out the display-only database_name before sending to the API
+    if (formData.permissions) {
+      formData.permissions = formData.permissions.map((p: any) => {
+        const { database_name, ...rest } = p;
+        return rest;
+      });
     }
 
     // Prepare API call

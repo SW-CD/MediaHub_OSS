@@ -58,7 +58,6 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
         this.updatePermissions(user, db);
       });
 
-    // FIXED: Use withLatestFrom to avoid race conditions if selectedEntry fires before currentDatabase is set.
     this.entryService.selectedEntry$.pipe(
       takeUntil(this.destroy$),
       withLatestFrom(this.databaseService.selectedDatabase$),
@@ -71,10 +70,11 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
         this.entryForMetadata = null;
 
         if (entry && currentDb) {
-          return this.entryService.getEntryMeta(currentDb.name, entry.id).pipe(
+          // UPDATED: Pass currentDb.id instead of currentDb.name
+          return this.entryService.getEntryMeta(currentDb.id, entry.id).pipe(
             switchMap(metaEntry => {
               this.entryForMetadata = metaEntry;
-              this.previewUrl = this.getPreviewUrl(currentDb.name, metaEntry.id);
+              this.previewUrl = this.getPreviewUrl(currentDb.id, metaEntry.id); // UPDATED
 
               // 1. Check our central utility to see if the browser supports it
               const mime = metaEntry.mime_type || 'file';
@@ -82,7 +82,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
 
               if (isStreamable) {
                 // STREAMING SUPPORTED: Provide direct URL
-                const streamUrl = this.entryService.getEntryFileUrl(currentDb.name, entry.id);
+                const streamUrl = this.entryService.getEntryFileUrl(currentDb.id, entry.id); // UPDATED
                 this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(streamUrl);
                 this.isLoadingFile = false;
                 
@@ -90,7 +90,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
                 
               } else if (mime.startsWith('image/')) {
                 // IMAGES: Fall back to Blob download
-                return this.entryService.getEntryFileBlob(currentDb.name, entry.id).pipe(
+                return this.entryService.getEntryFileBlob(currentDb.id, entry.id).pipe( // UPDATED
                   map(blob => {
                     this.currentObjectUrl = URL.createObjectURL(blob);
                     this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(this.currentObjectUrl);
@@ -128,15 +128,16 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       this.canEdit = true;
       this.canDelete = true;
     } else {
-      const dbPermission = user.permissions?.find(p => p.database_name === db.name);
+      // UPDATED: Match against database_id and db.id
+      const dbPermission = user.permissions?.find(p => p.database_id === db.id);
       this.canEdit = dbPermission?.can_edit || false;
       this.canDelete = dbPermission?.can_delete || false;
     }
   }
 
-  // Refactored to take arguments to guarantee it relies on the specific flow context
-  public getPreviewUrl(dbName: string, entryId: number): string {
-    return this.entryService.getEntryPreviewUrl(dbName, entryId);
+  // UPDATED: Renamed parameter to dbId
+  public getPreviewUrl(dbId: string, entryId: number): string {
+    return this.entryService.getEntryPreviewUrl(dbId, entryId);
   }
 
   onEdit(): void {
@@ -171,7 +172,8 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.isLoadingFile = true; 
         
-        this.entryService.deleteEntry(this.currentDatabase!.name, this.entryForMetadata!.id)
+        // UPDATED: Pass currentDatabase.id instead of .name
+        this.entryService.deleteEntry(this.currentDatabase!.id, this.entryForMetadata!.id)
           .subscribe({
             next: () => {
               this.closeModal();

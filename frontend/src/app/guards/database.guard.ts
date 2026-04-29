@@ -17,10 +17,10 @@ export class DatabaseGuard implements CanActivate {
   ) {}
 
   canActivate(route: ActivatedRouteSnapshot): Observable<boolean | UrlTree> | boolean | UrlTree {
-    // Get the database name from the URL path (e.g., /database/:name)
-    const dbName = route.paramMap.get('name');
+    // Get the database ID from the URL path (e.g., /dashboard/db/:id)
+    const dbId = route.paramMap.get('id'); 
 
-    if (!dbName) {
+    if (!dbId) {
       return this.router.createUrlTree(['/dashboard']);
     }
 
@@ -31,16 +31,16 @@ export class DatabaseGuard implements CanActivate {
         // Admins can view everything
         if (user.is_admin) return true;
 
-        // Check if the user has explicitly been granted CanView for this specific database
+        // Check if the user has explicitly been granted CanView for this specific database ID
         const hasViewPermission = user.permissions?.some(
-          (p: Permission) => p.database_name === dbName && p.can_view
+          (p: Permission) => p.database_id === dbId && p.can_view
         );
 
         if (hasViewPermission) {
           return true;
         }
 
-        this.notificationService.showError(`Access Denied: You do not have permission to view '${dbName}'.`);
+        this.notificationService.showError(`Access Denied: You do not have permission to view this database.`);
         return this.router.createUrlTree(['/dashboard']);
       })
     );

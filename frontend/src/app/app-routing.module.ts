@@ -26,14 +26,14 @@ const routes: Routes = [
     children: [
       // Child routes for the dashboard's <router-outlet>
       {
-        path: 'db/:name', // e.g., /dashboard/db/MyDatabase
+        path: 'db/:id',
         component: EntryListComponent,
-        canActivate: [DatabaseGuard], // NEW: Enforce database-level CanView permissions
+        canActivate: [DatabaseGuard], // Enforce database-level CanView permissions
       },
       {
-        path: 'settings/:name', // e.g., /dashboard/settings/MyDatabase
+        path: 'settings/:id',
         component: DatabaseSettingsComponent,
-        canActivate: [AdminGuard], // NEW: Only global admins can access database settings
+        canActivate: [AdminGuard], // Only global admins can access database settings
       },
       {
         path: 'admin/users',
@@ -42,9 +42,9 @@ const routes: Routes = [
       },
       {
         path: '',
-        // Note: If the user navigates directly to /dashboard without a database name,
+        // Note: If the user navigates directly to /dashboard without a database id,
         // this component will load. You might want to display a "Welcome" or "Select a Database"
-        // view here instead of the EntryListComponent if the list requires a :name parameter!
+        // view here instead of the EntryListComponent if the list requires a :id parameter!
         component: EntryListComponent,
         pathMatch: 'full',
       },

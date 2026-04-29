@@ -5,11 +5,11 @@
 
   <div class="header-bar">
     <div class="header">
-      <h2 *ngIf="dbName">Entries in: {{ dbName }}</h2>
-      <h2 *ngIf="!dbName">Select a Database</h2>
+      <h2 *ngIf="dbId">Entries in: {{ currentDb?.name || 'Loading...' }}</h2>
+      <h2 *ngIf="!dbId">Select a Database</h2>
     </div>
     
-    <div class="view-mode-toggle" *ngIf="dbName">
+    <div class="view-mode-toggle" *ngIf="dbId">
       
       <button 
         *ngIf="currentDb?.content_type !== 'file'"
@@ -40,7 +40,7 @@
     </div>
   </div>
 
-  <ng-container *ngIf="dbName; else noDbSelected">
+  <ng-container *ngIf="dbId; else noDbSelected">
 
     <app-entry-filter
       [availableFilters]="availableFilters"
@@ -61,7 +61,7 @@
             [entries]="entriesToShow"
             [tableColumns]="tableColumns"
             [user]="currentUser"
-            [dbName]="dbName"
+            [dbId]="dbId!" 
             [selectedIds]="selectedEntryIds"
             (entryClicked)="openDetailModal($event)"
             (editClicked)="openEditModal($event)"
@@ -72,7 +72,7 @@
           <app-entry-grid
             *ngIf="viewMode === 'grid'"
             [entries]="entriesToShow"
-            [dbName]="dbName"
+            [dbId]="dbId!" 
             [selectedIds]="selectedEntryIds"
             (entryClicked)="openDetailModal($event)"
             (toggleSelection)="toggleSelection($event)">
@@ -141,7 +141,7 @@
   <ng-container *ngIf="showFullscreenPlayer">
     <app-fullscreen-player 
       [settings]="fullscreenSettings"
-      [dbName]="currentDb!.name"
+      [dbId]="dbId!" 
       [contentType]="currentDb!.content_type"
       (exit)="closeFullscreenPlayer()">
     </app-fullscreen-player>

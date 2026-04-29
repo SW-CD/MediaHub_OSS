@@ -37,18 +37,18 @@
         No databases found.
       </li>
 
-      <li *ngFor="let db of databases; trackBy: trackByDbName" 
+      <li *ngFor="let db of databases; trackBy: trackByDbId" 
           class="db-list-item"
-          [class.active]="db.name === selectedDbName">
-        <a [routerLink]="['/dashboard/db', db.name]" 
+          [class.active]="db.id === selectedDbId">
+        <a [routerLink]="['/dashboard/db', db.id]" 
            class="db-link"
            [title]="isCollapsed ? db.name : ''">
             <img [src]="getIconForDb(db)" class="db-icon" alt="db-icon" />
             <span class="truncate flex-grow" *ngIf="!isCollapsed">{{ db.name }}</span>
             
             <span class="settings-icon flex-shrink-0" 
-                  *ngIf="!isCollapsed && canManageDatabase(db.name, user)" 
-                  (click)="goToSettings($event, db.name)" 
+                  *ngIf="!isCollapsed && canManageDatabase(db.id, user)" 
+                  (click)="goToSettings($event, db.id)" 
                   title="Settings">
               <img src="assets/icons/settings-icon.svg" class="settings-icon-img" alt="settings-icon" />
             </span>

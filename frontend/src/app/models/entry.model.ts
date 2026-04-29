@@ -1,4 +1,4 @@
-import { EntryStatus } from './enums'; // Make sure you have this enum defined!
+import { EntryStatus } from './enums'; 
 
 export interface MediaFields {
   width?: number;
@@ -11,7 +11,7 @@ export interface Entry {
   id: number;
   timestamp: number;
   status: EntryStatus | string; 
-  database_name?: string;
+  database_id?: string; 
   
   // These might be undefined if the entry is still 'processing' (Async upload)
   mime_type?: string;
@@ -27,7 +27,7 @@ export interface Entry {
 export interface PartialEntryResponse {
   id: number;
   timestamp: number;
-  database_name: string;
+  database_id: string;
   status: EntryStatus | string;
   custom_fields?: Record<string, any>; 
 }

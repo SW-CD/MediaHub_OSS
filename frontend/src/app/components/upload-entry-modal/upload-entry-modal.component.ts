@@ -164,15 +164,14 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
         }
     });
 
-    // FIXED: Removed the / 1000 division to keep the timestamp in milliseconds
-    // FIXED: Added the filename explicitly to the metadata payload
     const metadata = {
         timestamp: new Date(timestamp).getTime(),
         filename: this.selectedFile.name,
         custom_fields: custom_fields 
     };
 
-    this.enryService.uploadEntry(this.currentDatabase.name, metadata as any, this.selectedFile)
+    // UPDATED: Passing this.currentDatabase.id instead of .name
+    this.enryService.uploadEntry(this.currentDatabase.id, metadata as any, this.selectedFile)
       .pipe(finalize(() => this.isLoading = false))
       .subscribe({
         next: () => {

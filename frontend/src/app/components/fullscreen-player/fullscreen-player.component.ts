@@ -1,11 +1,11 @@
 import { Component, OnInit, OnDestroy, Input, Output, EventEmitter, ElementRef, ViewChild, HostListener, ChangeDetectorRef } from '@angular/core';
 import { Subject, Subscription, timer } from 'rxjs';
 import { switchMap, takeUntil } from 'rxjs/operators';
-import { Entry, SearchRequest } from '../../models'; //
-import { EntryService } from '../../services/entry.service'; //
-import { NotificationService } from '../../services/notification.service'; //
+import { Entry, SearchRequest } from '../../models'; 
+import { EntryService } from '../../services/entry.service'; 
+import { NotificationService } from '../../services/notification.service'; 
 import { FullscreenSettings } from '../fullscreen-settings-modal/fullscreen-settings-modal.component';
-import { isMimeTypeStreamable } from '../../utils/mime-types'; //
+import { isMimeTypeStreamable } from '../../utils/mime-types'; 
 
 @Component({
   selector: 'app-fullscreen-player',
@@ -15,7 +15,7 @@ import { isMimeTypeStreamable } from '../../utils/mime-types'; //
 })
 export class FullscreenPlayerComponent implements OnInit, OnDestroy {
   @Input() settings!: FullscreenSettings;
-  @Input() dbName!: string;
+  @Input() dbId!: string; // UPDATED: Changed from dbName to dbId
   @Input() contentType!: string;
   
   @Output() exit = new EventEmitter<void>();
@@ -85,7 +85,7 @@ export class FullscreenPlayerComponent implements OnInit, OnDestroy {
           pagination: { limit: this.settings.entryLimit, offset: 0 },
           sort: { field: 'timestamp', direction: 'desc' }
         };
-        return this.entryService.searchEntries(this.dbName, searchPayload); //
+        return this.entryService.searchEntries(this.dbId, searchPayload); // UPDATED: Pass dbId
       })
     ).subscribe({
       next: (entries) => this.handleFetchedEntries(entries),
@@ -98,7 +98,7 @@ export class FullscreenPlayerComponent implements OnInit, OnDestroy {
    */
   private handleFetchedEntries(entries: Entry[]): void {
     // Filter out entries that aren't fully processed yet to prevent broken media
-    const readyEntries = entries.filter(e => e.status === 'ready'); //
+    const readyEntries = entries.filter(e => e.status === 'ready'); 
     
     if (readyEntries.length === 0) {
       this.isLoading = false;
@@ -166,13 +166,13 @@ private playNext(): void {
     const isStreamable = isMimeTypeStreamable(mime); 
 
     if (isStreamable || this.contentType === 'image') {
-      this.mediaUrl = this.entryService.getEntryFileUrl(this.dbName, entry.id); 
+      this.mediaUrl = this.entryService.getEntryFileUrl(this.dbId, entry.id); // UPDATED: Pass dbId
       console.log('--- DEBUG: Loading media URL:', this.mediaUrl, '---');
     } else {
        this.mediaUrl = null;
     }
 
-    // NEW: Force the screen to redraw with the new URL!
+    // Force the screen to redraw with the new URL!
     this.cdr.detectChanges();
 
     if (this.contentType === 'image' || !this.mediaUrl) {

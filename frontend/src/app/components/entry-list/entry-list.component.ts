@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { Observable, of, Subject, merge } from 'rxjs';
 import { switchMap, takeUntil, finalize, filter, take, map, distinctUntilChanged, tap } from 'rxjs/operators';
-import { Database, User, SearchRequest, SearchFilter, Entry } from '../../models'; // UPDATED: Import from barrel
+import { Database, User, SearchRequest, SearchFilter, Entry } from '../../models';
 import { DatabaseService } from '../../services/database.service';
 import { EntryService } from '../../services/entry.service';
 import { AuthService } from '../../services/auth.service';
@@ -31,10 +31,10 @@ export class EntryListComponent implements OnInit, OnDestroy {
   public tableColumns: string[] = [];
   public availableFilters: AvailableFilter[] = [];
 
-  public dbName: string | null = null;
+  public dbId: string | null = null; // UPDATED: dbName -> dbId
   public currentDb: Database | null = null;
 
-  // NEW: Scoped permission flags
+  // Scoped permission flags
   public canCreate = false;
   public canEdit = false;
   public canDelete = false;
@@ -81,11 +81,11 @@ export class EntryListComponent implements OnInit, OnDestroy {
 
     this.route.paramMap.pipe(
       takeUntil(this.destroy$),
-      map((params: ParamMap) => params.get('name')),
+      map((params: ParamMap) => params.get('id')), // UPDATED: Extract 'id' instead of 'name'
       distinctUntilChanged(), 
-      tap(name => this.setupForNewDatabase(name)),
-      filter((name): name is string => !!name), 
-      switchMap(name =>
+      tap(id => this.setupForNewDatabase(id)),
+      filter((id): id is string => !!id), 
+      switchMap(id =>
         merge(of(null), this.manualFetchTrigger$, this.entryService.refreshRequired$).pipe(
           tap(() => {
             this.isLoading = true; 
@@ -93,10 +93,10 @@ export class EntryListComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           }),
           switchMap(() => {
-            if (!this.dbName || this.dbName !== name) return of([]); 
+            if (!this.dbId || this.dbId !== id) return of([]); 
             
             const searchPayload = this.buildSearchPayload();
-            return this.entryService.searchEntries(name, searchPayload);
+            return this.entryService.searchEntries(id, searchPayload); // UPDATED: pass id
           })
         )
       )
@@ -121,7 +121,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
     });
   }
 
-  // NEW: Calculates permissions for the currently selected database
+  // Calculates permissions for the currently selected database
   private updatePermissions(): void {
     if (!this.currentUser || !this.currentDb) {
       this.canCreate = false;
@@ -135,7 +135,8 @@ export class EntryListComponent implements OnInit, OnDestroy {
       this.canEdit = true;
       this.canDelete = true;
     } else {
-      const dbPermission = this.currentUser.permissions?.find(p => p.database_name === this.currentDb!.name);
+      // UPDATED: check database_id matches currentDb.id
+      const dbPermission = this.currentUser.permissions?.find(p => p.database_id === this.currentDb!.id);
       this.canCreate = dbPermission?.can_create || false;
       this.canEdit = dbPermission?.can_edit || false;
       this.canDelete = dbPermission?.can_delete || false;
@@ -164,18 +165,18 @@ export class EntryListComponent implements OnInit, OnDestroy {
     return payload;
   }
 
-  private setupForNewDatabase(name: string | null): void {
-    this.dbName = name;
+  private setupForNewDatabase(id: string | null): void { // UPDATED: param is id
+    this.dbId = id;
     this.entriesToShow = [];
     this.currentPage = 1; 
     this.hasNextPage = false;
     this.clearSelection();
     this.currentFilterConditions = undefined;
 
-    this.isLoading = !!name; 
+    this.isLoading = !!id; 
 
-    if (name) {
-      this.databaseService.selectDatabase(name).pipe(take(1)).subscribe(db => {
+    if (id) {
+      this.databaseService.selectDatabase(id).pipe(take(1)).subscribe(db => { // UPDATED: pass id
         if (db) {
           this.currentDb = db;
           this.updatePermissions();
@@ -273,17 +274,17 @@ export class EntryListComponent implements OnInit, OnDestroy {
   // --- BULK ACTIONS ---
 
   onBulkDownload(): void {
-    if (!this.dbName || this.selectedEntryIds.size === 0) return;
+    if (!this.dbId || this.selectedEntryIds.size === 0) return; // UPDATED
     this.isBulkProcessing = true;
     const ids = Array.from(this.selectedEntryIds);
-    this.entryService.bulkExportEntries(this.dbName, ids)
+    this.entryService.bulkExportEntries(this.dbId, ids) // UPDATED
       .pipe(finalize(() => this.isBulkProcessing = false))
       .subscribe({
         next: (blob) => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `${this.dbName}_export.zip`;
+          a.download = `${this.currentDb?.name || 'database'}_export.zip`; // Display name for file download
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -296,18 +297,18 @@ export class EntryListComponent implements OnInit, OnDestroy {
   }
 
   onBulkDelete(): void {
-    if (!this.dbName || this.selectedEntryIds.size === 0) return;
+    if (!this.dbId || !this.currentDb || this.selectedEntryIds.size === 0) return; // UPDATED
     const ids = Array.from(this.selectedEntryIds);
     const modalData: ConfirmationModalData = {
       title: 'Confirm Bulk Deletion',
-      message: `Are you sure you want to delete ${ids.length} selected entries from '${this.dbName}'?`
+      message: `Are you sure you want to delete ${ids.length} selected entries from '${this.currentDb.name}'?` // Display name
     };
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(take(1), filter(confirmed => confirmed === true))
       .subscribe(() => {
-        if (this.dbName) {
+        if (this.dbId) {
           this.isBulkProcessing = true;
-          this.entryService.bulkDeleteEntries(this.dbName, ids)
+          this.entryService.bulkDeleteEntries(this.dbId, ids) // UPDATED
             .pipe(finalize(() => this.isBulkProcessing = false))
             .subscribe({ next: () => this.clearSelection() });
         }
@@ -324,19 +325,18 @@ export class EntryListComponent implements OnInit, OnDestroy {
     else if (db.content_type === 'video') standardColumns.push('width', 'height', 'duration');
     
     const customColumns = db.custom_fields.map(field => field.name);
-    // UPDATED: Use the local component properties
     const actionColumn = (this.canEdit || this.canDelete) ? ['actions'] : [];
     
     this.tableColumns = ['Preview', ...standardColumns, ...customColumns, ...actionColumn];
   }
 
   openUploadModal(): void {
-    if (this.dbName) this.modalService.open(UploadEntryModalComponent.MODAL_ID);
+    if (this.dbId) this.modalService.open(UploadEntryModalComponent.MODAL_ID); // UPDATED
     else this.notificationService.showInfo('Please select a database first.');
   }
 
   openEditModal(entry: Entry): void {
-    if (this.dbName) {
+    if (this.dbId) {
       if (entry.status === 'processing') return this.notificationService.showError('Cannot edit processing entry.');
       this.entryService.selectEntry(entry);
       this.modalService.open(EditEntryModalComponent.MODAL_ID);
@@ -349,38 +349,34 @@ export class EntryListComponent implements OnInit, OnDestroy {
     const modalData = { message: `Delete entry ${entry.id}?` };
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(take(1), filter(c => c === true))
-      .subscribe(() => this.entryService.deleteEntry(this.currentDb!.name, entry.id).subscribe());
+      .subscribe(() => this.entryService.deleteEntry(this.currentDb!.id, entry.id).subscribe()); // UPDATED: pass id
   }
 
   openFullscreenSettingsModal(): void {
-    if (!this.dbName || !this.currentDb) {
+    if (!this.dbId || !this.currentDb) {
       this.notificationService.showInfo('Please select a database first.');
       return;
     }
 
     this.modalService.open('fullscreenSettingsModal').pipe(take(1)).subscribe((result: any) => {
       if (result) {
-        // NEW: Wrap the state update in a setTimeout
         setTimeout(() => {
           this.fullscreenSettings = result;
           this.showFullscreenPlayer = true;
-          this.cdr.detectChanges(); // Force the render
+          this.cdr.detectChanges(); 
         }, 0);
       }
     });
   }
 
-  // Method to handle the exit event
   closeFullscreenPlayer(): void {
     this.showFullscreenPlayer = false;
     this.fullscreenSettings = null;
-    
-    // NEW: Tell Angular to remove the player from the DOM
     this.cdr.markForCheck(); 
   }
 
   openDetailModal(entry: Entry): void {
-     if (this.dbName) {
+     if (this.dbId) {
         if (entry.status === 'processing') return this.notificationService.showInfo('Entry processing...');
         this.entryService.selectEntry(entry);
         this.modalService.open(EntryDetailModalComponent.MODAL_ID);
@@ -396,7 +392,6 @@ export class EntryListComponent implements OnInit, OnDestroy {
   public prevPage(): void { if (this.currentPage > 1) { this.currentPage--; this.manualFetchTrigger$.next(); } }
 
   onFileDropped(file: File): void {
-    // UPDATED: Check local permission property
     if (!this.currentDb || !this.canCreate) return this.notificationService.showInfo('Cannot upload here.');
     if (!isMimeTypeAllowed(this.currentDb.content_type, file.type)) return this.notificationService.showError(`Invalid file type.`);
     this.modalService.open(UploadEntryModalComponent.MODAL_ID, { droppedFile: file });

@@ -2,9 +2,9 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil, finalize } from 'rxjs/operators';
-import { User, Permission } from '../../models'; // UPDATED: Use index barrel
+import { User, Permission, Database } from '../../models'; 
 import { AuthService } from '../../services/auth.service';
-import { DatabaseService } from '../../services/database.service'; // NEW: Required to fetch DB list
+import { DatabaseService } from '../../services/database.service'; 
 import { ModalService, ModalEvent } from '../../services/modal.service';
 import { NotificationService } from '../../services/notification.service';
 
@@ -21,7 +21,8 @@ export class UserFormComponent implements OnInit, OnDestroy {
   public isEditMode = false;
   public isLoading = false;
   
-  public availableDatabases: string[] = []; // NEW: Keep track of databases
+  // UPDATED: Track objects with both id and name for form construction
+  public availableDatabases: { id: string, name: string }[] = []; 
 
   private userIdToEdit: number | null = null;
   private destroy$ = new Subject<void>();
@@ -37,7 +38,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
       username: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_]+$/)]],
       password: ['', [Validators.minLength(8)]], 
       is_admin: [false],
-      permissions: this.fb.array([]) // NEW: FormArray for DB-scoped permissions
+      permissions: this.fb.array([]) 
     });
   }
 
@@ -46,7 +47,8 @@ export class UserFormComponent implements OnInit, OnDestroy {
     this.databaseService.databases$
       .pipe(takeUntil(this.destroy$))
       .subscribe(dbs => {
-        this.availableDatabases = dbs.map(db => db.name);
+        // UPDATED: Store both id and name
+        this.availableDatabases = dbs.map(db => ({ id: db.id, name: db.name }));
       });
 
     this.modalService.getModalEvents(UserFormComponent.MODAL_ID)
@@ -65,7 +67,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   private setupFormForMode(data: any): void {
     this.userForm.reset();
-    this.permissions.clear(); // Clear old permissions
+    this.permissions.clear(); 
     
     this.isEditMode = data?.isEditMode || false;
     this.userIdToEdit = null;
@@ -73,11 +75,13 @@ export class UserFormComponent implements OnInit, OnDestroy {
     const userPerms: Permission[] = data?.user?.permissions || [];
 
     // Dynamically build a permission group for every database currently in the system
-    this.availableDatabases.forEach(dbName => {
-      const existing = userPerms.find(p => p.database_name === dbName);
+    this.availableDatabases.forEach(db => {
+      // UPDATED: Match against the ULID instead of the name
+      const existing = userPerms.find(p => p.database_id === db.id); 
       
       this.permissions.push(this.fb.group({
-        database_name: [dbName],
+        database_id: [db.id], // NEW: Core identifier for the backend
+        database_name: [db.name], // Kept strictly for display in the HTML template
         can_view: [existing?.can_view || false],
         can_create: [existing?.can_create || false],
         can_edit: [existing?.can_edit || false],
@@ -107,10 +111,20 @@ export class UserFormComponent implements OnInit, OnDestroy {
     }
 
     this.isLoading = true;
-    const formData = this.userForm.value;
+    
+    // Deep copy the form data so we can mutate it without breaking the UI view
+    const formData = JSON.parse(JSON.stringify(this.userForm.value));
 
     if (this.isEditMode && !formData.password) {
       delete formData.password;
+    }
+
+    // UPDATED: Strip out the display-only database_name before sending to the API
+    if (formData.permissions) {
+        formData.permissions = formData.permissions.map((p: any) => {
+            const { database_name, ...rest } = p;
+            return rest;
+        });
     }
 
     const apiCall$ = this.isEditMode

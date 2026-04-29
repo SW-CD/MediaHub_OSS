@@ -25,7 +25,7 @@ export class AuthService {
   // Helper to check if we have a user loaded
   public isAuthenticated$ = this.currentUser$.pipe(map((user) => !!user));
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router) { }
 
   /**
    * Logs the user in by exchanging credentials for JWT tokens,
@@ -76,7 +76,7 @@ export class AuthService {
    */
   logout(notifyServer: boolean = true): void {
     const refreshToken = this.getRefreshToken();
-    
+
     if (notifyServer && refreshToken) {
       // Call the server to revoke the token
       // We use a simple object for the body as per the spec
@@ -106,8 +106,8 @@ export class AuthService {
       return throwError(() => new Error('No refresh token available'));
     }
 
-    return this.http.post<TokenResponse>(`${this.apiUrl}/token/refresh`, { 
-      refresh_token: refreshToken 
+    return this.http.post<TokenResponse>(`${this.apiUrl}/token/refresh`, {
+      refresh_token: refreshToken
     }).pipe(
       tap((tokens) => {
         this.storeTokens(tokens);
@@ -122,7 +122,7 @@ export class AuthService {
     if (!this.getAccessToken()) {
       return of(null);
     }
-    
+
     return this.http.get<User>(`${this.apiUrl}/me`).pipe(
       tap((user) => {
         this.currentUserSubject.next(user);
@@ -155,36 +155,28 @@ export class AuthService {
     return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
-  /**
-   * @deprecated Use getAccessToken() or let the Interceptor handle it.
-   * Kept for compatibility if other components check storage existence.
-   */
-  public getAuthTokenFromStorage(): string | null {
-    return this.getAccessToken();
-  }
-
   public getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  // --- User Management Methods (unchanged) ---
+  // --- User Management Methods ---
 
   /**
    * Checks if the current user has a specific permission for a given database.
    * Global admins automatically return true for all checks.
-   * * @param databaseName The name of the database to check access for.
+   * @param databaseId The ULID of the database to check access for.
    * @param permission The specific permission to check (e.g., 'can_view', 'can_create').
    */
-  public hasDatabasePermission(databaseName: string, permission: keyof import('../models').Permission): boolean {
+  public hasDatabasePermission(databaseId: string, permission: keyof import('../models').Permission): boolean {
     const user = this.getCurrentUser();
     if (!user) return false;
 
     // Global admins bypass all permission checks
     if (user.is_admin) return true;
 
-    // Find the specific permission record for this database
-    const dbPerms = user.permissions?.find(p => p.database_name === databaseName);
-    
+    // Find the specific permission record for this database using the ULID
+    const dbPerms = user.permissions?.find(p => p.database_id === databaseId);
+
     // Return the requested permission flag, or false if no record exists
     return dbPerms ? !!dbPerms[permission] : false;
   }

@@ -19,6 +19,16 @@
   </div>
 
   <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()">
+    
+    <div class="settings-card">
+      <h3>General Settings</h3>
+      <div class="form-group">
+        <label for="dbName" class="form-label">Database Name</label>
+        <input type="text" id="dbName" class="form-control" formControlName="name" [readOnly]="!canEdit">
+        <small class="text-muted">The display name of your database. Changing this will not break any existing file links or uploads.</small>
+      </div>
+    </div>
+
     <div class="settings-card">
       <h3>Configuration</h3>
       

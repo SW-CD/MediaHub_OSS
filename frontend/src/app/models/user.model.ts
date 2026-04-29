@@ -1,6 +1,6 @@
 // Define the Permission structure based on the new concept
 export interface Permission {
-  database_name: string;
+  database_id: string; // UPDATED: Replaced database_name with database_id
   can_view: boolean;
   can_create: boolean;
   can_edit: boolean;
@@ -9,7 +9,7 @@ export interface Permission {
 
 // Update the User interface to perfectly match the backend JSON
 export interface User {
-  id: number;          // Note: Changed to number based on your JSON ("id": 3)
+  id: number;          
   username: string;
   is_admin: boolean;
   permissions: Permission[]; 

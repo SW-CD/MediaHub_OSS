@@ -22,12 +22,13 @@ export class CreateDatabaseModalComponent implements OnInit {
     private modalService: ModalService
   ) {
     this.createDbForm = this.fb.group({
-      name: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_]+$/)]],
+      // UPDATED: Removed the strict Regex pattern since name is now just a display label!
+      // Added a maxLength just for standard safety.
+      name: ['', [Validators.required, Validators.maxLength(100)]],
       content_type: ['image', Validators.required],
       create_preview: [true],
       auto_conversion: [''], 
 
-      // UPDATED: Split into values and units to match database-settings
       housekeeping: this.fb.group({
         interval_value: [1, [Validators.required, Validators.min(0)]],
         interval_unit: ['h'],
@@ -77,8 +78,6 @@ export class CreateDatabaseModalComponent implements OnInit {
       config.auto_conversion = formValue.auto_conversion;
     }
 
-    // UPDATED: Reconstruct the strings (e.g. {value: 100, unit: "G"} => "100G")
-    // If the value is 0, send "0" to disable it
     const hkForm = formValue.housekeeping;
     const reconstructedHousekeeping = {
       interval: hkForm.interval_value > 0 ? `${hkForm.interval_value}${hkForm.interval_unit}` : "0",
@@ -90,7 +89,7 @@ export class CreateDatabaseModalComponent implements OnInit {
       name: formValue.name,
       content_type: formValue.content_type,
       config: config, 
-      housekeeping: reconstructedHousekeeping, // Attach the merged strings
+      housekeeping: reconstructedHousekeeping, 
       custom_fields: formValue.custom_fields,
     };
 
@@ -102,7 +101,6 @@ export class CreateDatabaseModalComponent implements OnInit {
         next: () => {
           this.modalService.close(true); 
           
-          // Reset form with split default values
           this.createDbForm.reset({
             name: '',
             content_type: 'image',

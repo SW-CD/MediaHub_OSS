@@ -23,7 +23,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   public databases$: Observable<Database[]>;
   public currentUser$: Observable<User | null>;
   public appInfo$: Observable<AppInfo | null>; 
-  public selectedDbName: string | null = null;
+  public selectedDbId: string | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -52,14 +52,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
       const dbIndex = urlSegments.indexOf('db');
       const settingsIndex = urlSegments.indexOf('settings');
 
-      let newDbName: string | null = null;
+      let newDbId: string | null = null;
       if (dbIndex > -1 && urlSegments.length > dbIndex + 1) {
-        newDbName = urlSegments[dbIndex + 1];
+        newDbId = urlSegments[dbIndex + 1];
       } else if (settingsIndex > -1 && urlSegments.length > settingsIndex + 1) {
-        newDbName = urlSegments[settingsIndex + 1];
+        newDbId = urlSegments[settingsIndex + 1];
       }
 
-      this.selectedDbName = newDbName;
+      this.selectedDbId = newDbId;
       this.cdr.detectChanges();
     });
   }
@@ -75,20 +75,20 @@ export class SidebarComponent implements OnInit, OnDestroy {
     switch (db.content_type) {
       case 'image': return 'assets/icons/image-icon.svg';
       case 'audio': return 'assets/icons/audio-icon.svg';
-      case 'video': return 'assets/icons/video-icon.svg'; // NEW: Added Video support
+      case 'video': return 'assets/icons/video-icon.svg';
       case 'file': return 'assets/icons/file-icon.svg';
       default: return 'assets/icons/db-icon.svg';
     }
   }
 
   /**
-   * NEW: Helper to determine if the user should see the settings gear icon.
+   * Helper to determine if the user should see the settings gear icon.
    * True if the user is an admin OR has edit/delete permissions for this specific db.
    */
-  public canManageDatabase(dbName: string, user: User): boolean {
+  public canManageDatabase(dbId: string, user: User): boolean { // UPDATED: parameter
     if (user.is_admin) return true;
     
-    const dbPermission = user.permissions?.find(p => p.database_name === dbName);
+    const dbPermission = user.permissions?.find(p => p.database_id === dbId);
     return !!dbPermission && (dbPermission.can_edit || dbPermission.can_delete);
   }
 
@@ -104,14 +104,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.modalService.open(ChangePasswordModalComponent.MODAL_ID);
   }
 
-  goToSettings(event: MouseEvent, dbName: string): void {
+  goToSettings(event: MouseEvent, dbId: string): void { 
     event.preventDefault();
     event.stopPropagation();
-    this.router.navigate(['/dashboard/settings', dbName]);
+    this.router.navigate(['/dashboard/settings', dbId]);
   }
 
-  trackByDbName(index: number, database: Database): string {
-    return database.name;
+  trackByDbId(index: number, database: Database): string {
+    return database.id;
   }
 
   ngOnDestroy(): void {

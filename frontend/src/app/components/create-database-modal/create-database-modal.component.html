@@ -6,9 +6,11 @@
       <div class="form-grid">
         <div class="form-group" style="grid-column: 1 / -1;">
           <label for="name" class="form-label">Database Name</label>
-          <input id="name" type="text" formControlName="name" class="form-control">
+          <input id="name" type="text" formControlName="name" class="form-control" placeholder="e.g. My Vacation Photos">
+          
           <div *ngIf="createDbForm.get('name')?.invalid && createDbForm.get('name')?.touched" class="form-error">
-            Name is required and can only contain letters, numbers, and underscores.
+            <span *ngIf="createDbForm.get('name')?.hasError('required')">Name is required.</span>
+            <span *ngIf="createDbForm.get('name')?.hasError('maxlength')">Name cannot exceed 100 characters.</span>
           </div>
         </div>
         

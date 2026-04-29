@@ -38,8 +38,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     this.selectedDatabase$ = this.databaseService.selectedDatabase$;
     this.currentUser$ = this.authService.currentUser$;
 
-    // UPDATED: Split the housekeeping fields into values and units
     this.settingsForm = this.fb.group({
+      name: ['', [Validators.required]], // NEW: Added name field for renaming
       create_preview: [true],
       auto_conversion: [''], 
       housekeeping: this.fb.group({
@@ -58,10 +58,10 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         switchMap((params) => {
-          const name = params.get('name');
+          const id = params.get('id'); // UPDATED: Extract 'id' instead of 'name'
           this.settingsForm.reset();
           this.isLoading = true; 
-          return name ? this.databaseService.selectDatabase(name) : of(null);
+          return id ? this.databaseService.selectDatabase(id) : of(null);
         })
       )
       .subscribe();
@@ -79,6 +79,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
             const maxAge = this.parseHousekeepingString(db.housekeeping.max_age, 'd');
 
             this.settingsForm.patchValue({
+              name: db.name, // NEW: Patch the database name
               ...db.config, 
               housekeeping: {
                 interval_value: interval.value,
@@ -136,7 +137,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
       this.canEdit = true;
       this.canDelete = true;
     } else {
-      const dbPermission = user.permissions?.find(p => p.database_name === this.currentDb!.name);
+      // UPDATED: Match the permission's database_id against currentDb.id
+      const dbPermission = user.permissions?.find(p => p.database_id === this.currentDb!.id);
       this.canEdit = dbPermission?.can_edit || false;
       this.canDelete = dbPermission?.can_delete || false;
     }
@@ -171,13 +173,15 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
       max_age: hkForm.max_age_value > 0 ? `${hkForm.max_age_value}${hkForm.max_age_unit}` : "0",
     };
 
-    const payload: DatabaseUpdatePayload = {
+    // We cast to any to seamlessly inject 'name' without changing the strict DatabaseUpdatePayload interface in the service
+    const payload: any = {
+      name: formValue.name, // NEW: Include name in payload
       config: config,
       housekeeping: reconstructedHousekeeping,
     };
 
     this.databaseService
-      .updateDatabase(this.currentDb.name, payload)
+      .updateDatabase(this.currentDb.id, payload) // UPDATED: Use ULID
       .pipe(finalize(() => (this.isLoading = false)))
       .subscribe(() => {
         this.settingsForm.markAsPristine(); 
@@ -188,7 +192,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     if (!this.currentDb || !this.canDelete) return;
     this.isLoading = true;
     this.databaseService
-      .triggerHousekeeping(this.currentDb.name)
+      .triggerHousekeeping(this.currentDb.id) // UPDATED: Use ULID
       .pipe(finalize(() => (this.isLoading = false)))
       .subscribe();
   }
@@ -211,7 +215,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
         if (this.currentDb) {
           this.isLoading = true;
           this.databaseService
-            .deleteDatabase(this.currentDb.name)
+            .deleteDatabase(this.currentDb.id) // UPDATED: Use ULID
             .pipe(finalize(() => (this.isLoading = false)))
             .subscribe();
         }

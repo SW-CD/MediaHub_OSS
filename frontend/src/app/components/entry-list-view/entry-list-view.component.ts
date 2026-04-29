@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
-import { Entry, User } from '../../models'; // UPDATED: Import from barrel
+import { Entry, User } from '../../models'; 
 import { DatabaseService } from '../../services/database.service';
 import { EntryService } from '../../services/entry.service';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
@@ -24,7 +24,7 @@ export class EntryListViewComponent implements OnChanges {
   @Input() entries: Entry[] = [];
   @Input() tableColumns: string[] = [];
   @Input() user: User | null = null;
-  @Input() dbName: string | null = null;
+  @Input() dbId: string | null = null; // UPDATED: Changed from dbName to dbId
   @Input() selectedIds = new Set<number>();
 
   @Output() entryClicked = new EventEmitter<Entry>();
@@ -34,7 +34,7 @@ export class EntryListViewComponent implements OnChanges {
 
   public failedImageIds = new Set<number>();
   
-  // NEW: Scoped permission flags
+  // Scoped permission flags
   public canEdit = false;
   public canDelete = false;
 
@@ -44,18 +44,19 @@ export class EntryListViewComponent implements OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['dbName'] || changes['entries']) {
+    // UPDATED: Check for dbId changes
+    if (changes['dbId'] || changes['entries']) {
       this.failedImageIds.clear();
     }
     // Calculate permissions whenever the user or database context changes
-    if (changes['user'] || changes['dbName']) {
+    if (changes['user'] || changes['dbId']) {
       this.updatePermissions();
     }
   }
 
-  // NEW: Resolves permissions specifically for the currently displayed database
+  // Resolves permissions specifically for the currently displayed database
   private updatePermissions(): void {
-    if (!this.user || !this.dbName) {
+    if (!this.user || !this.dbId) { // UPDATED
       this.canEdit = false;
       this.canDelete = false;
       return;
@@ -65,15 +66,16 @@ export class EntryListViewComponent implements OnChanges {
       this.canEdit = true;
       this.canDelete = true;
     } else {
-      const dbPerm = this.user.permissions?.find(p => p.database_name === this.dbName);
+      // UPDATED: Match the permission's database_id against our component's dbId input
+      const dbPerm = this.user.permissions?.find(p => p.database_id === this.dbId);
       this.canEdit = dbPerm?.can_edit || false;
       this.canDelete = dbPerm?.can_delete || false;
     }
   }
 
   public getPreviewUrl(entry: Entry): string {
-    if (!this.dbName) return '';
-    return this.entryService.getEntryPreviewUrl(this.dbName, entry.id);
+    if (!this.dbId) return '';
+    return this.entryService.getEntryPreviewUrl(this.dbId, entry.id); // UPDATED: Pass dbId
   }
 
   public onEntryClick(entry: Entry): void {

@@ -72,14 +72,14 @@ export class EntryService {
 
   // --- ENTRIES (BULK) ENDPOINTS ---
 
-  public searchEntries(dbName: string, payload: SearchRequest): Observable<Entry[]> {
+  public searchEntries(dbId: string, payload: SearchRequest): Observable<Entry[]> {
     return this.http
-      .post<Entry[]>(`${this.apiUrl}/database/${dbName}/entries/search`, payload)
+      .post<Entry[]>(`${this.apiUrl}/database/${dbId}/entries/search`, payload)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  public bulkDeleteEntries(dbName: string, ids: number[]): Observable<any> {
-    return this.http.post(`${this.apiUrl}/database/${dbName}/entries/delete`, { ids }).pipe(
+  public bulkDeleteEntries(dbId: string, ids: number[]): Observable<any> {
+    return this.http.post(`${this.apiUrl}/database/${dbId}/entries/delete`, { ids }).pipe(
       tap(() => {
         this.notificationService.showSuccess(`Successfully deleted ${ids.length} entries.`);
         this.triggerImageListRefresh();
@@ -88,8 +88,8 @@ export class EntryService {
     );
   }
 
-  public bulkExportEntries(dbName: string, ids: number[]): Observable<Blob> {
-    return this.http.post(`${this.apiUrl}/database/${dbName}/entries/export`, { ids }, { 
+  public bulkExportEntries(dbId: string, ids: number[]): Observable<Blob> {
+    return this.http.post(`${this.apiUrl}/database/${dbId}/entries/export`, { ids }, { 
       responseType: 'blob' 
     }).pipe(
       catchError((err) => this.handleError(err))
@@ -110,13 +110,13 @@ export class EntryService {
    * Uploads a file with associated metadata.
    * Sends both payload and binary using multipart/form-data.
    */
-  public uploadEntry(dbName: string, metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, file: File): Observable<void> {
+  public uploadEntry(dbId: string, metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, file: File): Observable<void> {
     const formData = new FormData();
     
     formData.append('metadata', JSON.stringify(metadata)); 
     formData.append('file', file, file.name);
 
-    return this.http.post<Entry | PartialEntryResponse>(`${this.apiUrl}/database/${dbName}/entry`, formData, { 
+    return this.http.post<Entry | PartialEntryResponse>(`${this.apiUrl}/database/${dbId}/entry`, formData, { 
       observe: 'response'
     }).pipe(
       tap(response => {
@@ -126,7 +126,7 @@ export class EntryService {
           
           if (entry && entry.status === 'processing') {
              this.addProcessingEntry(entry.id);
-             this.pollForEntryStatus(dbName, entry.id);
+             this.pollForEntryStatus(dbId, entry.id);
           }
           this.triggerImageListRefresh();
         }
@@ -135,7 +135,7 @@ export class EntryService {
           const partialEntry = response.body as PartialEntryResponse;
           this.addProcessingEntry(partialEntry.id);
           this.notificationService.showInfo(`Large file (ID: ${partialEntry.id}) is processing...`);
-          this.pollForEntryStatus(dbName, partialEntry.id);
+          this.pollForEntryStatus(dbId, partialEntry.id);
           this.triggerImageListRefresh();
         }
       }),
@@ -144,14 +144,14 @@ export class EntryService {
     );
   }
 
-  public getEntryMeta(dbName: string, entryId: number): Observable<Entry> {
+  public getEntryMeta(dbId: string, entryId: number): Observable<Entry> {
     return this.http
-      .get<Entry>(`${this.apiUrl}/database/${dbName}/entry/${entryId}`)
+      .get<Entry>(`${this.apiUrl}/database/${dbId}/entry/${entryId}`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  public getEntryFileBlob(dbName: string, entryId: number): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/database/${dbName}/entry/${entryId}/file`, {
+  public getEntryFileBlob(dbId: string, entryId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/database/${dbId}/entry/${entryId}/file`, {
         responseType: 'blob',
         headers: new HttpHeaders({ 'Accept': '*/*' })
       })
@@ -163,8 +163,8 @@ export class EntryService {
    * This is crucial for <video> and <audio> tags so the browser can utilize 
    * HTTP Range requests (streaming) instead of downloading the entire file into memory.
    */
-  public getEntryFileUrl(dbName: string, entryId: number): string {
-    const baseUrl = `${this.apiUrl}/database/${dbName}/entry/${entryId}/file`;
+  public getEntryFileUrl(dbId: string, entryId: number): string {
+    const baseUrl = `${this.apiUrl}/database/${dbId}/entry/${entryId}/file`;
     const token = this.authService.getAccessToken(); 
     
     // Append the token as a query parameter so the browser's native media engine can authenticate
@@ -175,12 +175,12 @@ export class EntryService {
     return baseUrl;
   }
 
-  public getEntryPreviewUrl(dbName: string, entryId: number): string {
-    return `${this.apiUrl}/database/${dbName}/entry/${entryId}/preview`;
+  public getEntryPreviewUrl(dbId: string, entryId: number): string {
+    return `${this.apiUrl}/database/${dbId}/entry/${entryId}/preview`;
   }
 
-  public updateEntry(dbName: string, entryId: number, updates: Partial<Entry>): Observable<Entry> {
-    return this.http.patch<Entry>(`${this.apiUrl}/database/${dbName}/entry/${entryId}`, updates).pipe(
+  public updateEntry(dbId: string, entryId: number, updates: Partial<Entry>): Observable<Entry> {
+    return this.http.patch<Entry>(`${this.apiUrl}/database/${dbId}/entry/${entryId}`, updates).pipe(
       tap(() => {
         this.notificationService.showSuccess(`Entry ${entryId} updated successfully.`);
         this.triggerImageListRefresh();
@@ -189,8 +189,8 @@ export class EntryService {
     );
   }
 
-  public deleteEntry(dbName: string, entryId: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/database/${dbName}/entry/${entryId}`).pipe(
+  public deleteEntry(dbId: string, entryId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/database/${dbId}/entry/${entryId}`).pipe(
       tap(res => {
         this.notificationService.showSuccess(res.message || `Entry ${entryId} deleted.`);
         this.triggerImageListRefresh();
@@ -213,9 +213,9 @@ export class EntryService {
     this.processingEntriesSubject.next(current.filter(entryId => entryId !== id));
   }
 
-  private pollForEntryStatus(dbName: string, entryId: number): void {
+  private pollForEntryStatus(dbId: string, entryId: number): void {
     timer(2000, 2000).pipe(
-      switchMap(() => this.getEntryMeta(dbName, entryId)),
+      switchMap(() => this.getEntryMeta(dbId, entryId)),
       filter(entry => entry.status !== 'processing'),
       take(1),
       take(30),

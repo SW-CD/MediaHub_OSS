@@ -28,7 +28,6 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
     private entryService: EntryService,
     private modalService: ModalService
   ) {
-    // FIXED: Removed media_fields from the form structure entirely
     this.editForm = this.fb.group({
       timestamp: ['', Validators.required],
       filename: [''],
@@ -89,7 +88,6 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
   private patchForm(entry: Entry): void {
     if (!this.editForm || !this.currentDatabase) return;
 
-    // FIXED: Removed the * 1000 multiplier, as timestamps are already in milliseconds
     const localDateTime = this.getLocalISOString(new Date(entry.timestamp));
 
     const patchData: any = {
@@ -123,7 +121,6 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
     // Build the clean update payload without media_fields
     const updates: any = {
         filename: formValue.filename,
-        // FIXED: Removed the / 1000 divisor to keep the payload in milliseconds
         timestamp: new Date(formValue.timestamp).getTime(),
         custom_fields: { ...formValue.custom_fields }
     };
@@ -138,7 +135,7 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.entryService.updateEntry(this.currentDatabase.name, this.currentEntry.id, updates)
+    this.entryService.updateEntry(this.currentDatabase.id, this.currentEntry.id, updates)
       .pipe(finalize(() => this.isLoading = false))
       .subscribe(() => {
         this.modalService.close(true); 

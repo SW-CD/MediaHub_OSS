@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
-import { Entry } from '../../models'; // UPDATED: Import from barrel
+import { Entry } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common'; // UPDATED: Added DecimalPipe
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common'; 
 import { SecureImageDirective } from '../../directives/secure-image.directive';
 
 @Component({
@@ -12,14 +12,14 @@ import { SecureImageDirective } from '../../directives/secure-image.directive';
   imports: [
     CommonModule, 
     DatePipe,
-    DecimalPipe, // UPDATED: Add to imports array
+    DecimalPipe, 
     SecureImageDirective
   ], 
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EntryGridComponent implements OnChanges {
   @Input() entries: Entry[] = [];
-  @Input() dbName: string | null = null;
+  @Input() dbId: string | null = null; // UPDATED: Changed from dbName to dbId
   
   // --- SELECTION INPUTS ---
   @Input() selectedIds = new Set<number>();
@@ -32,14 +32,15 @@ export class EntryGridComponent implements OnChanges {
   constructor(private entryservice: EntryService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['dbName'] || changes['entries']) {
+    // UPDATED: Check for dbId changes
+    if (changes['dbId'] || changes['entries']) {
       this.failedImageIds.clear();
     }
   }
 
   public getPreviewUrl(entry: Entry): string {
-    if (!this.dbName) return '';
-    return this.entryservice.getEntryPreviewUrl(this.dbName, entry.id);
+    if (!this.dbId) return '';
+    return this.entryservice.getEntryPreviewUrl(this.dbId, entry.id); // UPDATED: Pass dbId
   }
 
   public onEntryClick(entry: Entry): void {
@@ -64,6 +65,6 @@ export class EntryGridComponent implements OnChanges {
   }
 
   public getEntryTitle(entry: Entry): string {
-    return entry.filename || `ID: ${entry.id}`; // UPDATED: Prefer filename if available
+    return entry.filename || `ID: ${entry.id}`; 
   }
 }

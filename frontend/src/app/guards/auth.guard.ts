@@ -17,7 +17,6 @@ export class AuthGuard implements CanActivate {
     }
 
     // 2. Check if a token exists in storage.
-    // Note: Update 'getAuthTokenFromStorage()' to whatever method you use to get the access token
     const token = this.authService.getAccessToken(); 
     if (!token) {
       return this.router.createUrlTree(['/login']);
