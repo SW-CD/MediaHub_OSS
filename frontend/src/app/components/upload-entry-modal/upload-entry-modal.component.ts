@@ -6,7 +6,8 @@ import { Database, CustomField } from '../../models';
 import { EntryService } from '../../services/entry.service';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
-import { isMimeTypeAllowed } from '../../utils/mime-types';
+import { isMimeTypeAllowed, ALLOWED_MIME_TYPES } from '../../utils/mime-types';
+import { ContentType } from '../../models/enums'; 
 import { NotificationService } from '../../services/notification.service';
 
 @Component({
@@ -62,15 +63,26 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Dynamically generates the accept string from our central utility
+   * so it automatically includes audio/m4a, audio/mp4, application/ogg, etc.
+   */
   private updateFileAcceptString(contentType: string): void {
-    if (contentType === 'image') {
-      this.fileAcceptString = 'image/jpeg,image/png,image/gif,image/webp';
-    } else if (contentType === 'audio') {
-      this.fileAcceptString = 'audio/mpeg,audio/wav,audio/flac,audio/opus,audio/ogg';
-    } else if (contentType === 'video') {
-      this.fileAcceptString = 'video/mp4,video/x-matroska,video/webm,video/ogg,video/quicktime,video/x-msvideo,video/x-flv';
+    // We cast to ContentType to access the record map safely
+    const allowedConfig = ALLOWED_MIME_TYPES[contentType as ContentType];
+    
+    if (allowedConfig && allowedConfig.length > 0) {
+      // Maps the array of objects into a single comma-separated string of mime types
+      // Example output: "audio/mpeg,audio/wav,audio/flac,audio/opus,audio/ogg,application/ogg,audio/x-flac,audio/m4a,audio/mp4"
+      this.fileAcceptString = allowedConfig.map(config => config.mime).join(',');
+      
+      // OPTIONAL OS FALLBACK: Some older OS file pickers rely strictly on extensions 
+      // instead of MIME types. You can append explicit extensions if you want to be 100% safe.
+      if (contentType === 'audio') {
+        this.fileAcceptString += ',.m4a,.mp3,.flac,.wav,.ogg,.opus';
+      }
     } else {
-      this.fileAcceptString = null; 
+      this.fileAcceptString = null; // Allows any file for "file" content type
     }
   }
 
@@ -170,7 +182,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
         custom_fields: custom_fields 
     };
 
-    // UPDATED: Passing this.currentDatabase.id instead of .name
+    // Using this.currentDatabase.id for the ULID update
     this.enryService.uploadEntry(this.currentDatabase.id, metadata as any, this.selectedFile)
       .pipe(finalize(() => this.isLoading = false))
       .subscribe({
