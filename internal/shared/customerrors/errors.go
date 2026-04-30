@@ -29,6 +29,9 @@ const (
 	ErrUnsupportedMedia = Error("unsupported media type")
 	ErrBadMimeType      = Error("mime type not matching content type")
 
+	// Import errors
+	ErrUnmappedFieldAbort = Error("unmapped field encountered, aborting import")
+
 	// Distributed Lock errors
 	ErrLockNotAcquired = Error("lock not acquired")
 	ErrLockNotReleased = Error("lock not released")

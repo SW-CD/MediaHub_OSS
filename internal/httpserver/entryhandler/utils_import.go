@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,11 +12,11 @@ import (
 	"time"
 
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared/customerrors"
 )
 
 // processImportJob handles the asynchronous extraction and database insertion for bulk imports.
 func (h *EntryHandler) processImportJob(ctx context.Context, db repo.Database, username string, tempZipPath string, config ImportConfigPayload) {
-	// Ensure the temporary ZIP file is deleted from the server once the job finishes
 	defer os.Remove(tempZipPath)
 
 	h.Logger.Info("Background import job started", "database_id", db.ID, "user", username, "mode", config.Mode)
@@ -28,19 +29,10 @@ func (h *EntryHandler) processImportJob(ctx context.Context, db repo.Database, u
 	}
 	defer zr.Close()
 
-	// 2. Index the ZIP contents in a map for O(1) lookups
-	zipFiles := make(map[string]*zip.File)
-	var csvZipFile *zip.File
-
-	for _, f := range zr.File {
-		zipFiles[f.Name] = f
-		if f.Name == "entries.csv" {
-			csvZipFile = f
-		}
-	}
-
-	if csvZipFile == nil {
-		h.Logger.Error("Import failed: entries.csv not found in archive", "database_id", db.ID)
+	// 2. Index the ZIP contents and find CSV
+	zipFiles, csvZipFile, err := h.indexZipContents(zr)
+	if err != nil {
+		h.Logger.Error("Import failed", "database_id", db.ID, "error", err)
 		return
 	}
 
@@ -60,23 +52,15 @@ func (h *EntryHandler) processImportJob(ctx context.Context, db repo.Database, u
 	}
 
 	// 4. Validate Headers
-	expectedHeaders := []string{"id", "filename", "timestamp", "filesize", "previewsize", "mime_type", "status"}
-	if len(headers) < 7 {
-		h.Logger.Error("Import failed: CSV has missing standard headers", "database_id", db.ID)
+	if err := h.validateCSVHeaders(headers); err != nil {
+		h.Logger.Error("Import failed: CSV header validation", "database_id", db.ID, "error", err)
 		return
 	}
-	for i, expected := range expectedHeaders {
-		if headers[i] != expected {
-			h.Logger.Error("Import failed: Invalid CSV standard header format", "database_id", db.ID, "expected", expected, "got", headers[i])
-			return
-		}
-	}
 
-	// 5. Track Statistics
+	// 5. Process Rows
 	var successCount, skipCount, errorCount int
 
-	// 6. Iterate through CSV rows
-	for rowNum := 2; ; rowNum++ { // Start at 2 because row 1 is the header
+	for rowNum := 2; ; rowNum++ {
 		row, err := csvReader.Read()
 		if err == io.EOF {
 			break
@@ -87,163 +71,226 @@ func (h *EntryHandler) processImportJob(ctx context.Context, db repo.Database, u
 			continue
 		}
 
-		// Parse standard columns
-		csvID, err := strconv.ParseInt(row[0], 10, 64)
+		skipped, err := h.processImportRow(ctx, db, rowNum, row, headers, config, zipFiles)
 		if err != nil {
-			h.Logger.Warn("Import warning: Invalid ID format in CSV", "row", rowNum, "id", row[0])
+			// Check if we need a hard abort due to unmapped fields
+			if errors.Is(err, customerrors.ErrUnmappedFieldAbort) {
+				h.Logger.Error("Import aborted: Unmapped field encountered", "database_id", db.ID, "row", rowNum)
+				return
+			}
+			h.Logger.Warn("Import warning: Failed to process row", "row", rowNum, "error", err)
 			errorCount++
-			continue
-		}
-
-		// Determine target ID based on mode
-		var targetID int64 = 0 // 0 tells the Repo to generate a new Auto-Increment ID
-		if config.Mode != "generate_new" {
-			targetID = csvID
-
-			// Check if entry exists for skip/overwrite
-			_, err := h.Repo.GetEntry(ctx, db.ID, targetID)
-			exists := err == nil
-
-			if config.Mode == "skip" && exists {
-				skipCount++
-				continue
-			}
-			// If mode is overwrite, we proceed and just update the existing record
-		}
-
-		// Parse remaining standard fields
-		filename := row[1]
-		timestamp, _ := time.Parse(time.RFC3339, row[2])
-		filesize, _ := strconv.ParseUint(row[3], 10, 64)
-		previewsize, _ := strconv.ParseUint(row[4], 10, 64)
-		mimeType := row[5]
-		status, _ := strconv.ParseUint(row[6], 10, 8)
-
-		// Map Custom Fields
-		mappedCustomFields := make(map[string]any)
-		failedMapping := false
-
-		for i := 7; i < len(headers); i++ {
-			if i >= len(row) {
-				break
-			}
-
-			csvHeader := headers[i]
-			dbField := csvHeader
-
-			// Apply mapping if defined
-			if mapped, ok := config.CustomFieldMapping[csvHeader]; ok {
-				dbField = mapped
-			}
-
-			// Validate against database schema
-			validField := false
-			for _, cf := range db.CustomFields {
-				if cf.Name == dbField {
-					validField = true
-					// Type cast based on schema
-					switch cf.Type {
-					case "INTEGER":
-						val, _ := strconv.ParseInt(row[i], 10, 64)
-						mappedCustomFields[dbField] = val
-					case "REAL":
-						val, _ := strconv.ParseFloat(row[i], 64)
-						mappedCustomFields[dbField] = val
-					case "BOOLEAN":
-						val, _ := strconv.ParseBool(row[i])
-						mappedCustomFields[dbField] = val
-					default: // TEXT
-						mappedCustomFields[dbField] = row[i]
-					}
-					break
-				}
-			}
-
-			if !validField && config.UnmappedFields == "fail" {
-				h.Logger.Error("Import aborted: Unmapped field encountered", "database_id", db.ID, "field", csvHeader)
-				return // Hard abort per configuration
-			}
-		}
-
-		if failedMapping {
-			errorCount++
-			continue
-		}
-
-		// 7. Locate Files in ZIP
-		mainZipPath := fmt.Sprintf("files/%d_%s", csvID, filename)
-		previewZipPath := fmt.Sprintf("previews/%d.webp", csvID)
-
-		mainFileZipped, ok := zipFiles[mainZipPath]
-		if !ok {
-			h.Logger.Warn("Import warning: Main media file missing in archive", "row", rowNum, "file", mainZipPath)
-			errorCount++
-			continue
-		}
-
-		// 8. Construct Entry Model
-		entry := repo.Entry{
-			ID:           targetID,
-			FileName:     filename,
-			Size:         filesize,
-			PreviewSize:  previewsize,
-			Timestamp:    timestamp,
-			MimeType:     mimeType,
-			Status:       uint8(status),
-			CustomFields: mappedCustomFields,
-		}
-
-		// 9. Write to Database
-		var savedEntry repo.Entry
-		if config.Mode == "overwrite" && targetID != 0 {
-			// Ensure it actually exists before updating, or fallback to create
-			_, errCheck := h.Repo.GetEntry(ctx, db.ID, targetID)
-			if errCheck == nil {
-				savedEntry, err = h.Repo.UpdateEntry(ctx, db.ID, entry)
-			} else {
-				savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
-			}
+		} else if skipped {
+			skipCount++
 		} else {
-			savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
+			successCount++
 		}
-
-		if err != nil {
-			h.Logger.Warn("Import warning: Failed to insert entry into database", "row", rowNum, "error", err)
-			errorCount++
-			continue
-		}
-
-		// 10. Write Main File to Storage
-		srcFile, _ := mainFileZipped.Open()
-		_, err = h.Storage.Write(ctx, db.ID, savedEntry.ID, srcFile)
-		srcFile.Close()
-
-		if err != nil {
-			h.Logger.Warn("Import warning: Failed to write main file to storage", "row", rowNum, "error", err)
-			h.Repo.DeleteEntry(ctx, db.ID, savedEntry.ID) // Rollback DB on storage failure
-			errorCount++
-			continue
-		}
-
-		// 11. Write Preview to Storage (if exists)
-		if previewZipped, exists := zipFiles[previewZipPath]; exists {
-			pSrcFile, _ := previewZipped.Open()
-			_, err = h.Storage.WritePreview(ctx, db.ID, savedEntry.ID, pSrcFile)
-			pSrcFile.Close()
-			if err != nil {
-				h.Logger.Warn("Import warning: Failed to write preview file to storage", "row", rowNum, "error", err)
-				// We don't rollback the whole entry just for a failed preview, but log it
-			}
-		}
-
-		successCount++
 	}
 
-	// 12. Log Summary
+	// 6. Log Summary
 	h.Logger.Info("Background import job completed",
 		"database_id", db.ID,
 		"successful", successCount,
 		"skipped", skipCount,
 		"errors", errorCount,
 	)
+}
+
+// -----------------------------------------------------------------------------
+// Helper Functions
+// -----------------------------------------------------------------------------
+
+// indexZipContents maps the ZIP contents for O(1) lookups and locates the entries.csv file.
+func (h *EntryHandler) indexZipContents(zr *zip.ReadCloser) (map[string]*zip.File, *zip.File, error) {
+	zipFiles := make(map[string]*zip.File)
+	var csvZipFile *zip.File
+
+	for _, f := range zr.File {
+		zipFiles[f.Name] = f
+		if f.Name == "entries.csv" {
+			csvZipFile = f
+		}
+	}
+
+	if csvZipFile == nil {
+		return nil, nil, errors.New("entries.csv not found in archive")
+	}
+
+	return zipFiles, csvZipFile, nil
+}
+
+// validateCSVHeaders ensures the standard headers exist in the correct order.
+func (h *EntryHandler) validateCSVHeaders(headers []string) error {
+	expectedHeaders := []string{"id", "filename", "timestamp", "filesize", "previewsize", "mime_type", "status"}
+	if len(headers) < len(expectedHeaders) {
+		return errors.New("CSV has missing standard headers")
+	}
+	for i, expected := range expectedHeaders {
+		if headers[i] != expected {
+			return fmt.Errorf("invalid standard header format. Expected '%s', got '%s'", expected, headers[i])
+		}
+	}
+	return nil
+}
+
+// processImportRow coordinates the database and storage insertions for a single CSV row.
+// It returns a boolean indicating if the row was skipped, and an error if it failed.
+func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, rowNum int, row []string, headers []string, config ImportConfigPayload, zipFiles map[string]*zip.File) (bool, error) {
+
+	// 1. Parse Standard Fields
+	entry, err := h.parseStandardFields(row)
+	if err != nil {
+		return false, fmt.Errorf("invalid standard field format: %w", err)
+	}
+	originalCSVId := entry.ID
+
+	// 2. Determine Target ID & Mode Logic
+	if config.Mode != "generate_new" {
+		_, errCheck := h.Repo.GetEntry(ctx, db.ID, entry.ID)
+		exists := errCheck == nil
+
+		if config.Mode == "skip" && exists {
+			return true, nil // Skipped successfully
+		}
+		// If mode is overwrite and it exists, we will update it later.
+	} else {
+		entry.ID = 0 // Instructs the Repo to generate a new Auto-Increment ID
+	}
+
+	// 3. Map Custom Fields
+	customFields, err := h.mapCustomFields(row, headers, db.CustomFields, config)
+	if err != nil {
+		return false, err // Might be customerrors.ErrUnmappedFieldAbort
+	}
+	entry.CustomFields = customFields
+
+	// 4. Locate Files in ZIP (using the original ID from the CSV, not the target DB ID)
+	mainZipPath := fmt.Sprintf("files/%d_%s", originalCSVId, entry.FileName)
+	previewZipPath := fmt.Sprintf("previews/%d.webp", originalCSVId)
+
+	mainFileZipped, ok := zipFiles[mainZipPath]
+	if !ok {
+		return false, fmt.Errorf("main media file missing in archive: %s", mainZipPath)
+	}
+
+	// 5. Write to Database
+	var savedEntry repo.Entry
+	if config.Mode == "overwrite" && entry.ID != 0 {
+		_, errCheck := h.Repo.GetEntry(ctx, db.ID, entry.ID)
+		if errCheck == nil {
+			savedEntry, err = h.Repo.UpdateEntry(ctx, db.ID, entry)
+		} else {
+			savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
+		}
+	} else {
+		savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to insert/update entry in database: %w", err)
+	}
+
+	// 6. Write Main File to Storage
+	srcFile, _ := mainFileZipped.Open()
+	_, err = h.Storage.Write(ctx, db.ID, savedEntry.ID, srcFile)
+	srcFile.Close()
+
+	if err != nil {
+		h.Repo.DeleteEntry(ctx, db.ID, savedEntry.ID) // Rollback DB on storage failure
+		return false, fmt.Errorf("failed to write main file to storage: %w", err)
+	}
+
+	// 7. Write Preview to Storage (if it exists in the archive)
+	if previewZipped, exists := zipFiles[previewZipPath]; exists {
+		pSrcFile, _ := previewZipped.Open()
+		_, err = h.Storage.WritePreview(ctx, db.ID, savedEntry.ID, pSrcFile)
+		pSrcFile.Close()
+		if err != nil {
+			h.Logger.Warn("Import warning: Failed to write preview file to storage", "row", rowNum, "error", err)
+		}
+	}
+
+	return false, nil // Success, not skipped
+}
+
+// parseStandardFields extracts and types the first 7 standard columns from the CSV.
+func (h *EntryHandler) parseStandardFields(row []string) (repo.Entry, error) {
+	var entry repo.Entry
+	var err error
+
+	if entry.ID, err = strconv.ParseInt(row[0], 10, 64); err != nil {
+		return entry, fmt.Errorf("invalid ID: %s", row[0])
+	}
+
+	entry.FileName = row[1]
+
+	if entry.Timestamp, err = time.Parse(time.RFC3339, row[2]); err != nil {
+		return entry, fmt.Errorf("invalid timestamp: %s", row[2])
+	}
+	if entry.Size, err = strconv.ParseUint(row[3], 10, 64); err != nil {
+		return entry, fmt.Errorf("invalid filesize: %s", row[3])
+	}
+	if entry.PreviewSize, err = strconv.ParseUint(row[4], 10, 64); err != nil {
+		return entry, fmt.Errorf("invalid previewsize: %s", row[4])
+	}
+
+	entry.MimeType = row[5]
+
+	statusVal, err := strconv.ParseUint(row[6], 10, 8)
+	if err != nil {
+		return entry, fmt.Errorf("invalid status: %s", row[6])
+	}
+	entry.Status = uint8(statusVal)
+
+	return entry, nil
+}
+
+// mapCustomFields extracts dynamic columns, applies user mapping, and validates against the DB schema.
+func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields []repo.CustomField, config ImportConfigPayload) (map[string]any, error) {
+	mappedCustomFields := make(map[string]any)
+
+	for i := 7; i < len(headers); i++ {
+		if i >= len(row) {
+			break
+		}
+
+		csvHeader := headers[i]
+		dbField := csvHeader
+
+		// Apply user-defined mapping if provided
+		if mapped, ok := config.CustomFieldMapping[csvHeader]; ok {
+			dbField = mapped
+		}
+
+		// Validate against database schema and enforce types
+		validField := false
+		for _, cf := range dbFields {
+			if cf.Name == dbField {
+				validField = true
+				switch cf.Type {
+				case "INTEGER":
+					val, _ := strconv.ParseInt(row[i], 10, 64)
+					mappedCustomFields[dbField] = val
+				case "REAL":
+					val, _ := strconv.ParseFloat(row[i], 64)
+					mappedCustomFields[dbField] = val
+				case "BOOLEAN":
+					val, _ := strconv.ParseBool(row[i])
+					mappedCustomFields[dbField] = val
+				default: // TEXT
+					mappedCustomFields[dbField] = row[i]
+				}
+				break
+			}
+		}
+
+		if !validField {
+			if config.UnmappedFields == "fail" {
+				return nil, customerrors.ErrUnmappedFieldAbort
+			}
+			// If "ignore", we simply don't add it to mappedCustomFields
+		}
+	}
+
+	return mappedCustomFields, nil
 }
