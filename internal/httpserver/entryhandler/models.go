@@ -128,6 +128,19 @@ type byteRange struct {
 	length int64
 }
 
+// ImportConfigPayload defines the JSON configuration for the bulk import process.
+type ImportConfigPayload struct {
+	Mode               string            `json:"mode"`                 // "generate_new", "skip", or "overwrite"
+	CustomFieldMapping map[string]string `json:"custom_field_mapping"` // Maps CSV column headers to DB custom fields
+	UnmappedFields     string            `json:"unmapped_fields"`      // "ignore" or "fail"
+}
+
+// ImportResponse defines the JSON payload returned upon successfully accepting an import job.
+type ImportResponse struct {
+	DatabaseID string `json:"database_id"`
+	Message    string `json:"message"`
+}
+
 // Interfaces
 
 // Define an interface that guarantees a GetID method

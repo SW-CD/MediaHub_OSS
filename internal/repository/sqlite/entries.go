@@ -46,6 +46,12 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 		"mime_type":        entry.MimeType,
 	}
 
+	// Conditionally append the explicit ID if provided.
+	// If omitted, SQLite handles the AUTOINCREMENT natively.
+	if entry.ID > 0 {
+		insertData["id"] = entry.ID
+	}
+
 	// Dynamically append Media and Custom fields
 	for key, value := range entry.MediaFields {
 		insertData[key] = value
@@ -70,14 +76,18 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 	res, err := tx.ExecContext(ctx, insertQuery, args...)
 	if err != nil {
+		// If entry.ID > 0 and already exists, SQLite throws a UNIQUE constraint failed error right here.
 		return repo.Entry{}, fmt.Errorf("failed to insert entry: %w", err)
 	}
 
-	insertedID, err := res.LastInsertId()
-	if err != nil {
-		return repo.Entry{}, fmt.Errorf("failed to retrieve insert ID: %w", err)
+	// Only fetch the LastInsertId if we let SQLite generate it
+	if entry.ID <= 0 {
+		insertedID, err := res.LastInsertId()
+		if err != nil {
+			return repo.Entry{}, fmt.Errorf("failed to retrieve insert ID: %w", err)
+		}
+		entry.ID = insertedID
 	}
-	entry.ID = insertedID
 
 	// Atomically update parent Database stats using db.ID
 	// Calculate total size delta (main file + preview)

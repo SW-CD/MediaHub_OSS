@@ -2,6 +2,7 @@ package entryhandler
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -891,25 +893,48 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Pass 2: Stream the files into the ZIP
+		// Pass 2: Stream the files and previews into the ZIP
 		for _, entry := range validEntries {
+			// --- 1. Stream the Main File ---
 			// Fetch file stream from storage
 			fileStream, err := h.Storage.Read(r.Context(), dbID, entry.ID, 0, -1)
 			if err != nil {
 				h.Logger.Warn("Failed to read file from storage for export", "id", entry.ID, "error", err)
-				continue
+				continue // If the main file fails, we skip this entry entirely
 			}
 
-			// Create file inside ZIP (this would close the previous file, but we already flushed the CSV!)
+			// Create file inside ZIP
 			zipEntryPath := fmt.Sprintf("files/%d_%s", entry.ID, entry.FileName)
 			zipFile, err := zipWriter.Create(zipEntryPath)
 			if err != nil {
 				fileStream.Close()
+				h.Logger.Warn("Failed to create zip entry for file", "id", entry.ID, "error", err)
 				continue
 			}
 
 			// Stream content into ZIP
 			_, _ = io.Copy(zipFile, fileStream)
 			fileStream.Close()
+
+			// --- 2. Stream the Preview File (if it exists) ---
+			// We use the database metadata to quickly check if a preview was generated
+			if entry.PreviewSize > 0 {
+				previewStream, err := h.Storage.ReadPreview(r.Context(), dbID, entry.ID)
+				if err != nil {
+					h.Logger.Warn("Failed to read preview from storage for export", "id", entry.ID, "error", err)
+				} else {
+					// Create preview file inside ZIP
+					zipPreviewPath := fmt.Sprintf("previews/%d.webp", entry.ID)
+					zipPreviewFile, err := zipWriter.Create(zipPreviewPath)
+					if err != nil {
+						h.Logger.Warn("Failed to create zip entry for preview", "id", entry.ID, "error", err)
+					} else {
+						// Stream preview content into ZIP
+						_, _ = io.Copy(zipPreviewFile, previewStream)
+					}
+					previewStream.Close()
+				}
+			}
 		}
 	}()
 
@@ -919,4 +944,136 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, pr); err != nil {
 		h.Logger.Error("Failed to stream ZIP to client", "error", err)
 	}
+}
+
+// @Summary Bulk import entries
+// @Description Accepts a ZIP archive containing media files and an entries.csv metadata file to bulk-import entries into the database.
+// @Description The ZIP file is spooled directly to a temporary file on the server's disk to ensure a low memory footprint. Processing happens asynchronously.
+// @Tags database
+// @Accept mpfd
+// @Produce json
+// @Param database_id path string true "Database ID"
+// @Param file formData file true "The ZIP archive containing the media files and entries.csv"
+// @Param config formData string false "JSON string defining the rules for the import process (e.g., mode, custom_field_mapping, unmapped_fields)"
+// @Success 202 {object} ImportResponse "Import job started successfully"
+// @Failure 400 {object} utils.ErrorResponse "Invalid request, missing file, or invalid config"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden (Requires CanCreate role)"
+// @Failure 404 {object} utils.ErrorResponse "Database not found"
+// @Failure 415 {object} utils.ErrorResponse "Unsupported Media Type (Not a ZIP archive)"
+// @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BasicAuth
+// @Router /database/{database_id}/entries/import [post]
+func (h *EntryHandler) ImportEntries(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("database_id")
+	user := utils.GetUserFromContext(r.Context())
+	if user == nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
+		return
+	}
+
+	// 1. Validate Database
+	if dbID == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: database_id")
+		return
+	}
+	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
+		return
+	}
+
+	// 2. Parse Multipart Form
+	// Use the configured MaxSyncUploadSizeBytes to limit memory consumption during parsing
+	if err := r.ParseMultipartForm(h.MaxSyncUploadSizeBytes); err != nil {
+		h.Logger.Warn("Failed to parse multipart form for import", "error", err)
+		utils.RespondWithError(w, http.StatusBadRequest, "Failed to parse multipart form.")
+		return
+	}
+
+	// 3. Extract and Parse Config (with safe defaults)
+	configStr := r.FormValue("config")
+	importConfig := ImportConfigPayload{
+		Mode:               "generate_new",
+		CustomFieldMapping: make(map[string]string),
+		UnmappedFields:     "ignore",
+	}
+
+	if configStr != "" {
+		if err := json.Unmarshal([]byte(configStr), &importConfig); err != nil {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid JSON format in 'config' parameter.")
+			return
+		}
+		// Validate mode
+		if importConfig.Mode != "generate_new" && importConfig.Mode != "skip" && importConfig.Mode != "overwrite" {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid 'mode' specified in config. Allowed values: generate_new, skip, overwrite.")
+			return
+		}
+	}
+
+	// 4. Extract File
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing 'file' part in multipart form.")
+		return
+	}
+	defer file.Close()
+
+	// Ensure it's a zip file based on content-type or extension
+	if header.Header.Get("Content-Type") != "application/zip" && header.Header.Get("Content-Type") != "application/x-zip-compressed" {
+		utils.RespondWithError(w, http.StatusUnsupportedMediaType, "Uploaded file must be a ZIP archive.")
+		return
+	}
+
+	// 5. Spool to Temporary File on Disk
+	tempFile, err := os.CreateTemp(os.TempDir(), "mh-import-*.zip")
+	if err != nil {
+		h.Logger.Error("Failed to create temporary file for import", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to spool upload to disk.")
+		return
+	}
+	tempFilePath := tempFile.Name()
+	tempFile.Close() // Close immediately, we just wanted the generated name
+
+	// Fast Path: Try to move the file directly if it's already on disk
+	moved := false
+	if f, ok := file.(*os.File); ok {
+		if err := os.Rename(f.Name(), tempFilePath); err == nil {
+			moved = true
+		}
+	}
+
+	// Slow Path: Fallback to copying if in-memory or cross-device rename failed
+	if !moved {
+		destFile, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			os.Remove(tempFilePath)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to spool upload to disk.")
+			return
+		}
+
+		// Reset the read pointer just in case
+		file.Seek(0, io.SeekStart)
+		if _, err := io.Copy(destFile, file); err != nil {
+			destFile.Close()
+			os.Remove(tempFilePath)
+			h.Logger.Error("Failed to copy uploaded file to temp file", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to spool upload to disk.")
+			return
+		}
+		destFile.Close()
+	}
+
+	// 6. Launch Background Worker
+	// Pass context.Background() because the HTTP request context will cancel when we return the response
+	go h.processImportJob(context.Background(), db, user.Username, tempFilePath, importConfig)
+
+	// 7. Audit & Response
+	h.Auditor.Log(r.Context(), "entries.import", user.Username, dbID, map[string]any{"mode": importConfig.Mode})
+
+	resp := ImportResponse{
+		DatabaseID: dbID,
+		Message:    "Import job started successfully. The archive is being processed in the background.",
+	}
+	utils.RespondWithJSON(w, http.StatusAccepted, resp)
 }
