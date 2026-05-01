@@ -227,7 +227,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 	}
 
 	// Update LastHkRun utilizing the new atomic database method to prevent stat overwrites
-	_, err = s.Repo.HouseKeepingWasCalled(ctx, db.Name)
+	_, err = s.Repo.HouseKeepingWasCalled(ctx, db.ID)
 	if err != nil {
 		s.Logger.Error("Housekeeper failed to update LastHkRun", "error", err, "database_id", db.ID, "database_name", db.Name)
 	}
