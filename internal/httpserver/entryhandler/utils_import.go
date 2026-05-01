@@ -134,7 +134,6 @@ func (h *EntryHandler) validateCSVHeaders(headers []string) error {
 }
 
 // processImportRow coordinates the database and storage insertions for a single CSV row.
-// It returns a boolean indicating if the row was skipped, and an error if it failed.
 func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, rowNum int, row []string, headers []string, config ImportConfigPayload, zipFiles map[string]*zip.File) (bool, error) {
 
 	// 1. Parse Standard Fields
@@ -145,14 +144,13 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	originalCSVId := entry.ID
 
 	// 2. Determine Target ID & Mode Logic
-	if config.Mode != "generate_new" {
+	if config.Mode == "skip" {
 		_, errCheck := h.Repo.GetEntry(ctx, db.ID, entry.ID)
 		exists := errCheck == nil
 
-		if config.Mode == "skip" && exists {
+		if exists {
 			return true, nil // Skipped successfully
 		}
-		// If mode is overwrite and it exists, we will update it later.
 	} else {
 		entry.ID = 0 // Instructs the Repo to generate a new Auto-Increment ID
 	}
@@ -160,11 +158,11 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	// 3. Map Custom Fields
 	customFields, err := h.mapCustomFields(row, headers, db.CustomFields, config)
 	if err != nil {
-		return false, err // Might be customerrors.ErrUnmappedFieldAbort
+		return false, err
 	}
 	entry.CustomFields = customFields
 
-	// 4. Locate Files in ZIP (using the original ID from the CSV, not the target DB ID)
+	// 4. Locate Files in ZIP
 	mainZipPath := fmt.Sprintf("files/%d_%s", originalCSVId, entry.FileName)
 	previewZipPath := fmt.Sprintf("previews/%d.webp", originalCSVId)
 
@@ -173,34 +171,55 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 		return false, fmt.Errorf("main media file missing in archive: %s", mainZipPath)
 	}
 
-	// 5. Write to Database
-	var savedEntry repo.Entry
-	if config.Mode == "overwrite" && entry.ID != 0 {
-		_, errCheck := h.Repo.GetEntry(ctx, db.ID, entry.ID)
-		if errCheck == nil {
-			savedEntry, err = h.Repo.UpdateEntry(ctx, db.ID, entry)
-		} else {
-			savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
-		}
-	} else {
-		savedEntry, err = h.Repo.CreateEntry(ctx, db, entry)
-	}
-
+	// 5. Extract File to Temp Disk & Read Metadata
+	// Create a temp file to allow seeking (required by ffprobe) and safe storage streaming
+	tempMediaFile, err := os.CreateTemp(os.TempDir(), "mh-import-entry-*.tmp")
 	if err != nil {
-		return false, fmt.Errorf("failed to insert/update entry in database: %w", err)
+		return false, fmt.Errorf("failed to create temporary file for extraction: %w", err)
+	}
+	tempFilePath := tempMediaFile.Name()
+	defer os.Remove(tempFilePath) // Ensure it is cleaned up when this row finishes
+
+	// Spool the zipped content into the temp file
+	srcZipStream, _ := mainFileZipped.Open()
+	if _, err := io.Copy(tempMediaFile, srcZipStream); err != nil {
+		srcZipStream.Close()
+		tempMediaFile.Close()
+		return false, fmt.Errorf("failed to extract file from zip to disk: %w", err)
+	}
+	srcZipStream.Close()
+
+	// Sync to disk to ensure ffprobe can read it properly
+	tempMediaFile.Sync()
+
+	// Extract Metadata using the fast disk-based method
+	mediaFields, err := h.MediaConverter.ReadMediaFieldsFromFile(ctx, tempFilePath, db.ContentType)
+	if err != nil {
+		h.Logger.Warn("Import warning: Failed to extract metadata", "file", entry.FileName, "error", err)
+		// We log the warning but proceed; the database constraints will reject it if required fields are missing
+	} else {
+		entry.MediaFields = mediaFields
 	}
 
-	// 6. Write Main File to Storage
-	srcFile, _ := mainFileZipped.Open()
-	_, err = h.Storage.Write(ctx, db.ID, savedEntry.ID, srcFile)
-	srcFile.Close()
+	// 6. Write to Database
+	savedEntry, err := h.Repo.CreateEntry(ctx, db, entry)
+	if err != nil {
+		tempMediaFile.Close()
+		return false, fmt.Errorf("failed to insert entry in database: %w", err)
+	}
+
+	// 7. Write Main File to Storage
+	// Rewind the temp file so we can stream it to the final storage location
+	tempMediaFile.Seek(0, io.SeekStart)
+	_, err = h.Storage.Write(ctx, db.ID, savedEntry.ID, tempMediaFile)
+	tempMediaFile.Close() // Close the handle now that storage has consumed it
 
 	if err != nil {
 		h.Repo.DeleteEntry(ctx, db.ID, savedEntry.ID) // Rollback DB on storage failure
 		return false, fmt.Errorf("failed to write main file to storage: %w", err)
 	}
 
-	// 7. Write Preview to Storage (if it exists in the archive)
+	// 8. Write Preview to Storage (if it exists in the archive)
 	if previewZipped, exists := zipFiles[previewZipPath]; exists {
 		pSrcFile, _ := previewZipped.Open()
 		_, err = h.Storage.WritePreview(ctx, db.ID, savedEntry.ID, pSrcFile)

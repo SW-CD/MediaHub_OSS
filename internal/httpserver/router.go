@@ -86,10 +86,11 @@ func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware)
 	// Covers getting DB stats, searching entries, and viewing specific entries
 	mux.Handle("GET /api/database/{database_id}", ReqPerm("CanView", h.DatabaseHandler.GetDatabase))
 
-	// Bulk Operations (List/Search/Export)
+	// Bulk Operations (List/Search/Export/Import)
 	mux.Handle("GET /api/database/{database_id}/entries", ReqPerm("CanView", h.EntryHandler.QueryEntries))
 	mux.Handle("POST /api/database/{database_id}/entries/search", ReqPerm("CanView", h.EntryHandler.SearchEntries))
 	mux.Handle("POST /api/database/{database_id}/entries/export", ReqPerm("CanView", h.EntryHandler.ExportEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/import", ReqPerm("CanCreate", h.EntryHandler.ImportEntries))
 
 	// Single Entry Read Operations
 	mux.Handle("GET /api/database/{database_id}/entry/{id}", ReqPerm("CanView", h.EntryHandler.GetEntryMeta))

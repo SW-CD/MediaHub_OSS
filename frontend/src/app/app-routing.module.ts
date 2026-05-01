@@ -10,6 +10,7 @@ import { EntryListComponent } from './components/entry-list/entry-list.component
 import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit-log.component';
 import { DatabaseSettingsComponent } from './components/database-settings/database-settings.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
+import { ImportPageComponent } from './pages/import-page/import-page.component';
 
 /**
  * Defines the application's routes.
@@ -35,6 +36,13 @@ const routes: Routes = [
         component: DatabaseSettingsComponent,
         canActivate: [AdminGuard], // Only global admins can access database settings
       },
+
+      {
+        path: 'db/:id/import',
+        component: ImportPageComponent,
+        canActivate: [AdminGuard], // Or DatabaseGuard if you want non-admins with 'CanCreate' rights to use it
+      },
+
       {
         path: 'admin/users',
         component: AdminUserListComponent,

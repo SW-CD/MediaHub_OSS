@@ -1005,8 +1005,8 @@ func (h *EntryHandler) ImportEntries(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Validate mode
-		if importConfig.Mode != "generate_new" && importConfig.Mode != "skip" && importConfig.Mode != "overwrite" {
-			utils.RespondWithError(w, http.StatusBadRequest, "Invalid 'mode' specified in config. Allowed values: generate_new, skip, overwrite.")
+		if importConfig.Mode != "generate_new" && importConfig.Mode != "skip" {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid 'mode' specified in config. Allowed values: generate_new, skip.")
 			return
 		}
 	}

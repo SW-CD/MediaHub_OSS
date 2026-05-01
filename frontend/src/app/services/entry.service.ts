@@ -7,6 +7,7 @@ import { catchError, tap, map, switchMap, filter, take, finalize } from 'rxjs/op
 import { Entry, SearchRequest, PartialEntryResponse } from '../models';
 import { NotificationService } from './notification.service';
 import { AuthService } from './auth.service';
+import { HttpEvent, HttpRequest } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root',
@@ -94,6 +95,20 @@ export class EntryService {
     }).pipe(
       catchError((err) => this.handleError(err))
     );
+  }
+
+  /**
+   * Uploads a ZIP archive for bulk importing entries with progress tracking.
+   */
+  public importEntries(dbId: string, file: File, config: any): Observable<HttpEvent<any>> {
+    const formData = new FormData();
+    formData.append('config', JSON.stringify(config));
+    formData.append('file', file, file.name);
+
+    return this.http.post(`${this.apiUrl}/database/${dbId}/entries/import`, formData, {
+      reportProgress: true,
+      observe: 'events'
+    });
   }
 
   // --- ENTRY (SINGLE) ENDPOINTS ---

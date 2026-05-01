@@ -196,6 +196,22 @@
     </div>
   </form>
 
+  <div class="settings-card" *ngIf="canEdit">
+    <h3>Data Management</h3>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">Import new entries from a ZIP archive or export your existing database structure and media.</p>
+    
+    <div style="display: flex; gap: 12px;">
+       <!--An export button will come here some day...-->
+
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        [routerLink]="['/dashboard/db', db.id, 'import']">
+        Import Archive
+      </button>
+    </div>
+  </div>
+
   <div class="settings-card danger-zone" *ngIf="canDelete">
      <h3>Danger Zone</h3>
     <div class="danger-content">

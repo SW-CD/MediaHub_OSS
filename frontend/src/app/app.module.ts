@@ -35,6 +35,7 @@ import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit
 import { DatetimeDefaultDirective } from './directives/datetime-default.directive';
 import { FullscreenSettingsModalComponent } from './components/fullscreen-settings-modal/fullscreen-settings-modal.component';
 import { FullscreenPlayerComponent } from './components/fullscreen-player/fullscreen-player.component';
+import { ImportPageComponent } from './pages/import-page/import-page.component';
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
@@ -67,6 +68,7 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     AdminAuditLogComponent,
     FullscreenSettingsModalComponent,
     FullscreenPlayerComponent,
+    ImportPageComponent,
   ],
   imports: [
     BrowserModule,
@@ -82,7 +84,7 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     SecureImageDirective,
     FormatBytesPipe,
     FileDragDropDirective,
-    DatetimeDefaultDirective
+    DatetimeDefaultDirective,
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true }

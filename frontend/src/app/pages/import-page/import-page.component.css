@@ -1,0 +1,257 @@
+/* frontend/src/app/pages/import-page/import-page.component.css */
+
+.import-page-container {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header-section { 
+  margin-bottom: 24px; 
+}
+
+.subtitle { 
+  color: var(--text-muted); 
+  margin-top: -8px; 
+}
+
+/* =========================================
+   CUSTOM STEPPER NAVIGATION
+========================================= */
+.custom-stepper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  background-color: var(--content-bg);
+  padding: 16px;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.step-indicator {
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-weight: 500;
+  background-color: var(--item-bg);
+  border: 1px solid var(--border-color-light);
+  transition: all 0.3s ease;
+}
+
+.step-indicator.active {
+  background-color: var(--button-primary-bg);
+  color: var(--text-primary);
+  border-color: var(--button-primary-bg);
+}
+
+.step-indicator.completed {
+  background-color: var(--item-bg-hover);
+  color: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+.step-line {
+  flex-grow: 1;
+  height: 2px;
+  background-color: var(--border-color-light);
+  margin: 0 16px;
+}
+
+/* =========================================
+   LAYOUT & HELPERS
+========================================= */
+.text-small { font-size: 0.85rem; }
+.text-center { text-align: center; }
+
+.step-view h3 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.form-layout {
+  max-width: 500px;
+}
+
+/* Local definition for the success button (missing from global styles) */
+.btn-success {
+  background-color: #38a169; /* Dark theme friendly green */
+  color: var(--text-primary);
+}
+.btn-success:hover {
+  background-color: #2f855a;
+}
+
+/* =========================================
+   DROPZONE & FILE SUMMARY
+========================================= */
+.dropzone {
+  border: 2px dashed var(--border-color-light);
+  border-radius: 0.5rem;
+  padding: 48px;
+  text-align: center;
+  background-color: var(--content-bg);
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+}
+
+/* Note: The global .file-drag-over class handles the actual drag overlay state natively! */
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background-color: var(--content-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.filename { 
+  font-weight: 500; 
+  color: var(--text-primary);
+  margin: 0 0 4px 0; 
+}
+
+.filesize { 
+  margin: 0; 
+  font-size: 0.9rem; 
+}
+
+.file-actions { 
+  display: flex; 
+  gap: 12px; 
+}
+
+.parsing-state {
+  color: var(--text-accent);
+  font-weight: 500;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* =========================================
+   MAPPING GRID
+========================================= */
+.no-mapping-needed {
+  padding: 16px;
+  background-color: rgba(56, 161, 105, 0.1);
+  border: 1px solid #38a169;
+  border-radius: 0.5rem;
+  color: #c6f6d5;
+}
+
+.mapping-grid {
+  margin-top: 24px;
+  background-color: var(--content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 16px;
+}
+
+.mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.mapping-row:last-child { 
+  margin-bottom: 0; 
+}
+
+.csv-column {
+  flex: 1;
+  background-color: var(--item-bg);
+  color: var(--text-primary);
+  padding: 10px 16px;
+  border-radius: 0.375rem;
+  font-family: monospace;
+  border: 1px solid var(--input-border);
+}
+
+.arrow-icon {
+  color: var(--text-muted);
+  font-weight: bold;
+}
+
+.db-column { 
+  flex: 1; 
+}
+
+/* =========================================
+   UPLOAD STATE & PROGRESS BAR
+========================================= */
+.uploading-state {
+  max-width: 500px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.custom-progress-bar {
+  width: 100%;
+  height: 12px;
+  background-color: var(--item-bg);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 20px 0;
+  border: 1px solid var(--input-border);
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--button-primary-bg);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* =========================================
+   SUCCESS STATE
+========================================= */
+.success-state {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  color: #48bb78; /* Matches btn-success green */
+  margin-bottom: 16px;
+}
+
+/* =========================================
+   ACTION BUTTONS
+========================================= */
+.step-actions {
+  margin-top: 32px;
+  display: flex;
+  gap: 12px;
+}
+
+.center-actions { 
+  justify-content: center; 
+}
