@@ -41,7 +41,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.appInfoService.loadInfo(); 
+    this.appInfoService.loadInfo().subscribe();
     this.databaseService.loadDatabases().subscribe();
 
     this.router.events.pipe(
