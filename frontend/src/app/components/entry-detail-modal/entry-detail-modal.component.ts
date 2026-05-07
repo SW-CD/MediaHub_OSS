@@ -67,14 +67,18 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
         this.fileUrl = null;
         this.previewUrl = null;
         this.isLoadingFile = true;
-        this.entryForMetadata = null;
+        
+        // Pre-fill the metadata with the shallow entry from the list.
+        // This gives the HTML template immediate access to 'entry.mime_type',
+        this.entryForMetadata = entry; 
 
         if (entry && currentDb) {
           // UPDATED: Pass currentDb.id instead of currentDb.name
           return this.entryService.getEntryMeta(currentDb.id, entry.id).pipe(
             switchMap(metaEntry => {
+              // The HTTP request finished! Overwrite the shallow entry with the full metadata
               this.entryForMetadata = metaEntry;
-              this.previewUrl = this.getPreviewUrl(currentDb.id, metaEntry.id); // UPDATED
+              this.previewUrl = this.getPreviewUrl(currentDb.id, metaEntry.id); 
 
               // 1. Check our central utility to see if the browser supports it
               const mime = metaEntry.mime_type || 'file';
@@ -82,7 +86,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
 
               if (isStreamable) {
                 // STREAMING SUPPORTED: Provide direct URL
-                const streamUrl = this.entryService.getEntryFileUrl(currentDb.id, entry.id); // UPDATED
+                const streamUrl = this.entryService.getEntryFileUrl(currentDb.id, entry.id); 
                 this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(streamUrl);
                 this.isLoadingFile = false;
                 
@@ -90,7 +94,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
                 
               } else if (mime.startsWith('image/')) {
                 // IMAGES: Fall back to Blob download
-                return this.entryService.getEntryFileBlob(currentDb.id, entry.id).pipe( // UPDATED
+                return this.entryService.getEntryFileBlob(currentDb.id, entry.id).pipe( 
                   map(blob => {
                     this.currentObjectUrl = URL.createObjectURL(blob);
                     this.fileUrl = this.sanitizer.bypassSecurityTrustUrl(this.currentObjectUrl);
@@ -101,9 +105,7 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
                 );
                 
               } else {
-                // UNSUPPORTED MEDIA / GENERIC FILES: Do NOT download Blob!
-                // Skip fetching the file entirely and just show the metadata UI.
-                // The user can still click the "Download" button to save it locally.
+                // UNSUPPORTED MEDIA / GENERIC FILES
                 this.isLoadingFile = false;
                 return of('unsupported_file');
               }

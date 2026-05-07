@@ -2,7 +2,8 @@
   <div class="detail-container" *ngIf="entryForMetadata && currentDatabase; else loading">
     
     <div class="entry-preview">
-      <div [ngSwitch]="fileUrl ? ((entryForMetadata.mime_type || 'file') | slice:0:5) : 'fallback'">
+      
+      <div *ngIf="!isLoadingFile" [ngSwitch]="fileUrl ? ((entryForMetadata.mime_type || 'file') | slice:0:5) : 'fallback'">
         
         <img *ngSwitchCase="'image'" 
              [src]="fileUrl" 
@@ -29,9 +30,11 @@
         </div>
       </div>
 
-      <div *ngIf="isLoadingFile" class="loading-placeholder">
-        Loading File...
+      <div *ngIf="isLoadingFile" class="loading-placeholder d-flex flex-column align-items-center justify-content-center" style="min-height: 200px;">
+        <img src="assets/icons/processing-icon.svg" class="spinner mb-2" alt="Loading..." style="width: 48px;" />
+        <p class="text-muted fw-bold">Loading media...</p>
       </div>
+
     </div>
     
     <div class="metadata-split-view">
