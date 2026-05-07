@@ -75,14 +75,16 @@ func GetMetadataFields(contentType string) ([]FieldDef, error) {
 // convert mime aliases into a common type
 func NormalizeMimeType(mime string) string {
 	switch mime {
-	case "audio/x-flac":
-		return "audio/flac"
 	case "application/ogg":
 		return "audio/ogg"
 	case "image/jpg":
 		return "image/jpeg"
-	case "audio/mp4":
-		return "audio/m4a"
+	case "audio/m4a":
+		return "audio/mp4"
+	case "audio/mp3":
+		return "audio/mpeg"
+	case "audio/x-flac":
+		return "audio/flac"
 	default:
 		return mime
 	}

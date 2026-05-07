@@ -11,7 +11,6 @@ type ConversionCheck struct {
 	CanConvert      bool // indicates capability to convert to target
 }
 
-// TODO can we do an NTuple as const or similar?
 var imageMimeTypes = []string{
 	"image/png",
 	"image/jpeg",
@@ -20,7 +19,6 @@ var imageMimeTypes = []string{
 	"image/avif",
 }
 
-// TODO complete
 var videoMimeTypes = []string{
 	"video/mp4",
 	"video/webm",
@@ -38,5 +36,6 @@ var audioMimeTypes = []string{
 	"audio/mp3",
 	"audio/opus",
 	"audio/ogg",
+	"audio/mp4",
 	"audio/m4a",
 }

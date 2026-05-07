@@ -37,6 +37,7 @@
               <option value="">None</option>
               <option value="image/jpeg">JPEG</option>
               <option value="image/webp">WebP</option>
+              <option value="image/avif">AVIF</option>
             </select>
             <small class="text-muted">Converts uploads to the selected format.</small>
           </div>
@@ -93,8 +94,8 @@
             <label for="auto_conversion_video" class="form-label">Auto-Conversion</label>
             <select id="auto_conversion_video" formControlName="auto_conversion" class="form-control">
               <option value="">None</option>
-              <option value="video/mp4">MP4</option>
-              <option value="video/webm">WebM</option>
+              <option value="video/mp4">MP4 (H.264 codec)</option>
+              <option value="video/webm">WebM (AV1 codec)</option>
             </select>
             <small class="text-muted">Converts uploads to the selected format. Transcoding video files can take significant time.</small>
           </div>
