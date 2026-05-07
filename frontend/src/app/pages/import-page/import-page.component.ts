@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { HttpEvent, HttpEventType, HttpResponse } from '@angular/common/http';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, switchMap, filter } from 'rxjs/operators';
 
 // Corrected default imports to resolve TypeScript construction errors
 import JSZip from 'jszip';
@@ -13,6 +13,7 @@ import { Database } from '../../models';
 import { DatabaseService } from '../../services/database.service';
 import { EntryService } from '../../services/entry.service';
 import { NotificationService } from '../../services/notification.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-import-page',
@@ -52,7 +53,8 @@ export class ImportPageComponent implements OnInit, OnDestroy {
     private databaseService: DatabaseService,
     private entryService: EntryService,
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {
     this.configStepForm = this.fb.group({
       mode: ['generate_new', Validators.required],
@@ -193,31 +195,34 @@ export class ImportPageComponent implements OnInit, OnDestroy {
       custom_field_mapping: custom_field_mapping
     };
 
-    this.entryService.importEntries(this.currentDatabase.id, this.selectedFile, config)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (event: HttpEvent<any>) => {
-          if (event.type === HttpEventType.UploadProgress && event.total) {
-            this.uploadProgress = Math.round((100 * event.loaded) / event.total);
-            this.cdr.markForCheck();
-          } else if (event instanceof HttpResponse) {
-            this.isUploading = false;
-            this.isUploadComplete = true;
-            this.notificationService.showSuccess('Archive uploaded successfully!');
-            this.cdr.markForCheck();
-          }
-        },
-        error: (err) => {
-          this.isUploading = false;
+    // Pre-emptively ping the server to ensure our access token is fresh.
+    this.authService.fetchCurrentUser().pipe(
+      filter(user => user !== null), // Proceed only if the user is authenticated
+      switchMap(() => this.entryService.importEntries(this.currentDatabase!.id, this.selectedFile!, config)),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (event: HttpEvent<any>) => {
+        if (event.type === HttpEventType.UploadProgress && event.total) {
+          this.uploadProgress = Math.round((100 * event.loaded) / event.total);
           this.cdr.markForCheck();
-          
-          // Try to extract a meaningful error message from the backend response
-          const errorMessage = err.error?.message || err.error?.error || err.message || 'An unexpected error occurred during the upload.';
-          
-          // Display the error to the user
-          this.notificationService.showError(`Upload failed: ${errorMessage}`);
+        } else if (event instanceof HttpResponse) {
+          this.isUploading = false;
+          this.isUploadComplete = true;
+          this.notificationService.showSuccess('Archive uploaded successfully!');
+          this.cdr.markForCheck();
         }
-      });
+      },
+      error: (err) => {
+        this.isUploading = false;
+        this.cdr.markForCheck();
+        
+        // Try to extract a meaningful error message from the backend response
+        const errorMessage = err.error?.message || err.error?.error || err.message || 'An unexpected error occurred during the upload.';
+        
+        // Display the error to the user
+        this.notificationService.showError(`Upload failed: ${errorMessage}`);
+      }
+    });
   }
 
   public navigateBack(): void {

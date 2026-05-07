@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil, filter, finalize } from 'rxjs/operators';
+import { takeUntil, filter, finalize, switchMap } from 'rxjs/operators';
 import { Database, CustomField } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
 import { DatabaseService } from '../../services/database.service';
@@ -9,6 +9,7 @@ import { ModalService } from '../../services/modal.service';
 import { isMimeTypeAllowed, ALLOWED_MIME_TYPES } from '../../utils/mime-types';
 import { ContentType } from '../../models/enums'; 
 import { NotificationService } from '../../services/notification.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-upload-entry-modal',
@@ -33,7 +34,8 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     private enryService: EntryService,
     private modalService: ModalService,
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {
     this.uploadForm = this.fb.group({}); 
   }
@@ -182,17 +184,21 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
         custom_fields: custom_fields 
     };
 
-    // Using this.currentDatabase.id for the ULID update
-    this.enryService.uploadEntry(this.currentDatabase.id, metadata as any, this.selectedFile)
-      .pipe(finalize(() => this.isLoading = false))
-      .subscribe({
-        next: () => {
-          this.closeModal();
-        },
-        error: () => {
-          // Error handled by service
-        }
-      });
+    // Pre-emptively ping the server to ensure our access token is fresh. 
+    // If it's expired, this JSON request will safely trigger the interceptor's refresh logic.
+    this.authService.fetchCurrentUser().pipe(
+      // Only proceed to the file upload if the user session is still valid
+      filter(user => user !== null),
+      switchMap(() => this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, this.selectedFile!)),
+      finalize(() => this.isLoading = false)
+    ).subscribe({
+      next: () => {
+        this.closeModal();
+      },
+      error: () => {
+        // Error handled by service
+      }
+    });
   }
 
   closeModal(): void {
