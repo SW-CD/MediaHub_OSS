@@ -176,6 +176,13 @@ definitions:
       mime_type:
         type: string
     type: object
+  entryhandler.ImportResponse:
+    properties:
+      database_id:
+        type: string
+      message:
+        type: string
+    type: object
   entryhandler.PartialEntryResponse:
     properties:
       custom_fields:
@@ -338,6 +345,8 @@ definitions:
         items:
           $ref: '#/definitions/userhandler.DatabasePermission'
         type: array
+      username:
+        type: string
     type: object
   userhandler.UserResponse:
     properties:
@@ -370,7 +379,7 @@ info:
   description: This is a server for a image, audio and file storage with integrated
     web-ui.
   title: SWCD MediaHub-API
-  version: 2.0.0-beta1
+  version: 2.0.0
 paths:
   /api/logout:
     post:
@@ -842,6 +851,65 @@ paths:
       security:
       - BasicAuth: []
       summary: Export entries as ZIP
+      tags:
+      - database
+  /database/{database_id}/entries/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Accepts a ZIP archive containing media files and an entries.csv metadata file to bulk-import entries into the database.
+        The ZIP file is spooled directly to a temporary file on the server's disk to ensure a low memory footprint. Processing happens asynchronously.
+      parameters:
+      - description: Database ID
+        in: path
+        name: database_id
+        required: true
+        type: string
+      - description: The ZIP archive containing the media files and entries.csv
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: JSON string defining the rules for the import process (e.g.,
+          mode, custom_field_mapping, unmapped_fields)
+        in: formData
+        name: config
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Import job started successfully
+          schema:
+            $ref: '#/definitions/entryhandler.ImportResponse'
+        "400":
+          description: Invalid request, missing file, or invalid config
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden (Requires CanCreate role)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Database not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "415":
+          description: Unsupported Media Type (Not a ZIP archive)
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Bulk import entries
       tags:
       - database
   /database/{database_id}/entries/search:

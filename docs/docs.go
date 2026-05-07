@@ -733,6 +733,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/database/{database_id}/entries/import": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Accepts a ZIP archive containing media files and an entries.csv metadata file to bulk-import entries into the database.\nThe ZIP file is spooled directly to a temporary file on the server's disk to ensure a low memory footprint. Processing happens asynchronously.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "database"
+                ],
+                "summary": "Bulk import entries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Database ID",
+                        "name": "database_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "The ZIP archive containing the media files and entries.csv",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON string defining the rules for the import process (e.g., mode, custom_field_mapping, unmapped_fields)",
+                        "name": "config",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Import job started successfully",
+                        "schema": {
+                            "$ref": "#/definitions/entryhandler.ImportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request, missing file, or invalid config",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (Requires CanCreate role)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Database not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type (Not a ZIP archive)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/database/{database_id}/entries/search": {
             "post": {
                 "security": [
@@ -2048,6 +2134,17 @@ const docTemplate = `{
                 }
             }
         },
+        "entryhandler.ImportResponse": {
+            "type": "object",
+            "properties": {
+                "database_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "entryhandler.PartialEntryResponse": {
             "type": "object",
             "properties": {
@@ -2294,6 +2391,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/userhandler.DatabasePermission"
                     }
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -2349,7 +2449,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.0.0-beta1",
+	Version:          "2.0.0",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{"http"},
