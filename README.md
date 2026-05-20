@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (v2.0.0-beta1) ✨
+# MediaHub API & Web Interface (v2.0.0) ✨
 
 This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting, managing custom metadata and retrieving files, organized into distinct databases. The focus is on image, video and audio data, but generic files can be stored as well. The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
@@ -24,6 +24,7 @@ You can find screenshots of what the frontend looks like in the [screenshots](/s
   * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). The size threshold for this switch is configurable (default: 4MB). This provides immediate feedback to the user for large files, which can then be processed in the background.
   * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
   * **Drag & Drop Uploads:** Intuitive file uploading by dragging files directly onto the entry list or the upload modal.
+  * **Bulk Import & Export:** Export and import your data as zip-files.
   * **Preview Generation:** Automatically generates downscaled Webp previews for images or videos and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
   * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
   * **Hybrid Authentication:** Supports both **Basic Authentication** (for simple API scripts) and **JWT (JSON Web Tokens)** with Access/Refresh tokens (for the Web UI), protected by role-based access control.
@@ -39,12 +40,12 @@ You can download prebuild binaries for different architectures using the provide
 
 | Operating System | Architecture | Download Link |
 | :--- | :--- | :--- |
-| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_linux_aarch64) |
-| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_linux_x86_64) |
-| Windows | AArch64 (ARM 64-bit) | [mediahub\_windows\_aarch64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_windows_aarch64.exe) |
-| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/mediahub_windows_x86_64.exe) |
+| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_linux_aarch64) |
+| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_linux_x86_64) |
+| Windows | AArch64 (ARM 64-bit) | [mediahub\_windows\_aarch64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_windows_aarch64.exe) |
+| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_windows_x86_64.exe) |
 
-A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v2.0.0-beta1/config.toml).
+A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v2.0.0/config.toml).
 
 As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub. Place your config file in a folder `mediahub_config` and run:
 
@@ -55,7 +56,7 @@ docker run -d \
   -v $(pwd)/mediahub_config:/config \
   -v $(pwd)/mediahub_storage:/storage \
   -e MEDIAHUB_PASSWORD="your-secure-password" \
-  denglerchr/mediahub_oss:2.0.0-beta1
+  denglerchr/mediahub_oss:2.0.0
 ```
 
 -----
