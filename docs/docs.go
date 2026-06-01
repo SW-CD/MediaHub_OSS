@@ -2452,7 +2452,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "2.0.0",
 	Host:             "",
 	BasePath:         "/api",
-	Schemes:          []string{"http"},
+	Schemes:          []string{"http", "https"},
 	Title:            "SWCD MediaHub-API",
 	Description:      "This is a server for a image, audio and file storage with integrated web-ui.",
 	InfoInstanceName: "swagger",

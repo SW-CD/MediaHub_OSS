@@ -41,8 +41,16 @@
   --segmented-text: var(--text-secondary);
   --segmented-hover-bg: var(--item-bg-hover);
 
-
   --font-family-sans: 'Inter', sans-serif;
+
+  /* =========================================
+     FLUID TYPOGRAPHY SCALE
+     ========================================= */
+  --text-base: clamp(0.875rem, 0.5vw + 0.8rem, 1rem); 
+  --text-md: clamp(1.1rem, 1vw + 1rem, 1.25rem);
+  --text-lg: clamp(1.25rem, 2vw + 1rem, 1.5rem);
+  --text-xl: clamp(1.5rem, 3vw + 1.2rem, 2rem);
+  --text-2xl: clamp(2rem, 5vw + 1.5rem, 3rem);
 }
 
 *, *::before, *::after {
@@ -60,11 +68,21 @@ body {
   color: var(--text-secondary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Apply base fluid sizing globally */
+  font-size: var(--text-base);
 }
+
+/* Base Headings */
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); }
+h3 { font-size: var(--text-lg); }
+h4, h5, h6 { font-size: var(--text-md); }
 
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   margin-top: 0;
+  line-height: 1.2; /* Tighter line-height for headings prevents awkward wrapping */
 }
 
 a {

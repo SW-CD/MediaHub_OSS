@@ -21,7 +21,7 @@ var frontendFS embed.FS
 // @contact.url https://www.swcd.lu
 // @contact.email denglerchr@gmail.com
 // @BasePath /api
-// @schemes http
+// @schemes http https
 // @securityDefinitions.basic BasicAuth
 // @securityDefinitions.apikey BearerAuth
 // @in header
