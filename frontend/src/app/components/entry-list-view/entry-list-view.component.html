@@ -85,7 +85,7 @@
             </ng-container>
 
             <ng-container *ngSwitchCase="'timestamp'">
-              {{ entry.timestamp * 1000 | date:'yyyy.MM.dd HH:mm' }}
+              {{ entry.timestamp | date:'yyyy.MM.dd HH:mm' }}
             </ng-container>
 
             <ng-container *ngSwitchCase="'filename'">
