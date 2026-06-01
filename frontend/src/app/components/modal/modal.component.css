@@ -6,17 +6,16 @@
   left: 0;
   width: 100%;
   height: 100%;
-  /* Darken the overlay slightly */
   background-color: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  /* UPDATED: Use the global modal background layer */
+  z-index: var(--z-modal-bg);
   padding: 1rem;
 }
 
 .modal-content {
-  /* UPDATED: Use CSS variables */
   background: var(--content-bg);
   border: 1px solid var(--border-color-light);
   border-radius: 0.75rem;
@@ -26,6 +25,8 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  /* UPDATED: Elevate the content specifically above the overlay */
+  z-index: var(--z-modal);
 }
 
 .modal-header {
@@ -33,15 +34,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  /* UPDATED: Use CSS variable */
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-title {
+  /* color and font-size are safely inherited from styles.css for <h2> */
   margin: 0;
-  font-size: 1.5rem;
-  /* UPDATED: Use CSS variable */
-  color: var(--text-primary);
 }
 
 .close-button {
@@ -49,20 +47,25 @@
   border: none;
   font-size: 2rem;
   font-weight: bold;
-  /* UPDATED: Use CSS variable */
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.2s;
+  /* Give it a slight physical presence for the focus ring */
+  border-radius: 0.25rem; 
 }
 
 .close-button:hover {
-  /* UPDATED: Use CSS variable */
   color: var(--text-primary);
+}
+
+/* NEW: Accessible focus ring for keyboard navigation */
+.close-button:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
 }
 
 .modal-body {
   padding: 1.5rem;
   overflow-y: auto;
-  /* Set base text color for modal content */
   color: var(--text-secondary);
 }

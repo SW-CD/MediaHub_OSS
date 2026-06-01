@@ -181,9 +181,3 @@
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-color);
 }
-
-/* Custom minimal scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--item-bg-hover); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

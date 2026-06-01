@@ -36,7 +36,7 @@
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
-  z-index: 10;
+  z-index: var(--z-base);
   width: 24px;
   height: 24px;
   /* Make sure checkbox is clickable */
@@ -143,4 +143,14 @@
 .grid-card-date {
   color: var(--text-muted);
   font-size: 0.8rem;
+}
+
+.grid-card-meta {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  width: 100%; 
+  font-size: 0.75rem; 
+  color: var(--text-muted); 
+  margin-top: 0.25rem;
 }

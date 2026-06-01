@@ -87,11 +87,9 @@
 }
 
 .metadata-block h3 {
-  margin-top: 0;
+  /* color, font-size, and margin-top are now safely inherited from styles.css */
   margin-bottom: 0.75rem;
-  font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.5rem;
 }
@@ -133,17 +131,6 @@
 /* Helpers for boolean text */
 .text-green { color: #48bb78; font-weight: 600; }
 .text-muted { color: var(--text-muted); }
-
-
-/* --- UPDATED: Action Bar --- */
-.modal-actions {
-  display: flex;
-  justify-content: space-between; /* Push groups apart */
-  align-items: center;
-  margin-top: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-}
 
 .action-group-left, .action-group-right {
   display: flex;

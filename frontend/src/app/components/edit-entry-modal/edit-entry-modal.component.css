@@ -16,18 +16,6 @@
 }
 
 .custom-fields-section h4 {
-  margin-top: 0;
-  margin-bottom: 1rem; /* Added margin */
-  /* UPDATED: Use CSS variable */
-  color: var(--text-primary);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  /* UPDATED: Use CSS variable */
-  border-top: 1px solid var(--border-color);
+  /* margin-top and color are now safely inherited from styles.css */
+  margin-bottom: 1rem;
 }

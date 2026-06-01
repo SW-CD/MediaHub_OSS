@@ -1,6 +1,5 @@
-/* Styles to make the input and select look like one component.
-  It mimics the .form-control style from styles.css
-*/
+/* frontend/src/app/components/interval-picker/interval-picker.component.css */
+
 .interval-picker-wrapper {
   display: flex;
   width: 100%;
@@ -8,14 +7,14 @@
 
 /* Style the number input */
 .interval-value {
-  flex-grow: 1; /* Take up remaining space */
+  flex-grow: 1; 
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-  /* Remove the number spinners in Firefox */
-  -moz-appearance: textfield;
+  /* UPDATED: Modern standard to remove number spinners in Firefox */
+  appearance: textfield;
 }
 
-/* Remove number spinners in WebKit browsers */
+/* Remove number spinners in WebKit browsers (Chrome/Safari/Edge) */
 .interval-value::-webkit-outer-spin-button,
 .interval-value::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -26,13 +25,13 @@
 .interval-unit {
   flex-grow: 0;
   flex-shrink: 0;
-  width: 120px; /* Fixed width for the unit selector */
+  width: 120px; 
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  border-left: 0; /* Remove double border */
+  border-left: 0; /* Remove double border where they touch */
 }
 
-/* When disabled, ensure focus ring doesn't appear inconsistent */
+/* Disabled states */
 .interval-value:disabled,
 .interval-unit:disabled {
   background-color: var(--input-bg);
@@ -40,15 +39,10 @@
   cursor: not-allowed;
 }
 
-/* Ensure focus styles apply to the wrapper */
-.interval-value:focus {
+/* UPDATED: Match global accessible focus rings and remove legacy border hacks */
+.interval-value:focus-visible,
+.interval-unit:focus-visible {
   position: relative;
-  z-index: 1;
-}
-
-.interval-unit:focus {
-  position: relative;
-  z-index: 1;
-  border-left: 1px solid var(--input-focus-border);
-  margin-left: -1px;
+  /* Brings the focused element forward so the global outline sits cleanly on top */
+  z-index: 1; 
 }

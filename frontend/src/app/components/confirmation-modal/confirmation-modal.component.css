@@ -1,8 +1,7 @@
 /* frontend/src/app/components/confirmation-modal/confirmation-modal.component.css */
 
 .confirmation-content p {
-  font-size: 1.1rem;
-  /* UPDATED: Use CSS variable */
+  font-size: var(--text-md);
   color: var(--text-secondary);
   margin: 1rem 0;
 }
@@ -13,16 +12,5 @@
   gap: 1rem;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  /* UPDATED: Use CSS variable */
   border-top: 1px solid var(--border-color);
 }
-
-/*
-REMOVED redundant .btn class definition.
-It is now inherited from src/styles.css
-*/
-
-/*
-REMOVED .btn-danger and .btn-secondary styles.
-These are now inherited from src/styles.css
-*/

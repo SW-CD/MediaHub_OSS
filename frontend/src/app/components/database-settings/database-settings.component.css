@@ -5,13 +5,11 @@
 }
 
 .header h2 {
-  margin: 0;
-  /* UPDATED: Use CSS variable */
-  color: var(--text-primary);
+  margin-bottom: 0; /* Only override the bottom margin, top is handled globally */
 }
 
 .settings-card {
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   background: var(--content-bg);
   padding: 1.5rem 2rem;
   border-radius: 0.5rem;
@@ -20,22 +18,18 @@
 }
 
 .settings-card h3 {
-  margin-top: 0;
-  /* UPDATED: Use CSS variables */
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.75rem;
   margin-bottom: 1.5rem;
-  color: var(--text-primary);
 }
 
 .sub-heading {
-  font-size: 1rem;
-  /* UPDATED: Use CSS variables */
   color: var(--text-muted);
   margin-top: 2rem;
   margin-bottom: 1rem;
-  font-weight: 600; /* Bolder */
+  font-weight: 600; 
 }
+
 .settings-card h3 + .sub-heading {
   margin-top: 0;
 }
@@ -54,16 +48,15 @@
 }
 
 .stat-label {
-  /* UPDATED: Use CSS variables */
   color: var(--text-muted);
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
 }
 
 .stat-value {
-  /* UPDATED: Use CSS variables */
   color: var(--text-primary);
-  font-size: 1.5rem;
+  /* Use fluid scaling so huge numbers don't break mobile layouts */
+  font-size: var(--text-xl); 
   font-weight: 600;
 }
 
@@ -74,17 +67,8 @@
   gap: 1.5rem;
 }
 
-/*
-REMOVED all local form styles:
-- .form-grid
-- .form-group label
-- .form-group input
-- .form-group-toggle (and all its ::before, :checked styles)
-They are now inherited from global styles.
-*/
-
 .form-group input:read-only {
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   background-color: var(--input-bg);
   opacity: 0.7;
   cursor: not-allowed;
@@ -98,26 +82,20 @@ They are now inherited from global styles.
 .form-actions {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 1rem;
 }
 
-/*
-REMOVED all local .btn styles.
-They are now inherited from global styles.
-*/
-
-
 /* Danger Zone */
 .danger-zone {
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   border-color: var(--button-danger-bg);
 }
 
 .danger-zone h3 {
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   color: var(--button-danger-bg);
 }
 
@@ -131,7 +109,7 @@ They are now inherited from global styles.
 
 .danger-content p {
   margin: 0;
-  /* UPDATED: Use CSS variables */
+  /* Use CSS variables */
   color: var(--text-secondary);
   flex-grow: 1;
   min-width: 300px; /* Allow stacking */

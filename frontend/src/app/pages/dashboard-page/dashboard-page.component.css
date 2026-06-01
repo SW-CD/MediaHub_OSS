@@ -1,12 +1,12 @@
 /* frontend/src/app/pages/dashboard-page/dashboard-page.component.css */
 :host {
     display: block;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
     
     /* Define CSS variables for the sidebar widths
-      for easy management and animation.
+       for easy management and animation.
     */
     --sidebar-width-expanded: 280px;
     --sidebar-width-collapsed: 88px; /* (1.5rem padding * 2) + 40px icon = 88px */
@@ -14,22 +14,19 @@
 
 .dashboard-layout {
   display: grid;
-  /* Use the CSS variable for the initial sidebar width.
-    Add a transition for the grid layout itself.
-  */
   grid-template-columns: var(--sidebar-width-expanded) 1fr;
   grid-template-rows: 1fr;
-  grid-template-areas:
-    'sidebar content';
+  grid-template-areas: 'sidebar content';
+  
+  /* Modern viewport fix for mobile browser URL bars */
   height: 100vh;
-  width: 100vw;
+  height: 100dvh; 
+  width: 100%;
+  
   overflow: hidden;
   transition: grid-template-columns 0.3s ease-in-out;
 }
 
-/* When the 'sidebar-collapsed' class is present, change the
-  grid-template-columns to use the collapsed width variable.
-*/
 .dashboard-layout.sidebar-collapsed {
   grid-template-columns: var(--sidebar-width-collapsed) 1fr;
 }
@@ -38,14 +35,18 @@
   grid-area: sidebar;
   background-color: var(--sidebar-bg);
   overflow-y: auto;
-  overflow-x: hidden; /* Hide horizontal overflow during transition */
+  overflow-x: hidden; 
   border-right: 1px solid var(--border-color);
-  transition: width 0.3s ease-in-out; /* Animate the sidebar's width */
+  /* The width transition is handled natively by the parent's CSS grid transition */
 }
 
 .dashboard-content {
   grid-area: content;
   background-color: var(--app-bg);
-  overflow-y: auto; /* Allow content to scroll */
-  padding: 2.5rem 3rem;
+  overflow-y: auto; 
+  /* UPDATED: Fluid padding. 
+     Top/Bottom: scales between 1rem and 2.5rem 
+     Left/Right: scales between 1rem and 3rem 
+  */
+  padding: clamp(1rem, 3vw, 2.5rem) clamp(1rem, 5vw, 3rem);
 }

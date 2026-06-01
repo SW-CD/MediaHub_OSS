@@ -23,8 +23,8 @@
 }
 
 .header-bar .header h2 {
-  margin: 0;
-  color: var(--text-primary);
+  /* color and top-margin are inherited from styles.css */
+  margin-bottom: 0;
   /* Ensure super long unbroken text wraps nicely instead of stretching the screen */
   word-break: break-word; 
 }
@@ -78,55 +78,6 @@
   border-right: 1px solid var(--border-color-light);
 }
 
-
-/* --- Filter Bar --- */
-.filter-bar {
-  background-color: var(--content-bg);
-  padding: 1rem 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.filter-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-}
-
-.limit-group {
-  max-width: 100px; 
-}
-
-.custom-filters-array {
-    display: contents; 
-}
-
-.custom-filter-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center; 
-    flex-basis: 100%; 
-}
-@media (min-width: 1024px) {
-  .custom-filter-row {
-    flex-basis: auto; 
-  }
-}
-
-.custom-filter-row .form-control {
-  min-width: 120px;
-}
-
-.filter-actions {
-    margin-left: auto; 
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding-bottom: 0.25rem; 
-}
-
 /* --- Content Area --- */
 .content-area {
   flex-grow: 1;
@@ -147,42 +98,21 @@
 }
 
 .page-indicator {
-  font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-secondary);
 }
-
-
-/* --- Action Buttons --- */
-.btn-remove {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0.5rem; 
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.btn-remove:hover {
-  color: var(--button-danger-bg);
-  background-color: var(--item-bg-hover);
-}
-
 
 /* --- State Messages (Loading/Empty) --- */
 .state-message {
   text-align: center;
   padding: 4rem;
   color: var(--text-muted);
-  font-size: 1.2rem;
+  /* font-size inherited globally but bumped slightly here for emphasis */
+  font-size: 1.1rem;
   background-color: var(--content-bg); 
   border-radius: 0.5rem;
   border: 1px dashed var(--border-color-light); 
 }
-
 
 /* --- Floating Actions Wrapper --- */
 .floating-actions-wrapper {
@@ -192,7 +122,8 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  z-index: 50; /* Ensure on top */
+  /* UPDATED: Use the global floating z-index */
+  z-index: var(--z-floating); 
 }
 
 /* Upload FAB */
@@ -230,7 +161,6 @@
 }
 
 .selection-count {
-  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-right: 0.5rem;
@@ -249,5 +179,6 @@
 
 .btn-sm {
   padding: 0.4rem 0.8rem;
+  /* Keep buttons small regardless of fluid typography base */
   font-size: 0.85rem;
 }

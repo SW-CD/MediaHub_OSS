@@ -29,7 +29,7 @@
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  z-index: 10000;
+  z-index: 10;
   opacity: 0; /* Hidden by default for a clean presentation */
   transition: opacity 0.3s ease, background-color 0.2s ease, transform 0.2s;
 }
@@ -85,9 +85,9 @@
 }
 
 .audio-title {
-  font-size: 1.5rem;
+  font-size: var(--text-xl);
   font-weight: 500;
-  color: #ffffff;
+  color: var(--text-primary);
   text-align: center;
   word-break: break-word;
 }
@@ -117,7 +117,7 @@
 
 .fallback-wrapper {
   color: var(--text-muted);
-  font-size: 1.25rem;
+  font-size: var(--text-lg);
 }
 
 /* --- Animations --- */

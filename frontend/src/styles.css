@@ -1,6 +1,13 @@
 /* frontend/src/styles.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Modern standard for Firefox & Chromium Scrollbars */
+html {
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color-light) var(--app-bg);
+}
+
 :root {
   --app-bg: #111827;
   --sidebar-bg: #1a202c;
@@ -11,7 +18,6 @@
   --item-bg-hover: #4a5568;
   --item-bg-active: #4299e1;
 
-  /* Lighter background for tables/modals to create separation */
   --content-bg: #1f2937; 
 
   --text-primary: #edf2f7;
@@ -33,7 +39,6 @@
   --input-border: #4a5568;
   --input-focus-border: #4299e1;
 
-  /* New colors for segmented control */
   --segmented-bg: var(--input-bg);
   --segmented-border: var(--input-border);
   --segmented-active-bg: var(--button-primary-bg);
@@ -48,21 +53,29 @@
      ========================================= */
   --text-base: clamp(0.875rem, 0.5vw + 0.8rem, 1rem); 
   --text-md: clamp(1.1rem, 1vw + 1rem, 1.25rem);
-  --text-lg: clamp(1.25rem, 2vw + 1rem, 1.5rem);
-  --text-xl: clamp(1.5rem, 3vw + 1.2rem, 2rem);
-  --text-2xl: clamp(2rem, 5vw + 1.5rem, 3rem);
+  --text-lg: clamp(1.25rem, 1.5vw + 1rem, 1.5rem);
+  --text-xl: clamp(1.5rem, 2vw + 1.2rem, 1.75rem);
+  --text-2xl: clamp(2rem, 3.5vw + 1.5rem, 2rem);
+
+  /* =========================================
+     GLOBAL Z-INDEX SCALE
+     ========================================= */
+  --z-base: 1;
+  --z-floating: 50;      /* FABs, selection actions */
+  --z-sidebar: 100;
+  --z-dropdown: 200;
+  --z-modal-bg: 300;     
+  --z-modal: 400;        
+  --z-drag-overlay: 500; 
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
-html, body {
-  height: 100%;
-}
-
 body {
   margin: 0;
+  height: 100%;
   font-family: var(--font-family-sans);
   background-color: var(--app-bg);
   color: var(--text-secondary);
@@ -73,7 +86,27 @@ body {
   font-size: var(--text-base);
 }
 
-/* Base Headings */
+/* =========================================
+   SCROLLBARS (Webkit Fallback)
+   ========================================= */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px; 
+}
+::-webkit-scrollbar-track {
+  background: var(--app-bg);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-color-light);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* =========================================
+   TYPOGRAPHY
+   ========================================= */
 h1 { font-size: var(--text-2xl); }
 h2 { font-size: var(--text-xl); }
 h3 { font-size: var(--text-lg); }
@@ -82,7 +115,7 @@ h4, h5, h6 { font-size: var(--text-md); }
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   margin-top: 0;
-  line-height: 1.2; /* Tighter line-height for headings prevents awkward wrapping */
+  line-height: 1.2; 
 }
 
 a {
@@ -95,9 +128,12 @@ a:hover {
   color: var(--button-primary-bg-hover);
 }
 
-.cursor-pointer {
-  cursor: pointer;
-}
+/* =========================================
+   UTILITY CLASSES
+   ========================================= */
+.cursor-pointer { cursor: pointer; }
+.flex-grow { flex-grow: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
 
 .truncate {
     overflow: hidden;
@@ -105,15 +141,22 @@ a:hover {
     white-space: nowrap; 
 }
 
-.flex-grow {
-  flex-grow: 1;
+/* Screen Reader Only - Accessible hiding */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-.flex-shrink-0 {
-  flex-shrink: 0;
-}
-
-/* Global Button Styles */
+/* =========================================
+   BUTTONS
+   ========================================= */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -166,13 +209,31 @@ a:hover {
   color: var(--text-primary);
 }
 
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-accent);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.btn-link:hover {
+  color: var(--button-primary-bg-hover);
+  text-decoration: underline;
+}
+
+.btn-link-danger {
+  color: var(--button-danger-bg);
+}
+.btn-link-danger:hover {
+  color: var(--button-danger-bg-hover);
+}
+
 /* =========================================
-GLOBAL STYLES (Existing)
-=========================================
-*/
-
-/* --- Global Form Styles --- */
-
+   FORMS
+   ========================================= */
 .form-group {
   margin-bottom: 1.25rem;
 }
@@ -185,14 +246,12 @@ GLOBAL STYLES (Existing)
   color: var(--text-secondary);
 }
 
-/* UPDATED: Helper class for labels with info icons */
 .form-label-helper {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem; /* Space between label text and icon */
+  gap: 0.5rem; 
 }
 
-/* UPDATED: Style for the new helper icon */
 .helper-icon {
   display: inline-block;
   width: 1rem;
@@ -208,8 +267,6 @@ GLOBAL STYLES (Existing)
   user-select: none;
 }
 
-
-/* Base class for text inputs, selects, etc. */
 .form-control {
   display: block;
   width: 100%;
@@ -222,20 +279,24 @@ GLOBAL STYLES (Existing)
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* Fallback for older browsers / mouse click focus */
 .form-control:focus {
   outline: none;
-  border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
 }
 
-/* Style for validation errors */
+/* Modern accessibility focus ring (only shows on keyboard Tab) */
+.form-control:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
+}
+
 .form-error {
   margin-top: 0.5rem;
   font-size: 0.875rem;
   color: var(--button-danger-bg);
 }
 
-/* Custom Checkbox Style (for booleans) - Kept for other uses if needed, but not for modals now */
+/* Custom Checkbox */
 .form-checkbox {
   height: 1.25rem;
   width: 1.25rem;
@@ -248,10 +309,9 @@ GLOBAL STYLES (Existing)
   transition: all 0.2s;
   flex-shrink: 0;
 }
-.form-checkbox:focus {
-  outline: none;
-  border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+.form-checkbox:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
 }
 .form-checkbox:checked {
   background-color: var(--button-primary-bg);
@@ -267,7 +327,6 @@ GLOBAL STYLES (Existing)
   color: var(--text-primary);
 }
 
-/* Wrapper for a checkbox and its label */
 .checkbox-group {
   display: flex;
   align-items: center;
@@ -278,9 +337,43 @@ GLOBAL STYLES (Existing)
   cursor: pointer;
 }
 
+/* File Input */
+.form-file-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--input-border);
+  border-radius: 0.375rem;
+  background-color: var(--input-bg);
+  overflow: hidden;
+}
 
-/* --- Global Table Styles --- */
+.form-file-input .file-label {
+  flex-grow: 1;
+  padding: 0.625rem 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer; 
+}
 
+.form-file-input .file-browse-btn {
+  background-color: var(--button-secondary-bg);
+  color: var(--text-primary);
+  padding: 0.625rem 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.form-file-input .file-browse-btn:hover {
+  background-color: var(--button-secondary-bg-hover);
+}
+
+/* =========================================
+   TABLES
+   ========================================= */
 .table-wrapper {
   overflow-x: auto;
   background-color: var(--content-bg);
@@ -317,8 +410,6 @@ GLOBAL STYLES (Existing)
   font-size: 0.875rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-color);
-  
-  /* FIX: This is the correct property for table cells. */
   vertical-align: middle; 
 }
 
@@ -331,57 +422,18 @@ GLOBAL STYLES (Existing)
 }
 
 .table .actions-cell {
-  /*
-    FIX: The <td> itself should just align its content to the right.
-    The .actions div *inside* this cell will handle the flex layout
-    for the buttons.
-  */
   text-align: right;
 }
 
-/* --- Global Link Button Style --- */
-.btn-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--text-accent);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.btn-link:hover {
-  color: var(--button-primary-bg-hover);
-  text-decoration: underline;
-}
-
-.btn-link-danger {
-  color: var(--button-danger-bg);
-}
-.btn-link-danger:hover {
-  color: var(--button-danger-bg-hover);
-}
-
-
 /* =========================================
-NEW STYLES FOR BOOLEAN TOGGLE SWITCH
-=========================================
-*/
-
-/* The toggle switch container */
+   BOOLEAN TOGGLE SWITCH
+   ========================================= */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 50px; /* Width of the switch */
-  height: 28px; /* Height of the switch */
-  flex-shrink: 0; /* Prevent switch from shrinking in flex containers */
-}
-
-/* Hide default HTML checkbox */
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+  width: 50px; 
+  height: 28px; 
+  flex-shrink: 0; 
 }
 
 /* The slider (the track) */
@@ -392,9 +444,9 @@ NEW STYLES FOR BOOLEAN TOGGLE SWITCH
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--input-bg); /* Off state color */
+  background-color: var(--input-bg);
   border: 1px solid var(--input-border);
-  border-radius: 28px; /* Fully rounded */
+  border-radius: 28px; 
   transition: .3s;
 }
 
@@ -402,94 +454,47 @@ NEW STYLES FOR BOOLEAN TOGGLE SWITCH
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 20px; /* Knob height */
-  width: 20px; /* Knob width */
-  left: 3px; /* Padding from left */
-  bottom: 3px; /* Padding from bottom */
-  background-color: var(--text-muted); /* Knob color */
+  height: 20px; 
+  width: 20px; 
+  left: 3px; 
+  bottom: 3px; 
+  background-color: var(--text-muted); 
   border-radius: 50%;
   transition: .3s;
 }
 
-/* --- States --- */
-
-/* Checked (On) State */
 input:checked + .toggle-slider {
-  background-color: var(--button-primary-bg); /* On state color */
+  background-color: var(--button-primary-bg); 
   border-color: var(--button-primary-bg);
 }
 
 input:checked + .toggle-slider:before {
-  transform: translateX(22px); /* Move knob to the right */
-  background-color: var(--text-primary); /* Knob color when on */
+  transform: translateX(22px); 
+  background-color: var(--text-primary); 
 }
 
-/* Focus State */
-input:focus + .toggle-slider {
-  outline: none;
-  border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
 }
 
-/*
-This is a new container to display the selected value (True/False)
-next to the toggle switch, as requested by the user.
-*/
 .bool-field-container {
   display: flex;
   align-items: center;
-  gap: 1rem; /* Space between toggle and text */
-  min-height: 2.25rem; /* Match height of other form controls */
+  gap: 1rem; 
+  min-height: 2.25rem; 
 }
 
 .bool-field-value {
   font-size: 0.9rem;
   color: var(--text-primary);
   font-weight: 500;
-  user-select: none; /* Prevent text selection */
+  user-select: none; 
 }
 
-
-/* --- Added a specific class for the "Browse..." button input[type="file"] */
-.form-file-input {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--input-border);
-  border-radius: 0.375rem;
-  background-color: var(--input-bg);
-  overflow: hidden;
-}
-
-.form-file-input input[type="file"] {
-  display: none; /* Hide the default file input */
-}
-
-.form-file-input .file-label {
-  flex-grow: 1;
-  padding: 0.625rem 0.75rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer; /* Make label clickable */
-}
-
-.form-file-input .file-browse-btn {
-  background-color: var(--button-secondary-bg);
-  color: var(--text-primary);
-  padding: 0.625rem 1rem;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.form-file-input .file-browse-btn:hover {
-  background-color: var(--button-secondary-bg-hover);
-}
-
-
-/* Visual cue when dragging a file over a drop zone */
+/* =========================================
+   DRAG AND DROP ZONES
+   ========================================= */
 .file-drag-over {
   position: relative;
 }
@@ -501,15 +506,54 @@ next to the toggle switch, as requested by the user.
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(66, 153, 225, 0.9); /* Primary Blue with opacity */
+  background-color: rgba(66, 153, 225, 0.9); 
   color: white;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 1.5rem;
   font-weight: bold;
-  z-index: 5000; /* Ensure it's on top */
+  z-index: var(--z-drag-overlay); 
   border: 4px dashed white;
   border-radius: 0.5rem;
-  pointer-events: none; /* Let the drop event pass through to the element */
+  pointer-events: none; 
 }
+
+/* =========================================
+   MODAL & FORM LAYOUTS (Global)
+   ========================================= */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.form-section {
+  margin-bottom: 1.5rem;
+}
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Modern responsive grid that automatically handles columns without @media queries */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+/* =========================================
+   TEXT & SPACING UTILITIES (Global)
+   ========================================= */
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.block { display: block; }
+.mt-1 { margin-top: 0.25rem; }
+.pt-4 { padding-top: 1rem; }

@@ -2,6 +2,7 @@
 :host {
   display: block;
   min-height: 100vh;
+  min-height: 100dvh; /* Modern browser viewport fix */
 }
 
 .login-container {
@@ -9,6 +10,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh; /* Modern browser viewport fix */
   padding: 2rem;
   background-color: var(--app-bg);
 }
@@ -23,6 +25,7 @@
   border: 1px solid var(--border-color);
 }
 
+/* --- Header & Branding --- */
 .login-header {
   text-align: center;
   margin-bottom: 2.5rem;
@@ -37,19 +40,68 @@
 .logo-text {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 0.5rem;
+  margin-bottom: 0.5rem;
+  /* color is safely inherited from global h1 */
 }
 
-.login-header p {
+.author-credits {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: -0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.author-credits a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.login-header p:last-of-type {
   color: var(--text-muted);
   font-size: 1rem;
+  margin-bottom: 0;
 }
 
-/*
-REMOVED redundant font/padding styles.
-This class now just extends .btn to be full-width.
-*/
+/* --- SSO & Dividers (Extracted from HTML inline styles) --- */
+.sso-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sso-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.divider-line {
+  flex-grow: 1;
+  border: none;
+  border-top: 1px solid var(--border-color);
+}
+
+.divider-text {
+  padding: 0 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.disabled-login-msg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1rem 0;
+}
+
+/* --- Form Elements --- */
 .login-button {
   width: 100%;
   margin-top: 1rem;
@@ -63,9 +115,8 @@ This class now just extends .btn to be full-width.
   text-align: center;
 }
 
-/* UPDATED to use CSS variables for colors */
 .alert-danger {
   color: var(--button-danger-bg);
-  background-color: rgba(229, 62, 62, 0.1); /* Using color from --button-danger-bg */
+  background-color: rgba(229, 62, 62, 0.1);
   border: 1px solid rgba(229, 62, 62, 0.2);
 }
