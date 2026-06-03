@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (v2.0.0) ✨
+# MediaHub API & Web Interface (v2.0.1) ✨
 
 This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting, managing custom metadata and retrieving files, organized into distinct databases. The focus is on image, video and audio data, but generic files can be stored as well. The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
@@ -40,12 +40,12 @@ You can download prebuild binaries for different architectures using the provide
 
 | Operating System | Architecture | Download Link |
 | :--- | :--- | :--- |
-| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_linux_aarch64) |
-| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_linux_x86_64) |
-| Windows | AArch64 (ARM 64-bit) | [mediahub\_windows\_aarch64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_windows_aarch64.exe) |
-| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v2.0.0/mediahub_windows_x86_64.exe) |
+| Linux | AArch64 (ARM 64-bit) | [mediahub\_linux\_aarch64](https://downloads.swcd.lu/MediaHub/v2.0.1/mediahub_linux_aarch64) |
+| Linux | x86_64 (AMD/Intel 64-bit) | [mediahub\_linux\_x86\_64](https://downloads.swcd.lu/MediaHub/v2.0.1/mediahub_linux_x86_64) |
+| Windows | AArch64 (ARM 64-bit) | [mediahub\_windows\_aarch64.exe](https://downloads.swcd.lu/MediaHub/v2.0.1/mediahub_windows_aarch64.exe) |
+| Windows | x86_64 (AMD/Intel 64-bit) | [mediahub\_windows\_x86\_64.exe](https://downloads.swcd.lu/MediaHub/v2.0.1/mediahub_windows_x86_64.exe) |
 
-A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v2.0.0/config.toml).
+A template `config.toml` file is also available for download [here](https://downloads.swcd.lu/MediaHub/v2.0.1/config.toml).
 
 As an alternative, you can run a docker container using the [docker image](https://hub.docker.com/r/denglerchr/mediahub_oss) from Dockerhub. Place your config file in a folder `mediahub_config` and run:
 
@@ -53,10 +53,9 @@ As an alternative, you can run a docker container using the [docker image](https
 docker run -d \
   --name mediahub \
   -p 8080:8080 \
-  -v $(pwd)/mediahub_config:/config \
   -v $(pwd)/mediahub_storage:/storage \
   -e MEDIAHUB_PASSWORD="your-secure-password" \
-  denglerchr/mediahub_oss:2.0.0
+  denglerchr/mediahub_oss:2.0.1
 ```
 
 -----
@@ -196,7 +195,7 @@ secret = "..."
 
 ### 2\. Flags & Environment Variables (Overrides)
 
-You can override any setting from the `config.toml` file using environment variables or command-line flags.
+You can override any setting from the `config.toml` file using environment variables or command-line flags. This is the recommended way to configure docker setups.
 
 | Flag | Env Variable | Description | Default |
 | --- | --- | --- | --- |

@@ -1,4 +1,14 @@
+# v2.0.1
+
+Bug Fixes:
+- fix display of wrong timestamp in entry list view 
+- fix swagger when behind https proxy
+
+Improvements:
+- add general font scaling for small screens
+
 # v2.0
+
 Features:
 - add video file support
 - add fullscreen playback to frontend
@@ -18,6 +28,7 @@ Other:
 - add Windows ARM64 binaries to release
 
 # v1.2
+
 Features:
 - make the "large file" threshold configurable.
 - implement database schema versions to enable migrations in the future.
@@ -30,6 +41,7 @@ Bug fixes:
 - fix filename and status fields not being whitelisted in the search endpoint
 
 # v1.1
+
 - JWT implemented in the backend and frontend. Basic auth is still available for endpoints, but is to be avoided if possible.
 - Drag and drop functionality added to the frontend. This functionality works in the list, grid and uploda views, and checks the mime type before upload as well.
 - Reworked entry detail view, including Delete and Edit button, organized properties

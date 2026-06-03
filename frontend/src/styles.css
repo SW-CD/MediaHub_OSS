@@ -52,10 +52,10 @@ html {
      FLUID TYPOGRAPHY SCALE
      ========================================= */
   --text-base: clamp(0.875rem, 0.5vw + 0.8rem, 1rem); 
-  --text-md: clamp(1.1rem, 1vw + 1rem, 1.25rem);
+  --text-md: clamp(1rem, 1vw + 1rem, 1.25rem);
   --text-lg: clamp(1.25rem, 1.5vw + 1rem, 1.5rem);
   --text-xl: clamp(1.5rem, 2vw + 1.2rem, 1.75rem);
-  --text-2xl: clamp(2rem, 3.5vw + 1.5rem, 2rem);
+  --text-2xl: clamp(1.75rem, 3.5vw + 1.5rem, 2rem);
 
   /* =========================================
      GLOBAL Z-INDEX SCALE
