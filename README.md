@@ -311,7 +311,7 @@ custom_fields = [
 
 As mentioned you can just use prebuild binaries, but if you want to build the program yourself, you can will need the following.
 
-  * **Go:** Version 1.26 or later (as specified in `go.mod`).
+  * **Go:** Version 1.25 or later (as specified in `go.mod`).
   * **Node.js & npm:** Required for building the frontend.
   * **Angular CLI:** The command-line interface for Angular. Install globally with `npm install -g @angular/cli`.
   * **FFmpeg & FFprobe:** Required for transcoding, preview generation and metadata extraction.
@@ -328,7 +328,7 @@ If you have made changes to the API handlers, regenerate the Swagger documentati
 
 ```bash
 # Ensure you have the swag CLI tool installed
-# go get -u [github.com/swaggo/swag/cmd/swag](https://github.com/swaggo/swag/cmd/swag)
+# go install github.com/swaggo/swag/cmd/swag@latest
 
 # From the project root, regenerate the docs
 swag init -g ./cmd/mediahub/main.go
