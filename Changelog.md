@@ -2,10 +2,10 @@
 
 Bug Fixes:
 - fix display of wrong timestamp in entry list view 
-- fix swagger when behind https proxy
 
 Improvements:
-- add general font scaling for small screens
+- add font scaling for small screens
+- add https as possible swagger schema
 
 # v2.0
 
