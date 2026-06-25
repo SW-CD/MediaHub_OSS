@@ -8,6 +8,7 @@ type Database struct {
 	ID           string // ULID
 	Name         string
 	ContentType  string
+	NMaxQueued   int
 	Config       DatabaseConfig
 	Housekeeping DatabaseHK
 	CustomFields []CustomField

@@ -19,6 +19,7 @@ import (
 	uh "mediahub_oss/internal/httpserver/userhandler"
 	"mediahub_oss/internal/logging/audit"
 	"mediahub_oss/internal/media/ffmpeg"
+	"mediahub_oss/internal/processing"
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/repository/postgres"
 	"mediahub_oss/internal/repository/sqlite"
@@ -65,6 +66,8 @@ func registerFlags(cmd *cobra.Command) {
 	cmd.Flags().String("server-basepath", "/", "The base path for reverse proxy.")
 	cmd.Flags().String("server-max-sync-upload", "4MB", "RAM threshold for uploads.")
 	cmd.Flags().StringSlice("server-cors-origins", []string{}, "Allowed CORS origins.")
+	cmd.Flags().String("server-processing-n-ffmpeg-async", "auto", "Limit for asynchronous processors.")
+	cmd.Flags().String("server-processing-n-ffmpeg-total", "auto", "Limit for all conversion processors.")
 
 	// Database Settings
 	cmd.Flags().String("database-driver", "sqlite", "Database driver (sqlite or postgres).")
@@ -178,6 +181,13 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 		return fmt.Errorf("failed to parse JWT config: %w", err)
 	}
 
+	// Initialize processing Processor
+	proc, err := processing.NewProcessor(repo, storageProvider, converter, serverCfg.NFfmpegAsync, serverCfg.NFfmpegTotal, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize processing manager: %w", err)
+	}
+	go proc.StartQueueChecker(ctx)
+
 	// 5. Build Handlers Struct (Dependency Injection)
 	infoH := ih.NewInfoHandler(
 		logger,
@@ -202,6 +212,7 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 			Storage:                storageProvider,
 			MaxSyncUploadSizeBytes: int64(serverCfg.MaxSyncUploadSize),
 			MediaConverter:         converter,
+			Processor:              proc,
 		},
 		DatabaseHandler: dbh.DatabaseHandler{
 			Logger:      logger,

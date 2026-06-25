@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"mediahub_oss/internal/httpserver/utils"
+	"mediahub_oss/internal/processing"
 	repo "mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
@@ -106,23 +107,42 @@ func (h *EntryHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create entry in the database and store file in the storage
-	entry, wasSync, err := h.createEntryWithFile(r.Context(), db, entry_request, file, header)
+	// Call processor
+	procReq := processing.EntryRequest{
+		Timestamp:    entry_request.Timestamp,
+		FileName:     entry_request.FileName,
+		CustomFields: entry_request.CustomFields,
+	}
 
+	originalMime := header.Header.Get("Content-Type")
+	originalName := header.Filename
+
+	entry, wasSync, err := h.Processor.ProcessEntry(r.Context(), db, procReq, file, originalMime, originalName)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		if errors.Is(err, customerrors.ErrUnavailable) {
+			utils.RespondWithError(w, http.StatusServiceUnavailable, "Service Unavailable: queue is full or processing capacity exhausted.")
+		} else if errors.Is(err, customerrors.ErrBadMimeType) {
+			utils.RespondWithError(w, http.StatusUnsupportedMediaType, err.Error())
+		} else {
+			h.Logger.Error("Processing failed", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 
-	status := 201
-	if !wasSync {
-		status = 202
+	var responseObj EntryWithID
+	status := http.StatusCreated
+	if wasSync {
+		responseObj = mapToEntryResponse(dbID, entry)
+	} else {
+		responseObj = mapToPartialEntryResponse(dbID, entry)
+		status = http.StatusAccepted
 	}
 
 	// Audit & Response
-	h.Auditor.Log(r.Context(), "entry.post", user.Username, fmt.Sprintf("%s:%d", dbID, entry.GetID()), map[string]any{"database_name": db.Name})
+	h.Auditor.Log(r.Context(), "entry.post", user.Username, fmt.Sprintf("%s:%d", dbID, responseObj.GetID()), map[string]any{"database_name": db.Name})
 
-	utils.RespondWithJSON(w, status, entry)
+	utils.RespondWithJSON(w, status, responseObj)
 }
 
 // @Summary Delete an entry

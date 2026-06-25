@@ -1,7 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"mediahub_oss/internal/shared"
+	"runtime"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,7 +33,7 @@ type DatabaseConfig struct {
 
 // StorageConfig holds settings for file storage.
 type StorageConfig struct {
-	Type  string      `toml:"type" mapstructure:"type"` // "local" or "s3
+	Type  string      `toml:"type" mapstructure:"type"` // "local" or "s3"
 	Local LocalConfig `toml:"local" mapstructure:"local"`
 	S3    S3Config    `toml:"s3" mapstructure:"s3"`
 }
@@ -54,7 +58,7 @@ type LoggingConfig struct {
 }
 
 type AuditConfig struct {
-	Type      string `toml:"type" mapstructure:"type"` // "stdio" or "database
+	Type      string `toml:"type" mapstructure:"type"` // "stdio" or "database"
 	Enabled   bool   `toml:"enabled" mapstructure:"enabled"`
 	Retention string `toml:"retention" mapstructure:"retention"` // How long to keep audit logs (e.g., "7d" for 7 days)
 }
@@ -70,11 +74,17 @@ type MediaConfig struct {
 //--------------------
 
 type serverConfigInternal struct {
-	Host               string   `toml:"host" mapstructure:"host"`
-	Port               int      `toml:"port" mapstructure:"port"`
-	Basepath           string   `toml:"basepath" mapstructure:"basepath"`
-	MaxSyncUploadSize  string   `toml:"max_sync_upload_size" mapstructure:"max_sync_upload_size"`
-	CorsAllowedOrigins []string `toml:"cors_allowed_origins" mapstructure:"cors_allowed_origins"`
+	Host               string                   `toml:"host" mapstructure:"host"`
+	Port               int                      `toml:"port" mapstructure:"port"`
+	Basepath           string                   `toml:"basepath" mapstructure:"basepath"`
+	MaxSyncUploadSize  string                   `toml:"max_sync_upload_size" mapstructure:"max_sync_upload_size"`
+	CorsAllowedOrigins []string                 `toml:"cors_allowed_origins" mapstructure:"cors_allowed_origins"`
+	Processing         processingConfigInternal `toml:"processing" mapstructure:"processing"`
+}
+
+type processingConfigInternal struct {
+	NFfmpegAsync string `toml:"n_ffmpeg_async" mapstructure:"n_ffmpeg_async"`
+	NFfmpegTotal string `toml:"n_ffmpeg_total" mapstructure:"n_ffmpeg_total"`
 }
 
 type AuthConfig struct {
@@ -108,6 +118,8 @@ type ServerConfig struct {
 	Basepath           string
 	MaxSyncUploadSize  uint64 // Threshold in bytes
 	CorsAllowedOrigins []string
+	NFfmpegAsync       int
+	NFfmpegTotal       int
 }
 
 type JWTConfig struct {
@@ -126,12 +138,47 @@ func (cfg *Config) GetServerConfig() (ServerConfig, error) {
 		return ServerConfig{}, err
 	}
 
+	// Parse n_ffmpeg_async
+	nAsync := 0
+	valAsync := strings.TrimSpace(strings.ToLower(cfg.Server.Processing.NFfmpegAsync))
+	if valAsync == "auto" || valAsync == "" {
+		nAsync = runtime.NumCPU() / 2
+		if nAsync < 1 {
+			nAsync = 1
+		}
+	} else {
+		parsed, err := strconv.Atoi(valAsync)
+		if err != nil {
+			return ServerConfig{}, fmt.Errorf("invalid n_ffmpeg_async value '%s': %w", cfg.Server.Processing.NFfmpegAsync, err)
+		}
+		nAsync = parsed
+	}
+
+	// Parse n_ffmpeg_total
+	nTotal := 0
+	valTotal := strings.TrimSpace(strings.ToLower(cfg.Server.Processing.NFfmpegTotal))
+	if valTotal == "auto" || valTotal == "" {
+		nTotal = runtime.NumCPU()
+	} else {
+		parsed, err := strconv.Atoi(valTotal)
+		if err != nil {
+			return ServerConfig{}, fmt.Errorf("invalid n_ffmpeg_total value '%s': %w", cfg.Server.Processing.NFfmpegTotal, err)
+		}
+		nTotal = parsed
+	}
+
+	if nTotal < nAsync {
+		return ServerConfig{}, fmt.Errorf("invalid processing configuration: n_ffmpeg_total (%d) must be greater than or equal to n_ffmpeg_async (%d)", nTotal, nAsync)
+	}
+
 	return ServerConfig{
 		Host:               cfg.Server.Host,
 		Port:               cfg.Server.Port,
 		Basepath:           cfg.Server.Basepath,
 		MaxSyncUploadSize:  maxsyncsize_int,
 		CorsAllowedOrigins: cfg.Server.CorsAllowedOrigins,
+		NFfmpegAsync:       nAsync,
+		NFfmpegTotal:       nTotal,
 	}, nil
 }
 

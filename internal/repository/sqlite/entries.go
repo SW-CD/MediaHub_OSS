@@ -513,3 +513,58 @@ func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req r
 
 	return entries, nil
 }
+
+// ClaimQueuedEntry atomically claims a queued entry by changing its status to processing.
+func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	query := fmt.Sprintf(`UPDATE %s SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, tableName)
+	now := time.Now().UnixMilli()
+	res, err := r.DB.ExecContext(ctx, query, repo.EntryStatusProcessing, now, entryID, repo.EntryStatusQueued)
+	if err != nil {
+		return false, fmt.Errorf("failed to execute claim update: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve rows affected: %w", err)
+	}
+	return rows == 1, nil
+}
+
+// GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
+func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"status": status}).OrderBy("id ASC").ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build get-by-status query: %w", err)
+	}
+
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query entries by status: %w", err)
+	}
+	defer rows.Close()
+
+	entries, err := r.scanEntryRows(rows)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan entries by status: %w", err)
+	}
+
+	return entries, nil
+}
+
+// CountEntriesByStatus counts the number of entries with the specified status.
+func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	query, args, err := r.Builder.Select("COUNT(*)").From(tableName).Where(squirrel.Eq{"status": status}).ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("failed to build count-by-status query: %w", err)
+	}
+
+	var count int64
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to execute count query: %w", err)
+	}
+
+	return count, nil
+}

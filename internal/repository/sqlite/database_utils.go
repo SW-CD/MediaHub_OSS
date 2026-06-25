@@ -32,6 +32,7 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 		&maxAgeMs, // Scan into intermediate variable
 		&db.Config.CreatePreview,
 		&db.Config.AutoConversion,
+		&db.NMaxQueued,
 		&customFieldsJSON,
 		&HKLastRun,
 		&db.Stats.EntryCount,

@@ -23,6 +23,17 @@
             <option value="file">Generic File</option>
           </select>
         </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="n_max_queued" class="form-label">Max Queued Conversions</label>
+          <input id="n_max_queued" type="number" formControlName="n_max_queued" class="form-control" min="0">
+          <small class="text-muted">Maximum number of entries that can be queued for processing at once. Set to 0 to disable queuing.</small>
+          
+          <div *ngIf="createDbForm.get('n_max_queued')?.invalid && createDbForm.get('n_max_queued')?.touched" class="form-error">
+            <span *ngIf="createDbForm.get('n_max_queued')?.hasError('required')">Max queued conversions is required.</span>
+            <span *ngIf="createDbForm.get('n_max_queued')?.hasError('min')">Max queued conversions cannot be negative.</span>
+          </div>
+        </div>
       </div>
     </div>
 

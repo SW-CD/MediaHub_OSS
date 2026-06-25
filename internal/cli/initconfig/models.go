@@ -32,6 +32,7 @@ type InitUserPermission struct {
 type InitDatabase struct {
 	Name         string                   `toml:"name"`
 	ContentType  string                   `toml:"content_type"`
+	NMaxQueued   int                      `toml:"n_max_queued"`
 	Config       InitDatabaseConfig       `toml:"config"`
 	Housekeeping InitHousekeeping         `toml:"housekeeping"`
 	CustomFields []repository.CustomField `toml:"custom_fields"`

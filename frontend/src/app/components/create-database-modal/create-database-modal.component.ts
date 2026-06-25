@@ -26,6 +26,7 @@ export class CreateDatabaseModalComponent implements OnInit {
       // Added a maxLength just for standard safety.
       name: ['', [Validators.required, Validators.maxLength(100)]],
       content_type: ['image', Validators.required],
+      n_max_queued: [0, [Validators.required, Validators.min(0)]],
       create_preview: [true],
       auto_conversion: [''], 
 
@@ -88,6 +89,7 @@ export class CreateDatabaseModalComponent implements OnInit {
     const payload = {
       name: formValue.name,
       content_type: formValue.content_type,
+      n_max_queued: formValue.n_max_queued,
       config: config, 
       housekeeping: reconstructedHousekeeping, 
       custom_fields: formValue.custom_fields,
@@ -104,6 +106,7 @@ export class CreateDatabaseModalComponent implements OnInit {
           this.createDbForm.reset({
             name: '',
             content_type: 'image',
+            n_max_queued: 0,
             create_preview: true, 
             auto_conversion: '',
             housekeeping: { 

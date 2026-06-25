@@ -38,6 +38,9 @@ type Repository interface {
 	GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]Entry, error)
 	UpdateEntry(ctx context.Context, dbID string, entry Entry) (Entry, error)
 	UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error
+	ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error)
+	GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]Entry, error)
+	CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error)
 	DeleteEntry(ctx context.Context, dbID string, id int64) (DeletedEntryMeta, error)
 	DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]DeletedEntryMeta, error)
 	SearchEntries(ctx context.Context, dbID string, req SearchRequest, customFields []CustomField) ([]Entry, error)
