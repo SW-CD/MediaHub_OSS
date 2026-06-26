@@ -38,7 +38,7 @@ func (p *Processor) handleLargeFileAsync(
 	p.Logger.Debug("Created partial entry in database", "entry", createdEntry.ID)
 
 	go func() {
-		// TODO we should probably increment and decrement counters in this block
+		defer p.releaseAsyncSlot()
 
 		// Run conversion and finalize using the local workerTempPath
 		p.runConversionAndFinalize(context.Background(), db, createdEntry, workerTempPath, plan)

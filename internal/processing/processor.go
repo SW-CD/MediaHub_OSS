@@ -74,26 +74,14 @@ func (p *Processor) ProcessEntry(
 
 	if isLarge {
 		// Path A: Large File, Asynchronous
-		p.mu.Lock()
-		if p.activeAsync < p.NFfmpegAsync && p.activeTotal < p.NFfmpegTotal {
-			p.activeAsync++
-			p.activeTotal++
-			p.mu.Unlock()
-
+		if p.tryReserveAsyncSlot() {
 			entry, err := p.handleLargeFileAsync(ctx, diskFile, db, req, procPlan)
 			if err != nil {
-				// TODO, doesnt this decrement the counts while the file is still being converted?
-				// decrementing should probably be done in the go routine when it finsihes processing, not here
-				// In that case, also incrementing should be done in the go routine when it starts processing, not here above
-				p.mu.Lock()
-				p.activeAsync--
-				p.activeTotal--
-				p.mu.Unlock()
+				p.releaseAsyncSlot()
 				return repo.Entry{}, false, err
 			}
 			return entry, false, nil
 		}
-		p.mu.Unlock()
 
 		// Limits reached, evaluate queue limit
 		queuedCount, err := p.Repo.CountEntriesByStatus(ctx, db.ID, repo.EntryStatusQueued)
@@ -113,16 +101,8 @@ func (p *Processor) ProcessEntry(
 	}
 
 	// Path B: Small File, Synchronous
-	p.mu.Lock()
-	if p.activeTotal < p.NFfmpegTotal {
-		p.activeTotal++
-		p.mu.Unlock()
-
-		defer func() {
-			p.mu.Lock()
-			p.activeTotal--
-			p.mu.Unlock()
-		}()
+	if p.tryReserveSyncSlot() {
+		defer p.releaseSyncSlot()
 
 		entry, err := p.handleSmallFileSync(ctx, file, db, req, procPlan)
 		if err != nil {
@@ -130,7 +110,6 @@ func (p *Processor) ProcessEntry(
 		}
 		return entry, true, nil
 	}
-	p.mu.Unlock()
 
 	// Limits reached, evaluate queue limit
 	queuedCount, err := p.Repo.CountEntriesByStatus(ctx, db.ID, repo.EntryStatusQueued)
@@ -147,4 +126,42 @@ func (p *Processor) ProcessEntry(
 	}
 
 	return repo.Entry{}, false, customerrors.ErrUnavailable
+}
+
+// tryReserveAsyncSlot checks limits and reserves a slot for an asynchronous/large conversion.
+func (p *Processor) tryReserveAsyncSlot() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.activeAsync >= p.NFfmpegAsync || p.activeTotal >= p.NFfmpegTotal {
+		return false
+	}
+	p.activeAsync++
+	p.activeTotal++
+	return true
+}
+
+// releaseAsyncSlot releases a reserved asynchronous/large conversion slot.
+func (p *Processor) releaseAsyncSlot() {
+	p.mu.Lock()
+	p.activeAsync--
+	p.activeTotal--
+	p.mu.Unlock()
+}
+
+// tryReserveSyncSlot checks limits and reserves a slot for a synchronous/small conversion.
+func (p *Processor) tryReserveSyncSlot() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.activeTotal >= p.NFfmpegTotal {
+		return false
+	}
+	p.activeTotal++
+	return true
+}
+
+// releaseSyncSlot releases a reserved synchronous/small conversion slot.
+func (p *Processor) releaseSyncSlot() {
+	p.mu.Lock()
+	p.activeTotal--
+	p.mu.Unlock()
 }

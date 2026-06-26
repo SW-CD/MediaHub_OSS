@@ -37,48 +37,36 @@ func (p *Processor) StartQueueChecker(ctx context.Context) {
 }
 
 func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, entry repo.Entry) bool {
-	p.mu.Lock()
-	if p.activeAsync >= p.NFfmpegAsync || p.activeTotal >= p.NFfmpegTotal {
-		p.mu.Unlock()
+	if !p.tryReserveAsyncSlot() {
 		return false
 	}
-	p.activeAsync++
-	p.activeTotal++
-	p.mu.Unlock()
 
 	claimed, err := p.Repo.ClaimQueuedEntry(ctx, db.ID, entry.ID)
 	if err != nil {
 		p.Logger.Error("Failed to claim queued entry", "database_id", db.ID, "entry_id", entry.ID, "error", err)
-		p.mu.Lock()
-		p.activeAsync--
-		p.activeTotal--
-		p.mu.Unlock()
+		p.releaseAsyncSlot()
 		return false
 	}
 
 	if !claimed {
-		p.mu.Lock()
-		p.activeAsync--
-		p.activeTotal--
-		p.mu.Unlock()
+		p.releaseAsyncSlot()
 		return true // continue scanning
 	}
 
-	go p.runWorkerForClaimedEntry(ctx, db, entry)
+	go func() {
+		defer p.releaseAsyncSlot()
+		p.runWorkerForClaimedEntry(ctx, db, entry)
+	}()
 	return true
 }
 
 func (p *Processor) runWorkerForClaimedEntry(ctx context.Context, db repo.Database, entry repo.Entry) {
+	// get the file locally on disk
 	tempFile, err := os.CreateTemp(os.TempDir(), "mh-worker-queued-*")
 	if err != nil {
 		p.Logger.Error("Worker: Failed to create temp file for queued entry", "entry", entry.ID, "error", err)
 		entry.Status = repo.EntryStatusError
 		_, _ = p.Repo.UpdateEntry(ctx, db.ID, entry)
-
-		p.mu.Lock()
-		p.activeAsync--
-		p.activeTotal--
-		p.mu.Unlock()
 		return
 	}
 	tempFilePath := tempFile.Name()
@@ -90,11 +78,6 @@ func (p *Processor) runWorkerForClaimedEntry(ctx context.Context, db repo.Databa
 		tempFile.Close()
 		entry.Status = repo.EntryStatusError
 		_, _ = p.Repo.UpdateEntry(ctx, db.ID, entry)
-
-		p.mu.Lock()
-		p.activeAsync--
-		p.activeTotal--
-		p.mu.Unlock()
 		return
 	}
 
@@ -106,18 +89,14 @@ func (p *Processor) runWorkerForClaimedEntry(ctx context.Context, db repo.Databa
 		p.Logger.Error("Worker: Failed to copy queued file to temp path", "entry", entry.ID, "error", err)
 		entry.Status = repo.EntryStatusError
 		_, _ = p.Repo.UpdateEntry(ctx, db.ID, entry)
-
-		p.mu.Lock()
-		p.activeAsync--
-		p.activeTotal--
-		p.mu.Unlock()
 		return
 	}
 
+	// Handle this file
 	plan := DeterminePlanForEntry(p.MediaConverter, db, entry)
 	p.runConversionAndFinalize(ctx, db, entry, tempFilePath, plan)
 
-	// Now check the queue for next jobs and process them sequentially
+	// Check the queue for next jobs and process them sequentially
 	p.runQueueWorkerLoop(ctx, db)
 }
 
@@ -179,10 +158,6 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 		os.Remove(tempFilePath)
 	}
 
-	p.mu.Lock()
-	p.activeAsync--
-	p.activeTotal--
-	p.mu.Unlock()
 	p.Logger.Debug("Worker: Terminating queue worker.")
 }
 

@@ -15,9 +15,6 @@ func LoadConfig(path string, isOSS bool) (*Config, error) {
 	// 1. Tell Viper where to find the TOML file
 	viper.SetConfigFile(path)
 
-	// Set defaults for processing configuration
-	viper.SetDefault("server.processing.n_ffmpeg_async", "auto")
-	viper.SetDefault("server.processing.n_ffmpeg_total", "auto")
 
 	// 2. Configure Environment Variable automation
 	// This replaces your manual bindEnvVars logic!
