@@ -35,11 +35,11 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	}
 
 	// 1. Generate the dynamic schema and index queries using the ID instead of Name
-	createTableSQL, err := r.buildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
+	createTableSQL, err := r.BuildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
-	indexSQLs := buildIndexesSQL(db.ID, db.CustomFields)
+	indexSQLs := BuildIndexesSQL(db.ID, db.CustomFields)
 
 	customFieldsJSON, err := json.Marshal(db.CustomFields)
 	if err != nil {

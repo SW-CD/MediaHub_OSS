@@ -1,5 +1,0 @@
--- +goose Up
-ALTER TABLE databases ADD COLUMN n_max_queued INTEGER NOT NULL DEFAULT 0;
-
--- +goose Down
-ALTER TABLE databases DROP COLUMN n_max_queued;
