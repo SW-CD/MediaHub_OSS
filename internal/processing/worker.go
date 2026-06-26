@@ -53,8 +53,12 @@ func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, en
 		return true // continue scanning
 	}
 
+	p.Logger.Debug("Worker: Spawned background queue worker for claimed entry", "database_id", db.ID, "entry_id", entry.ID)
 	go func() {
-		defer p.releaseAsyncSlot()
+		defer func() {
+			p.releaseAsyncSlot()
+			p.TriggerQueueWorkersIfPossible(context.Background())
+		}()
 		p.runWorkerForClaimedEntry(ctx, db, entry)
 	}()
 	return true
@@ -122,6 +126,7 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 		}
 
 		db = nextDB
+		p.Logger.Debug("Worker: Claimed next queued entry from loop", "database_id", db.ID, "entry_id", nextEntry.ID, "filename", nextEntry.FileName)
 		tempFile, err := os.CreateTemp(os.TempDir(), "mh-worker-queued-*")
 		if err != nil {
 			p.Logger.Error("Worker: Failed to create temp file for claimed entry", "entry", nextEntry.ID, "error", err)
@@ -265,4 +270,23 @@ func (p *Processor) runConversionAndFinalize(
 	}
 
 	p.Logger.Info("Worker: Successfully processed large entry", "entry", entry.ID)
+}
+
+// TriggerQueueWorkersIfPossible scans for any queued entries across all databases
+// and spawns background workers for them if concurrency limits allow.
+func (p *Processor) TriggerQueueWorkersIfPossible(ctx context.Context) {
+	for {
+		entry, db, found, err := p.findNextQueuedEntry(ctx)
+		if err != nil {
+			p.Logger.Error("TriggerQueueWorkers: Failed to scan for next queued entry", "error", err)
+			break
+		}
+		if !found {
+			break
+		}
+
+		if !p.tryAcquireAndSpawn(ctx, db, entry) {
+			break // Limits reached, stop spawning
+		}
+	}
 }

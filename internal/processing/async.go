@@ -38,7 +38,10 @@ func (p *Processor) handleLargeFileAsync(
 	p.Logger.Debug("Created partial entry in database", "entry", createdEntry.ID)
 
 	go func() {
-		defer p.releaseAsyncSlot()
+		defer func() {
+			p.releaseAsyncSlot()
+			p.TriggerQueueWorkersIfPossible(context.Background())
+		}()
 
 		// Run conversion and finalize using the local workerTempPath
 		p.runConversionAndFinalize(context.Background(), db, createdEntry, workerTempPath, plan)

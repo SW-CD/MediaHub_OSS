@@ -167,6 +167,14 @@ func (cfg *Config) GetServerConfig() (ServerConfig, error) {
 		nTotal = parsed
 	}
 
+	if nAsync < 1 {
+		return ServerConfig{}, fmt.Errorf("invalid processing configuration: n_ffmpeg_async (%d) must be at least 1", nAsync)
+	}
+
+	if nTotal < 1 {
+		return ServerConfig{}, fmt.Errorf("invalid processing configuration: n_ffmpeg_total (%d) must be at least 1", nTotal)
+	}
+
 	if nTotal < nAsync {
 		return ServerConfig{}, fmt.Errorf("invalid processing configuration: n_ffmpeg_total (%d) must be greater than or equal to n_ffmpeg_async (%d)", nTotal, nAsync)
 	}
