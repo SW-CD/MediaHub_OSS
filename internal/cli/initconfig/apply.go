@@ -41,6 +41,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 			db := repository.Database{
 				Name:        dbInit.Name,
 				ContentType: dbInit.ContentType,
+				NMaxQueued:  dbInit.NMaxQueued,
 				Config: repository.DatabaseConfig{
 					CreatePreview:  dbInit.Config.CreatePreview,
 					AutoConversion: dbInit.Config.AutoConversion,

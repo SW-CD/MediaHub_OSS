@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"mediahub_oss/internal/logging/audit"
 	"mediahub_oss/internal/media"
+	"mediahub_oss/internal/processing"
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/storage"
 )
@@ -15,22 +16,7 @@ type EntryHandler struct {
 	Storage                storage.StorageProvider
 	MaxSyncUploadSizeBytes int64
 	MediaConverter         media.MediaConverter
-}
-
-// ConversionPlan holds the details needed for file conversion.
-type ProcessingPlan struct {
-	WantsConversion bool
-	NeedsConversion bool
-	CanConvert      bool
-
-	WantsPreview  bool
-	CanGenPreview bool
-
-	InitMimeType   string
-	TargetMimeType string
-	ResultMimeType string
-
-	FinalFileName string
+	Processor              *processing.Processor
 }
 
 // metadata that can be added when sending a new entry

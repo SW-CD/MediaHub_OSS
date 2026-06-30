@@ -27,6 +27,10 @@ Other:
 - publish multiarch docker build (ARM64, X86)
 - add Windows ARM64 binaries to release
 
+# v2.1
+Features:
+- add entry queuing and processing limits, to avoid server resource starvation. New config arguments: `server.processing.n_ffmpeg_async` and `server.processing.n_ffmpeg_total`. `n_max_queued` parameter on database level.
+
 # v1.2
 
 Features:

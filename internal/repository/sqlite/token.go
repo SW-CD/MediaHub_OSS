@@ -103,7 +103,7 @@ func (r *SQLiteRepository) DeleteRefreshToken(ctx context.Context, tokenHash str
 func (r *SQLiteRepository) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error) {
 	// Build the DELETE query.
 	query, args, err := r.Builder.Delete("refresh_tokens").
-		Where("expiry < (CAST(unixepoch('subsec') * 1000 AS INTEGER)").
+		Where("expiry < CAST(unixepoch('subsec') * 1000 AS INTEGER)").
 		ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("failed to build delete expired tokens query: %w", err)

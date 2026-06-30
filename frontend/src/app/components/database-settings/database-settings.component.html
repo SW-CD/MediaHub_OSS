@@ -27,6 +27,16 @@
         <input type="text" id="dbName" class="form-control" formControlName="name" [readOnly]="!canEdit">
         <small class="text-muted">The display name of your database. Changing this will not break any existing file links or uploads.</small>
       </div>
+
+      <div class="form-group" style="margin-top: 1.5rem;">
+        <label for="nMaxQueued" class="form-label">Max Queued Conversions</label>
+        <input type="number" id="nMaxQueued" class="form-control" formControlName="n_max_queued" [readOnly]="!canEdit" min="0">
+        <small class="text-muted">Maximum number of entries that can be queued for processing at once. Set to 0 to disable queuing.</small>
+        <div *ngIf="settingsForm.get('n_max_queued')?.invalid && settingsForm.get('n_max_queued')?.touched" class="form-error" style="color: var(--button-danger-bg); font-size: 0.85rem; margin-top: 0.25rem;">
+          <span *ngIf="settingsForm.get('n_max_queued')?.hasError('required')">Max queued conversions is required.</span>
+          <span *ngIf="settingsForm.get('n_max_queued')?.hasError('min')">Max queued conversions cannot be negative.</span>
+        </div>
+      </div>
     </div>
 
     <div class="settings-card">

@@ -32,6 +32,7 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 		&maxAgeMs, // Scan into intermediate variable
 		&db.Config.CreatePreview,
 		&db.Config.AutoConversion,
+		&db.NMaxQueued,
 		&customFieldsJSON,
 		&HKLastRun,
 		&db.Stats.EntryCount,
@@ -59,8 +60,8 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 	return db, nil
 }
 
-// buildDynamicTableSchema generates the CREATE TABLE statement using the database ID.
-func (r *SQLiteRepository) buildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomField) (string, error) {
+// BuildDynamicTableSchema generates the CREATE TABLE statement using the database ID.
+func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomField) (string, error) {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var sb strings.Builder
@@ -111,8 +112,8 @@ func (r *SQLiteRepository) buildDynamicTableSchema(dbID, contentType string, cus
 	return sb.String(), nil
 }
 
-// buildIndexesSQL creates the indexing statements using the database ID.
-func buildIndexesSQL(dbID string, customFields []repo.CustomField) []string {
+// BuildIndexesSQL creates the indexing statements using the database ID.
+func BuildIndexesSQL(dbID string, customFields []repo.CustomField) []string {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	var sqls []string
 

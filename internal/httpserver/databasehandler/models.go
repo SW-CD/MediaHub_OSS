@@ -18,6 +18,7 @@ type DatabaseHandler struct {
 type DatabaseCreatePayload struct {
 	Name         string                `json:"name"`
 	ContentType  string                `json:"content_type"`
+	NMaxQueued   int                   `json:"n_max_queued"`
 	Config       ConfigPayload         `json:"config"`
 	Housekeeping HousekeepingPayload   `json:"housekeeping"`
 	CustomFields []DatabaseCustomField `json:"custom_fields"`
@@ -31,6 +32,7 @@ type DatabaseCustomField struct {
 // DatabaseUpdatePayload defines the required JSON payload for PUT /api/database.
 type DatabaseUpdatePayload struct {
 	Name         string              `json:"name"`
+	NMaxQueued   int                 `json:"n_max_queued"`
 	Config       ConfigPayload       `json:"config"`
 	Housekeeping HousekeepingPayload `json:"housekeeping"`
 }
@@ -63,6 +65,7 @@ type DatabaseResponse struct {
 	ID           string                `json:"id"`
 	Name         string                `json:"name"`
 	ContentType  string                `json:"content_type"`
+	NMaxQueued   int                   `json:"n_max_queued"`
 	Config       ConfigPayload         `json:"config"`
 	Housekeeping DatabaseResponseHK    `json:"housekeeping"`
 	CustomFields []DatabaseCustomField `json:"custom_fields"`

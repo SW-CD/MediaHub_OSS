@@ -8,6 +8,7 @@ import (
 
 	conf "mediahub_oss/internal/cli/config"
 	"mediahub_oss/internal/logging"
+	_ "mediahub_oss/internal/repository/migrations/sqlite"
 
 	"github.com/spf13/cobra"
 )

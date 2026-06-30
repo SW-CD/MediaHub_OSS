@@ -6,6 +6,7 @@ const (
 	EntryStatusProcessing uint8 = 0x01
 	EntryStatusError      uint8 = 0x02
 	EntryStatusDeleting   uint8 = 0x03
+	EntryStatusQueued     uint8 = 0x04
 )
 
 // GetAllEntryStatuses provides a centralized list of all valid statuses.
@@ -15,6 +16,7 @@ func GetAllEntryStatuses() []uint8 {
 		EntryStatusProcessing,
 		EntryStatusError,
 		EntryStatusDeleting,
+		EntryStatusQueued,
 	}
 }
 
@@ -28,6 +30,8 @@ func GetEntryStatusString(status uint8) string {
 		return "error"
 	case EntryStatusDeleting:
 		return "deleting"
+	case EntryStatusQueued:
+		return "queued"
 	default:
 		return "unknown"
 	}

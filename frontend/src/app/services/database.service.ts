@@ -9,6 +9,8 @@ import { NotificationService } from './notification.service';
 import { Router } from '@angular/router';
 
 export interface DatabaseUpdatePayload {
+  name?: string;
+  n_max_queued?: number;
   config?: DatabaseConfig;
   housekeeping?: any;
 }

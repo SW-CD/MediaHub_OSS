@@ -35,11 +35,11 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	}
 
 	// 1. Generate the dynamic schema and index queries using the ID instead of Name
-	createTableSQL, err := r.buildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
+	createTableSQL, err := r.BuildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
-	indexSQLs := buildIndexesSQL(db.ID, db.CustomFields)
+	indexSQLs := BuildIndexesSQL(db.ID, db.CustomFields)
 
 	customFieldsJSON, err := json.Marshal(db.CustomFields)
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 	// Insert metadata into the main databases table
 	query, args, err := r.Builder.Insert("databases").
-		Columns("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run").
+		Columns("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run").
 		Values(
 			db.ID,
 			db.Name,
@@ -65,6 +65,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 			db.Housekeeping.MaxAge.Milliseconds(), // Converted to ms
 			db.Config.CreatePreview,
 			db.Config.AutoConversion,
+			db.NMaxQueued,
 			string(customFieldsJSON),
 			hkLastRunMs,
 		).
@@ -102,7 +103,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 // GetDatabase retrieves a single database configuration by its ULID.
 func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
-	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
@@ -116,7 +117,7 @@ func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.D
 
 // GetDatabases retrieves all available database configurations.
 func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, error) {
-	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		ToSql()
 	if err != nil {
@@ -161,6 +162,7 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 		Set("hk_last_run", hkLastRunMs).
 		Set("create_preview", db.Config.CreatePreview).
 		Set("auto_conversion", db.Config.AutoConversion).
+		Set("n_max_queued", db.NMaxQueued).
 		Set("entry_count", db.Stats.EntryCount).
 		Set("total_disk_space_bytes", db.Stats.TotalDiskSpaceBytes).
 		Where(squirrel.Eq{"id": db.ID}).

@@ -40,6 +40,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
 
     this.settingsForm = this.fb.group({
       name: ['', [Validators.required]], // NEW: Added name field for renaming
+      n_max_queued: [0, [Validators.required, Validators.min(0)]],
       create_preview: [true],
       auto_conversion: [''], 
       housekeeping: this.fb.group({
@@ -79,7 +80,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
             const maxAge = this.parseHousekeepingString(db.housekeeping.max_age, 'd');
 
             this.settingsForm.patchValue({
-              name: db.name, // NEW: Patch the database name
+              name: db.name,
+              n_max_queued: db.n_max_queued,
               ...db.config, 
               housekeeping: {
                 interval_value: interval.value,
@@ -173,9 +175,9 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
       max_age: hkForm.max_age_value > 0 ? `${hkForm.max_age_value}${hkForm.max_age_unit}` : "0",
     };
 
-    // We cast to any to seamlessly inject 'name' without changing the strict DatabaseUpdatePayload interface in the service
-    const payload: any = {
+    const payload: DatabaseUpdatePayload = {
       name: formValue.name, // NEW: Include name in payload
+      n_max_queued: formValue.n_max_queued,
       config: config,
       housekeeping: reconstructedHousekeeping,
     };

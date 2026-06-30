@@ -2,8 +2,12 @@
 host = "0.0.0.0"   # The host address to bind to
 port = 8080        # Default port (can be overridden by flag/env)
 basepath = "/"     # For the case of a reverse proxy
-max_sync_upload_size = "4MB" # Threshold for switching from RAM to Disk processing
+max_sync_upload_size = "2MB" # Threshold for switching from RAM to Disk processing
 cors_allowed_origins = []
+
+[server.processing]
+n_ffmpeg_async = "auto"
+n_ffmpeg_total = "auto"
 
 [database]
 # Relative or absolute path to the .db file (e.g., "mediahub.db")
@@ -18,7 +22,7 @@ level = "info" # Standard application logging level
 [logging.audit]
 type = "stdio" # Where to store audit logs: "stdio" or "database"
 enabled = false # Toggle audit logging on or off
-retention = "31d" # How long to keep audit logs (e.g., "7d" for 7 days)
+retention = "7d" # How long to keep audit logs (e.g., "7d" for 7 days)
 
 [media]
 # Optional: Path to the FFmpeg executable.

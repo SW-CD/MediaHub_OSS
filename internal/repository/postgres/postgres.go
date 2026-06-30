@@ -230,3 +230,15 @@ func (r PostgresRepository) MigrateUp(ctx context.Context) error {
 func (r PostgresRepository) MigrateDown(ctx context.Context) error {
 	return customerrors.ErrNotImplemented
 }
+
+func (r PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error) {
+	return false, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]repository.Entry, error) {
+	return nil, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error) {
+	return 0, customerrors.ErrNotImplemented
+}

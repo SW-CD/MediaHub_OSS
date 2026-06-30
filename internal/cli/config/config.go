@@ -15,6 +15,7 @@ func LoadConfig(path string, isOSS bool) (*Config, error) {
 	// 1. Tell Viper where to find the TOML file
 	viper.SetConfigFile(path)
 
+
 	// 2. Configure Environment Variable automation
 	// This replaces your manual bindEnvVars logic!
 	viper.SetEnvPrefix("MEDIAHUB")

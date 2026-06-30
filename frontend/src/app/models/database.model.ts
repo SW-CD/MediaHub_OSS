@@ -25,6 +25,7 @@ export interface Database {
   id: string; // NEW: Added the ULID property
   name: string;
   content_type: ContentType; 
+  n_max_queued: number;
   config: DatabaseConfig;
   housekeeping: Housekeeping;
   custom_fields: CustomField[];

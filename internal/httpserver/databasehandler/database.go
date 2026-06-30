@@ -233,6 +233,7 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 	if updates.Name != "" {
 		db.Name = updates.Name
 	}
+	db.NMaxQueued = updates.NMaxQueued
 	db.Config = updates.getConfig()
 	db.Housekeeping = updates.getHK(db.Housekeeping.LastHkRun)
 

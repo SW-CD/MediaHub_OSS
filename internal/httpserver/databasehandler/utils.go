@@ -19,6 +19,7 @@ func (dbc DatabaseCreatePayload) toModel() repository.Database {
 	return repository.Database{
 		Name:        dbc.Name,
 		ContentType: dbc.ContentType,
+		NMaxQueued:  dbc.NMaxQueued,
 		Config: repository.DatabaseConfig{
 			CreatePreview:  dbc.Config.CreatePreview,
 			AutoConversion: dbc.Config.AutoConversion,
@@ -104,6 +105,7 @@ func mapToDatabaseResponse(db repository.Database) DatabaseResponse {
 		ID:          db.ID,
 		Name:        db.Name,
 		ContentType: db.ContentType,
+		NMaxQueued:  db.NMaxQueued,
 		Config: ConfigPayload{
 			CreatePreview:  db.Config.CreatePreview,
 			AutoConversion: db.Config.AutoConversion,
