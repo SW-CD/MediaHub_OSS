@@ -1,3 +1,12 @@
+-- Migration: Initialize V2 Postgres Schema
+-- Description: Creates the core database tables for the v2 PostgreSQL database structure, including:
+--   - databases: Database configurations and statistics
+--   - users: User profiles with credentials and admin status
+--   - database_permissions: Mappings of database-specific rights for non-admin users
+--   - refresh_tokens: JWT refresh tokens for active user sessions
+--   - audit_logs: Logging of system actions and actors
+--   - system_locks: Lock records for distributed environment serialization
+--
 -- +goose Up
 CREATE TABLE IF NOT EXISTS databases (
     id TEXT(26) PRIMARY KEY NOT NULL, -- ULID

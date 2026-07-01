@@ -1,3 +1,21 @@
+// Migration: Migrate Queue System & Custom Fields Table
+// Description: Upgrades the database schema from v2.0 to v2.1.
+// 
+// Up changes:
+//   - Adds the 'n_max_queued' integer column to the 'databases' table.
+//   - Creates the 'database_custom_fields' dedicated metadata table.
+//   - Extracts custom fields definitions from the old JSON string column in 'databases' and populates 'database_custom_fields'.
+//   - Renames entry custom field columns in the dynamic 'entries_{db_id}' tables from 'cf_{name}' to 'cf_{field_id}'.
+//   - Drops old dynamic entry indexes and recreates them using 'cf_{field_id}'.
+//   - Drops the obsolete 'custom_fields' column from 'databases'.
+//   - Updates SQLite check constraints for entry status fields.
+//
+// Down changes:
+//   - Restores the obsolete 'custom_fields' JSON column in 'databases'.
+//   - Re-populates the JSON metadata from the 'database_custom_fields' table.
+//   - Renames dynamic entry columns back from 'cf_{field_id}' to 'cf_{name}'.
+//   - Restores status field check constraints to exclude state 4.
+//   - Drops the 'database_custom_fields' table and the 'n_max_queued' column.
 package sqlitemigrations
 
 import (
