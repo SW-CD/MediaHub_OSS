@@ -56,6 +56,7 @@ export class CreateDatabaseModalComponent implements OnInit {
     const fieldGroup = this.fb.group({
       name: ['', [Validators.required, Validators.pattern(/^[a-zA-Z_][a-zA-Z0-9_]*$/)]],
       type: ['TEXT', Validators.required],
+      is_indexed: [true],
     });
     this.customFields.push(fieldGroup);
   }

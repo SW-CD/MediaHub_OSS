@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
-import { Database, HousekeepingReport, DatabaseConfig } from '../models';
+import { Database, HousekeepingReport, DatabaseConfig, CustomField } from '../models';
 import { NotificationService } from './notification.service';
 import { Router } from '@angular/router';
 
@@ -167,6 +167,49 @@ export class DatabaseService {
         if ((this.selectedDatabaseSubject.value as any)?.id === id) {
             this.selectDatabase(id).subscribe();
         }
+      }),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /**
+   * Adds a new custom field to a database.
+   */
+  public addCustomField(dbId: string, field: CustomField): Observable<CustomField> {
+    return this.http.post<CustomField>(`${this.apiUrl}/database/${dbId}/field`, field).pipe(
+      tap(newField => {
+        this.notificationService.showSuccess(`Custom field '${newField.name}' added successfully.`);
+        this.selectDatabase(dbId).subscribe();
+      }),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /**
+   * Updates an existing custom field.
+   */
+  public updateCustomField(dbId: string, fieldId: number, name?: string, isIndexed?: boolean): Observable<CustomField> {
+    const payload: any = {};
+    if (name !== undefined) payload.name = name;
+    if (isIndexed !== undefined) payload.is_indexed = isIndexed;
+
+    return this.http.patch<CustomField>(`${this.apiUrl}/database/${dbId}/field/${fieldId}`, payload).pipe(
+      tap(updatedField => {
+        this.notificationService.showSuccess(`Custom field '${updatedField.name}' updated successfully.`);
+        this.selectDatabase(dbId).subscribe();
+      }),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /**
+   * Deletes a custom field.
+   */
+  public deleteCustomField(dbId: string, fieldId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/database/${dbId}/field/${fieldId}`).pipe(
+      tap(res => {
+        this.notificationService.showSuccess(res.message || `Custom field deleted successfully.`);
+        this.selectDatabase(dbId).subscribe();
       }),
       catchError((err) => this.handleError(err))
     );

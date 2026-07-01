@@ -1,8 +1,10 @@
 import { ContentType } from './enums';
 
 export interface CustomField {
+  id?: number;
   name: string;
   type: 'TEXT' | 'INTEGER' | 'REAL' | 'BOOLEAN';
+  is_indexed?: boolean;
 }
 
 export interface Housekeeping {

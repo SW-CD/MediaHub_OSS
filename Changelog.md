@@ -30,6 +30,8 @@ Other:
 # v2.1
 Features:
 - add entry queuing and processing limits, to avoid server resource starvation. New config arguments: `server.processing.n_ffmpeg_async` and `server.processing.n_ffmpeg_total`. `n_max_queued` parameter on database level.
+- allow adding, renaming and deleting custom fields after database creation.
+- add option to not index custom field columns via `is_indexed=false`.
 
 # v1.2
 

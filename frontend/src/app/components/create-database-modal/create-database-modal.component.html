@@ -196,6 +196,10 @@
             <option value="REAL">Real (Decimal)</option>
             <option value="BOOLEAN">Boolean</option>
           </select>
+          <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; cursor: pointer; color: var(--text-secondary);">
+            <input type="checkbox" formControlName="is_indexed">
+            <span>Indexed</span>
+          </label>
           <button type="button" class="btn-remove" (click)="removeCustomField(i)" title="Remove Field">🗑️</button>
         </div>
       </div>

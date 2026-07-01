@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Observable, Subject, of } from 'rxjs';
 import { switchMap, takeUntil, filter, take, finalize } from 'rxjs/operators';
-import { Database, User, DatabaseConfig } from '../../models';
+import { Database, User, DatabaseConfig, CustomField } from '../../models';
 import { DatabaseService, DatabaseUpdatePayload } from '../../services/database.service';
 import { AuthService } from '../../services/auth.service';
 import { ModalService } from '../../services/modal.service';
@@ -25,6 +25,15 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   
   public canEdit = false;
   public canDelete = false;
+
+  // Custom Field Form State
+  public newFieldName = '';
+  public newFieldType: 'TEXT' | 'INTEGER' | 'REAL' | 'BOOLEAN' = 'TEXT';
+  public newFieldIsIndexed = true;
+
+  public editingFieldId: number | null = null;
+  public editingFieldName = '';
+  public editingFieldIsIndexed = false;
 
   private destroy$ = new Subject<void>();
 
@@ -218,6 +227,87 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
           this.isLoading = true;
           this.databaseService
             .deleteDatabase(this.currentDb.id) // UPDATED: Use ULID
+            .pipe(finalize(() => (this.isLoading = false)))
+            .subscribe();
+        }
+      });
+  }
+
+  onAddField(): void {
+    if (!this.currentDb || !this.canEdit || !this.newFieldName) return;
+
+    // Validate identifier format
+    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!namePattern.test(this.newFieldName)) {
+      this.databaseService['notificationService'].showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
+      return;
+    }
+
+    this.isLoading = true;
+    const newField: CustomField = {
+      name: this.newFieldName,
+      type: this.newFieldType,
+      is_indexed: this.newFieldIsIndexed
+    };
+
+    this.databaseService.addCustomField(this.currentDb.id, newField)
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe(() => {
+        this.newFieldName = '';
+        this.newFieldType = 'TEXT';
+        this.newFieldIsIndexed = true;
+      });
+  }
+
+  onStartEditField(field: CustomField): void {
+    if (field.id === undefined) return;
+    this.editingFieldId = field.id;
+    this.editingFieldName = field.name;
+    this.editingFieldIsIndexed = field.is_indexed || false;
+  }
+
+  onCancelEditField(): void {
+    this.editingFieldId = null;
+  }
+
+  onSaveField(fieldId: number): void {
+    if (!this.currentDb || !this.canEdit || !this.editingFieldName) return;
+
+    // Validate identifier format
+    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!namePattern.test(this.editingFieldName)) {
+      this.databaseService['notificationService'].showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
+      return;
+    }
+
+    this.isLoading = true;
+    this.databaseService.updateCustomField(this.currentDb.id, fieldId, this.editingFieldName, this.editingFieldIsIndexed)
+      .pipe(finalize(() => {
+        this.isLoading = false;
+        this.editingFieldId = null;
+      }))
+      .subscribe();
+  }
+
+  onDeleteField(field: CustomField): void {
+    if (!this.currentDb || !this.canEdit || field.id === undefined) return;
+
+    const modalData: ConfirmationModalData = {
+      title: 'Confirm Custom Field Deletion',
+      message: `This action will permanently delete the custom field '${field.name}' from database '${this.currentDb.name}' and discard all entry data stored under this field. This action cannot be undone.`,
+    };
+
+    this.modalService
+      .open(ConfirmationModalComponent.MODAL_ID, modalData)
+      .pipe(
+        take(1),
+        filter((confirmed) => confirmed === true)
+      )
+      .subscribe(() => {
+        if (this.currentDb && field.id !== undefined) {
+          this.isLoading = true;
+          this.databaseService
+            .deleteCustomField(this.currentDb.id, field.id)
             .pipe(finalize(() => (this.isLoading = false)))
             .subscribe();
         }
