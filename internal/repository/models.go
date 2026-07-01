@@ -11,7 +11,7 @@ type Database struct {
 	NMaxQueued   int
 	Config       DatabaseConfig
 	Housekeeping DatabaseHK
-	CustomFields []CustomField
+	CustomFields []CustomFieldDef
 	Stats        DatabaseStats
 }
 
@@ -33,10 +33,12 @@ type DatabaseStats struct {
 	TotalDiskSpaceBytes uint64
 }
 
-// CustomField defines a custom metadata field for a database.
-type CustomField struct {
-	Name string
-	Type string
+// CustomFieldDef defines a custom metadata field for a database.
+type CustomFieldDef struct {
+	ID        int
+	Name      string
+	Type      string
+	IsIndexed bool
 }
 
 type Entry struct {

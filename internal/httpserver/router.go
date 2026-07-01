@@ -81,10 +81,14 @@ func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware)
 	// 2. Database Admin Operations (Global Admin Only)
 	mux.Handle("DELETE /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.DeleteDatabase))
 	mux.Handle("PUT /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.UpdateDatabase))
+	mux.Handle("POST /api/database/{database_id}/field", ReqAdmin(h.DatabaseHandler.AddField))
+	mux.Handle("PATCH /api/database/{database_id}/field/{field_id}", ReqAdmin(h.DatabaseHandler.UpdateField))
+	mux.Handle("DELETE /api/database/{database_id}/field/{field_id}", ReqAdmin(h.DatabaseHandler.DeleteField))
 
 	// 3. Database View Operations (CanView)
 	// Covers getting DB stats, searching entries, and viewing specific entries
 	mux.Handle("GET /api/database/{database_id}", ReqPerm("CanView", h.DatabaseHandler.GetDatabase))
+	mux.Handle("GET /api/database/{database_id}/fields", ReqPerm("CanView", h.DatabaseHandler.GetFields))
 
 	// Bulk Operations (List/Search/Export/Import)
 	mux.Handle("GET /api/database/{database_id}/entries", ReqPerm("CanView", h.EntryHandler.QueryEntries))

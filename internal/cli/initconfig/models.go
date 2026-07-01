@@ -28,14 +28,20 @@ type InitUserPermission struct {
 	CanDelete    bool   `toml:"can_delete"`
 }
 
+type InitCustomField struct {
+	Name      string `toml:"name"`
+	Type      string `toml:"type"`
+	IsIndexed *bool  `toml:"is_indexed"`
+}
+
 // InitDatabase represents a database entry to be created.
 type InitDatabase struct {
-	Name         string                   `toml:"name"`
-	ContentType  string                   `toml:"content_type"`
-	NMaxQueued   int                      `toml:"n_max_queued"`
-	Config       InitDatabaseConfig       `toml:"config"`
-	Housekeeping InitHousekeeping         `toml:"housekeeping"`
-	CustomFields []repository.CustomField `toml:"custom_fields"`
+	Name         string             `toml:"name"`
+	ContentType  string             `toml:"content_type"`
+	NMaxQueued   int                `toml:"n_max_queued"`
+	Config       InitDatabaseConfig `toml:"config"`
+	Housekeeping InitHousekeeping   `toml:"housekeeping"`
+	CustomFields []InitCustomField  `toml:"custom_fields"`
 }
 
 // InitDatabaseConfig maps to the repository.DatabaseConfig.

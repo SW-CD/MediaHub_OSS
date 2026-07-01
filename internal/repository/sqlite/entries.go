@@ -56,8 +56,16 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 	for key, value := range entry.MediaFields {
 		insertData[key] = value
 	}
+	cfNameToID := make(map[string]int)
+	for _, cf := range db.CustomFields {
+		cfNameToID[cf.Name] = cf.ID
+	}
 	for key, value := range entry.CustomFields {
-		insertData[customFieldsPrefix+key] = value
+		if id, ok := cfNameToID[key]; ok {
+			insertData[fmt.Sprintf("cf_%d", id)] = value
+		} else {
+			insertData[customFieldsPrefix+key] = value
+		}
 	}
 
 	// Begin Transaction
@@ -116,6 +124,11 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
 func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) (repo.Entry, error) {
+	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	if err != nil {
+		return repo.Entry{}, err
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"id": id}).ToSql()
 	if err != nil {
@@ -128,7 +141,7 @@ func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) 
 	}
 	defer rows.Close()
 
-	entry, err := r.scanEntryRow(rows)
+	entry, err := r.scanEntryRow(rows, customFields)
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to scan entry: %w", err)
 	}
@@ -162,6 +175,11 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, limit, o
 		builder = builder.Offset(uint64(offset))
 	}
 
+	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	if err != nil {
+		return nil, err
+	}
+
 	query, args, err := builder.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query: %w", err)
@@ -173,7 +191,7 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, limit, o
 	}
 	defer rows.Close()
 
-	entries, err := r.scanEntryRows(rows)
+	entries, err := r.scanEntryRows(rows, customFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan entry: %w", err)
 	}
@@ -196,6 +214,11 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 		return repo.Entry{}, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+
+	customFields, err := r.getCustomFields(ctx, tx, dbID)
+	if err != nil {
+		return repo.Entry{}, err
+	}
 
 	// 2. Query the current size of the entry before updating
 	var oldSize, oldPreviewSize uint64
@@ -230,8 +253,16 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 	for key, value := range entry.MediaFields {
 		updateData[key] = value
 	}
+	cfNameToID := make(map[string]int)
+	for _, cf := range customFields {
+		cfNameToID[cf.Name] = cf.ID
+	}
 	for key, value := range entry.CustomFields {
-		updateData[customFieldsPrefix+key] = value
+		if id, ok := cfNameToID[key]; ok {
+			updateData[fmt.Sprintf("cf_%d", id)] = value
+		} else {
+			updateData[customFieldsPrefix+key] = value
+		}
 	}
 
 	updateQuery, argsUpdate, err := r.Builder.Update(tableName).
@@ -435,7 +466,7 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID string, entry
 }
 
 // SearchEntries retrieves entries matching complex nested filter criteria.
-func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
+func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	builder := r.Builder.Select("*").From(tableName)
 
@@ -506,7 +537,7 @@ func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req r
 	}
 	defer rows.Close()
 
-	entries, err := r.scanEntryRows(rows)
+	entries, err := r.scanEntryRows(rows, customFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan search results: %w", err)
 	}
@@ -532,6 +563,11 @@ func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID string, en
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
 func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]repo.Entry, error) {
+	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	if err != nil {
+		return nil, err
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"status": status}).OrderBy("id ASC").ToSql()
 	if err != nil {
@@ -544,7 +580,7 @@ func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, 
 	}
 	defer rows.Close()
 
-	entries, err := r.scanEntryRows(rows)
+	entries, err := r.scanEntryRows(rows, customFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan entries by status: %w", err)
 	}

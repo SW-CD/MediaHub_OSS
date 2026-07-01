@@ -20,10 +20,16 @@ type entryScanner struct {
 }
 
 // newEntryScanner initializes the scanner once per query result.
-func newEntryScanner(rows *sql.Rows) (entryScanner, error) {
+func newEntryScanner(rows *sql.Rows, customFields []repo.CustomFieldDef) (entryScanner, error) {
 	cols, err := rows.Columns()
 	if err != nil {
 		return entryScanner{}, err
+	}
+
+	// Create a map from column name "cf_X" to the actual custom field Name
+	cfMap := make(map[string]string)
+	for _, cf := range customFields {
+		cfMap[fmt.Sprintf("cf_%d", cf.ID)] = cf.Name
 	}
 
 	size := len(cols)
@@ -41,7 +47,11 @@ func newEntryScanner(rows *sql.Rows) (entryScanner, error) {
 		// Pre-compute the prefix checks and string trims once!
 		if strings.HasPrefix(colName, customFieldsPrefix) {
 			s.isCustom[i] = true
-			s.cleanNames[i] = strings.TrimPrefix(colName, customFieldsPrefix)
+			if name, ok := cfMap[colName]; ok {
+				s.cleanNames[i] = name
+			} else {
+				s.cleanNames[i] = strings.TrimPrefix(colName, customFieldsPrefix)
+			}
 		} else {
 			s.isCustom[i] = false
 			s.cleanNames[i] = colName
@@ -133,8 +143,8 @@ func asString(val any) string {
 }
 
 // Scan a single row
-func (r *SQLiteRepository) scanEntryRow(rows *sql.Rows) (repo.Entry, error) {
-	scanner, err := newEntryScanner(rows)
+func (r *SQLiteRepository) scanEntryRow(rows *sql.Rows, customFields []repo.CustomFieldDef) (repo.Entry, error) {
+	scanner, err := newEntryScanner(rows, customFields)
 	if err != nil {
 		return repo.Entry{}, err
 	}
@@ -147,8 +157,8 @@ func (r *SQLiteRepository) scanEntryRow(rows *sql.Rows) (repo.Entry, error) {
 }
 
 // Scan multiple rows
-func (r *SQLiteRepository) scanEntryRows(rows *sql.Rows) ([]repo.Entry, error) {
-	scanner, err := newEntryScanner(rows)
+func (r *SQLiteRepository) scanEntryRows(rows *sql.Rows, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
+	scanner, err := newEntryScanner(rows, customFields)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +180,7 @@ func (r *SQLiteRepository) scanEntryRows(rows *sql.Rows) ([]repo.Entry, error) {
 }
 
 // validateAndFormatSearchField prevents SQL injection by ensuring a field name exists.
-func (r *SQLiteRepository) validateAndFormatSearchField(field string, customFields []repo.CustomField) (string, error) {
+func (r *SQLiteRepository) validateAndFormatSearchField(field string, customFields []repo.CustomFieldDef) (string, error) {
 	// 1. Whitelist Standard Fields
 	standardFields := map[string]bool{
 		"id": true, "timestamp": true, "created_at": true, "updated_at": true,
@@ -192,7 +202,7 @@ func (r *SQLiteRepository) validateAndFormatSearchField(field string, customFiel
 	// 3. Whitelist dynamically generated Custom Fields
 	for _, cf := range customFields {
 		if cf.Name == field {
-			return fmt.Sprintf(`"%s%s"`, customFieldsPrefix, field), nil
+			return fmt.Sprintf(`"cf_%d"`, cf.ID), nil
 		}
 	}
 

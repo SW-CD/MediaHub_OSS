@@ -30,7 +30,7 @@ func parseUploadMetadata(metadataStr string) (PostPatchEntryRequest, error) {
 
 // ValidateCustomFields checks if the provided fields exist in the database schema
 // and if their data types match.
-func validateCustomFields(provided map[string]any, defined []repository.CustomField) error {
+func validateCustomFields(provided map[string]any, defined []repository.CustomFieldDef) error {
 	// Create a lookup map for fast checking
 	allowedFields := make(map[string]string)
 	for _, f := range defined {

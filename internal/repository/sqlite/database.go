@@ -6,7 +6,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	repo "mediahub_oss/internal/repository"
@@ -34,17 +33,17 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 		hkLastRunMs = db.Housekeeping.LastHkRun.UnixMilli()
 	}
 
+	// Assign sequential IDs for custom fields if not set or just force sequential
+	for i := range db.CustomFields {
+		db.CustomFields[i].ID = i
+	}
+
 	// 1. Generate the dynamic schema and index queries using the ID instead of Name
 	createTableSQL, err := r.BuildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
 	indexSQLs := BuildIndexesSQL(db.ID, db.CustomFields)
-
-	customFieldsJSON, err := json.Marshal(db.CustomFields)
-	if err != nil {
-		return repo.Database{}, fmt.Errorf("failed to marshal custom fields: %w", err)
-	}
 
 	// 2. Execute within a transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -53,9 +52,9 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	}
 	defer tx.Rollback()
 
-	// Insert metadata into the main databases table
+	// Insert metadata into the main databases table (without custom_fields column)
 	query, args, err := r.Builder.Insert("databases").
-		Columns("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run").
+		Columns("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "hk_last_run").
 		Values(
 			db.ID,
 			db.Name,
@@ -66,7 +65,6 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 			db.Config.CreatePreview,
 			db.Config.AutoConversion,
 			db.NMaxQueued,
-			string(customFieldsJSON),
 			hkLastRunMs,
 		).
 		ToSql()
@@ -80,6 +78,21 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 			return repo.Database{}, customerrors.ErrDatabaseExists
 		}
 		return repo.Database{}, fmt.Errorf("failed to insert database record: %w", err)
+	}
+
+	// Insert custom fields
+	for _, cf := range db.CustomFields {
+		datatype := strings.ToUpper(cf.Type)
+		cfQuery, cfArgs, err := r.Builder.Insert("database_custom_fields").
+			Columns("database_id", "field_id", "name", "type", "is_indexed").
+			Values(db.ID, cf.ID, cf.Name, datatype, cf.IsIndexed).
+			ToSql()
+		if err != nil {
+			return repo.Database{}, fmt.Errorf("failed to build custom field insert query: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, cfQuery, cfArgs...); err != nil {
+			return repo.Database{}, fmt.Errorf("failed to insert custom field: %w", err)
+		}
 	}
 
 	// Provision the dynamic entry table
@@ -103,7 +116,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 // GetDatabase retrieves a single database configuration by its ULID.
 func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
-	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		Where(squirrel.Eq{"id": dbID}).
 		ToSql()
@@ -112,12 +125,24 @@ func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.D
 	}
 
 	row := r.DB.QueryRowContext(ctx, query, args...)
-	return scanDatabaseRow(row)
+	db, err := scanDatabaseRow(row)
+	if err != nil {
+		return repo.Database{}, err
+	}
+
+	// Load custom fields
+	cfs, err := r.getCustomFields(ctx, r.DB, db.ID)
+	if err != nil {
+		return repo.Database{}, err
+	}
+	db.CustomFields = cfs
+
+	return db, nil
 }
 
 // GetDatabases retrieves all available database configurations.
 func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, error) {
-	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "custom_fields", "hk_last_run", "entry_count", "total_disk_space_bytes").
+	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		ToSql()
 	if err != nil {
@@ -141,6 +166,47 @@ func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, e
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+	rows.Close()
+
+	if len(databases) == 0 {
+		return databases, nil
+	}
+
+	// Fetch all custom fields and group them by database ID
+	cfQuery, cfArgs, err := r.Builder.Select("database_id", "field_id", "name", "type", "is_indexed").
+		From("database_custom_fields").
+		OrderBy("database_id", "field_id").
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build custom fields select: %w", err)
+	}
+
+	cfRows, err := r.DB.QueryContext(ctx, cfQuery, cfArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute custom fields query: %w", err)
+	}
+	defer cfRows.Close()
+
+	cfMap := make(map[string][]repo.CustomFieldDef)
+	for cfRows.Next() {
+		var dbID string
+		var cf repo.CustomFieldDef
+		if err := cfRows.Scan(&dbID, &cf.ID, &cf.Name, &cf.Type, &cf.IsIndexed); err != nil {
+			return nil, fmt.Errorf("failed to scan custom field: %w", err)
+		}
+		cfMap[dbID] = append(cfMap[dbID], cf)
+	}
+	if err := cfRows.Err(); err != nil {
+		return nil, fmt.Errorf("custom fields row iteration error: %w", err)
+	}
+
+	for i := range databases {
+		if cfs, ok := cfMap[databases[i].ID]; ok {
+			databases[i].CustomFields = cfs
+		} else {
+			databases[i].CustomFields = []repo.CustomFieldDef{}
+		}
 	}
 
 	return databases, nil

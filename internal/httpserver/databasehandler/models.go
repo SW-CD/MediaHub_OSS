@@ -25,8 +25,10 @@ type DatabaseCreatePayload struct {
 }
 
 type DatabaseCustomField struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	ID        *int   `json:"id,omitempty"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	IsIndexed *bool  `json:"is_indexed,omitempty"`
 }
 
 // DatabaseUpdatePayload defines the required JSON payload for PUT /api/database.
