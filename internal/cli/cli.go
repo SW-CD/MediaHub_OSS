@@ -26,9 +26,11 @@ func NewRootCMD(frontendFS fs.FS) *cobra.Command {
 	globalOptions := &GlobalOptions{}
 
 	rootCMD := &cobra.Command{
-		Use:   "mediahub",
-		Short: "SWCD MediaHub",
-		Long:  "A server for a image, audio and file storage with integrated web-ui.",
+		Use:           "mediahub",
+		Short:         "SWCD MediaHub",
+		Long:          "A server for a image, audio and file storage with integrated web-ui.",
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		// PersistentPreRunE runs after flags are parsed but before any subcommand's Run
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip configuration and logger initialization if the user is just asking for help
@@ -93,7 +95,7 @@ func Execute(frontendFS fs.FS) {
 
 	// Run the command based on os.Args
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
