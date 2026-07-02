@@ -1,7 +1,7 @@
 <div class="image-list-container" 
      *ngIf="currentUser$ | async as user"
      appFileDragDrop
-     (fileDropped)="onFileDropped($event)">
+     (filesDropped)="onFilesDropped($event)">
 
   <div class="header-bar">
     <div class="header">

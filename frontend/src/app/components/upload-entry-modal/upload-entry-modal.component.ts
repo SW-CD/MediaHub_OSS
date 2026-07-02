@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Subject } from 'rxjs';
+import { Subject, firstValueFrom } from 'rxjs';
 import { takeUntil, filter, finalize, switchMap } from 'rxjs/operators';
 import { Database, CustomField } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
@@ -10,6 +10,7 @@ import { isMimeTypeAllowed, ALLOWED_MIME_TYPES } from '../../utils/mime-types';
 import { ContentType } from '../../models/enums'; 
 import { NotificationService } from '../../services/notification.service';
 import { AuthService } from '../../services/auth.service';
+import { extractMetadata } from '../../utils/metadata-extractor';
 
 @Component({
   selector: 'app-upload-entry-modal',
@@ -23,6 +24,8 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
   isLoading = false;
   selectedFile: File | null = null;
   public selectedFileName: string | null = null;
+  selectedFiles: File[] = [];
+  isMultipleUpload = false;
   currentDatabase: Database | null = null;
   private destroy$ = new Subject<void>();
   
@@ -56,7 +59,9 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
         if (event.action === 'open') {
-           if (event.data?.droppedFile) {
+           if (event.data?.droppedFiles) {
+              this.handleMultipleFiles(event.data.droppedFiles);
+           } else if (event.data?.droppedFile) {
               this.handleFile(event.data.droppedFile);
            } else {
               this.resetFileState();
@@ -115,7 +120,11 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
   private resetFileState(): void {
     this.selectedFile = null;
     this.selectedFileName = null;
+    this.selectedFiles = [];
+    this.isMultipleUpload = false;
     this.uploadForm.get('file')?.setValue(null, { emitEvent: false });
+    this.uploadForm.get('timestamp')?.setValidators([Validators.required]);
+    this.uploadForm.get('timestamp')?.updateValueAndValidity();
   }
 
   onFileSelected(event: Event): void {
@@ -128,7 +137,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     }
   }
 
-  handleFile(file: File | null): void {
+  async handleFile(file: File | null): Promise<void> {
     if (!file) {
       this.resetFileState();
       return;
@@ -141,17 +150,49 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
     this.selectedFile = file;
     this.selectedFileName = file.name;
+    this.selectedFiles = [];
+    this.isMultipleUpload = false;
     
     this.uploadForm.patchValue({ file: this.selectedFile });
     
     this.uploadForm.get('file')?.markAsTouched();
     this.uploadForm.get('file')?.updateValueAndValidity();
+
+    this.uploadForm.get('timestamp')?.setValidators([Validators.required]);
+    this.uploadForm.get('timestamp')?.setValue(this.getLocalISOString(new Date()));
+    this.uploadForm.get('timestamp')?.updateValueAndValidity();
+    
+    this.cdr.detectChanges();
+
+    try {
+      const ext = await extractMetadata(file);
+      if (ext && ext.timestamp) {
+        this.uploadForm.patchValue({ timestamp: this.getLocalISOString(ext.timestamp) });
+        this.notificationService.showSuccess(`Extracted capture timestamp from file: ${ext.timestamp.toLocaleString()}`);
+        this.cdr.detectChanges();
+      }
+    } catch (err) {
+      console.error('[UploadModal] Error auto-extracting metadata:', err);
+    }
+  }
+
+  handleMultipleFiles(files: File[]): void {
+    this.selectedFiles = files;
+    this.isMultipleUpload = true;
+    this.selectedFile = null;
+    this.selectedFileName = null;
+
+    this.uploadForm.patchValue({ file: files[0] });
+    this.uploadForm.get('file')?.updateValueAndValidity();
+
+    this.uploadForm.get('timestamp')?.clearValidators();
+    this.uploadForm.get('timestamp')?.updateValueAndValidity();
     
     this.cdr.detectChanges();
   }
 
   onSubmit(): void {
-    if (this.uploadForm.invalid || !this.currentDatabase || !this.selectedFile) {
+    if (this.uploadForm.invalid || !this.currentDatabase || (!this.selectedFile && this.selectedFiles.length === 0)) {
       this.uploadForm.markAllAsTouched(); 
       return;
     }
@@ -178,21 +219,37 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
         }
     });
 
-    const metadata = {
-        timestamp: new Date(timestamp).getTime(),
-        filename: this.selectedFile.name,
-        custom_fields: custom_fields 
-    };
-
     // Pre-emptively ping the server to ensure our access token is fresh. 
-    // If it's expired, this JSON request will safely trigger the interceptor's refresh logic.
     this.authService.fetchCurrentUser().pipe(
-      // Only proceed to the file upload if the user session is still valid
       filter(user => user !== null),
-      switchMap(() => this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, this.selectedFile!)),
+      switchMap(async () => {
+        if (this.isMultipleUpload) {
+          for (let i = 0; i < this.selectedFiles.length; i++) {
+            const f = this.selectedFiles[i];
+            const ext = await extractMetadata(f);
+            const ts = ext?.timestamp ? ext.timestamp.getTime() : Date.now();
+            const metadata = {
+              timestamp: ts,
+              filename: f.name,
+              custom_fields: custom_fields
+            };
+            await firstValueFrom(this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, f));
+          }
+        } else {
+          const metadata = {
+            timestamp: new Date(timestamp).getTime(),
+            filename: this.selectedFile!.name,
+            custom_fields: custom_fields 
+          };
+          await firstValueFrom(this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, this.selectedFile!));
+        }
+      }),
       finalize(() => this.isLoading = false)
     ).subscribe({
       next: () => {
+        if (this.isMultipleUpload) {
+          this.notificationService.showSuccess(`Successfully uploaded ${this.selectedFiles.length} entries.`);
+        }
         this.closeModal();
       },
       error: () => {
