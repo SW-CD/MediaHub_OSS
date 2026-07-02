@@ -21,6 +21,7 @@ import (
 	"mediahub_oss/internal/media/ffmpeg"
 	"mediahub_oss/internal/processing"
 	"mediahub_oss/internal/repository"
+	"mediahub_oss/internal/repository/migrations"
 	"mediahub_oss/internal/repository/postgres"
 	"mediahub_oss/internal/repository/sqlite"
 	"mediahub_oss/internal/shared"
@@ -114,50 +115,88 @@ func registerFlags(cmd *cobra.Command) {
 	})
 }
 
+// backgroundServices holds the initialized instances of all running background components.
+type backgroundServices struct {
+	houseKeeper    *housekeeping.HouseKeeper
+	mediaConverter *ffmpeg.FfmpegConverter
+	auditLogger    audit.AuditLogger
+	authMiddleware *auth.AuthMiddleware
+	processor      *processing.Processor
+}
+
 func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
-	// Capture the start time for the InfoHandler's uptime calculation
+	// Capture the start time for the InfoHandler's uptime calculation.
 	startTime := time.Now()
 
-	// 1. Prepare final configuration
 	cfg := globalOptions.Conf
 	logger := globalOptions.Logger
 	ctx := context.Background()
 
 	logger.Info("Bootstrapping MediaHub server...")
 
-	// 2. Initialize Repository (Database)
-	repo, err := initRepository(cfg.Database)
+	// 1. Initialize repository and database schema.
+	repo, err := initDatabaseAndSchema(ctx, cfg.Database, logger)
 	if err != nil {
-		return fmt.Errorf("failed to initialize repository: %w", err)
+		return err
 	}
-	// Because we return errors now, this defer will ALWAYS execute safely!
+	// Because we return errors now, this defer will always execute safely.
 	defer repo.Close()
 
-	// --- Safe Auto-Migration for Fresh Installs ---
-	if err := handleInitialMigration(ctx, repo, logger); err != nil {
-		return fmt.Errorf("failed to verify or apply database schema: %w", err)
-	}
-
-	// Admin User Startup Logic ---
-	if err := EnsureAdminUser(ctx, repo, logger); err != nil {
-		return fmt.Errorf("admin user initialization failed: %w", err)
-	}
-
-	// 3. Initialize Storage Provider
+	// 2. Initialize storage provider.
 	storageProvider, err := initStorage(cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage provider: %w", err)
 	}
 
-	// Parse and apply initconfig
+	// 3. Process one-time initialization config if present.
 	if err := processInitConfig(ctx, repo, logger); err != nil {
 		logger.Warn("Initialization config processing failed", "error", err)
 	}
 
-	// 4. Initialize Core Background Services
+	// 4. Initialize core background services.
+	svcs, err := initServices(ctx, cfg, repo, storageProvider, logger)
+	if err != nil {
+		return err
+	}
+
+	// 5. Build REST handlers.
+	handlers, err := buildHandlers(cfg, repo, storageProvider, svcs, logger, startTime)
+	if err != nil {
+		return err
+	}
+
+	// 6. Setup router and start the HTTP server.
+	return startServer(cfg, handlers, svcs.authMiddleware, frontendFS, logger)
+}
+
+// initDatabaseAndSchema initializes the repository connection, runs version check or auto-migration,
+// and ensures the initial admin user is configured.
+func initDatabaseAndSchema(ctx context.Context, dbCfg config.DatabaseConfig, logger *slog.Logger) (repository.Repository, error) {
+	repo, err := initRepository(dbCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
+	}
+
+	// Verify or apply the database schema.
+	if err := handleInitialMigration(ctx, repo, logger); err != nil {
+		repo.Close()
+		return nil, fmt.Errorf("failed to verify or apply database schema: %w", err)
+	}
+
+	// Ensure the admin user setup or password reset logic is performed.
+	if err := EnsureAdminUser(ctx, repo, logger); err != nil {
+		repo.Close()
+		return nil, fmt.Errorf("admin user initialization failed: %w", err)
+	}
+
+	return repo, nil
+}
+
+// initServices configures and starts up background tasks and media converters.
+func initServices(ctx context.Context, cfg *config.Config, repo repository.Repository, storageProvider storage.StorageProvider, logger *slog.Logger) (*backgroundServices, error) {
 	auditRetention, err := shared.ParseDuration(cfg.Logging.Audit.Retention)
 	if err != nil {
-		return fmt.Errorf("failed to parse audit retention duration: %w", err)
+		return nil, fmt.Errorf("failed to parse audit retention duration: %w", err)
 	}
 
 	hk := housekeeping.NewHouseKeeper(repo, storageProvider, logger, auditRetention)
@@ -165,69 +204,82 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 
 	converter, err := ffmpeg.NewFFMPEGConverter(cfg.Media.FFmpegPath, cfg.Media.FFprobePath, logger)
 	if err != nil {
-		return fmt.Errorf("failed to start media converter: %w", err)
+		return nil, fmt.Errorf("failed to start media converter: %w", err)
 	}
+
 	auditLogger := audit.NewAuditLogger(cfg.Logging.Audit.Enabled, cfg.Logging.Audit.Type, logger, repo)
 	authMiddleware := auth.NewAuthMiddleware(repo, cfg.Auth.JWT.Secret)
 
-	// Extract specific configs for handlers
 	serverCfg, err := cfg.GetServerConfig()
 	if err != nil {
-		return fmt.Errorf("failed to parse server config: %w", err)
+		return nil, fmt.Errorf("failed to parse server config: %w", err)
+	}
+
+	proc, err := processing.NewProcessor(repo, storageProvider, converter, serverCfg.NFfmpegAsync, serverCfg.NFfmpegTotal, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize processing manager: %w", err)
+	}
+	go proc.StartQueueChecker(ctx)
+
+	return &backgroundServices{
+		houseKeeper:    hk,
+		mediaConverter: converter,
+		auditLogger:    auditLogger,
+		authMiddleware: authMiddleware,
+		processor:      proc,
+	}, nil
+}
+
+// buildHandlers configures the Handler layer with dependency injection.
+func buildHandlers(cfg *config.Config, repo repository.Repository, storageProvider storage.StorageProvider, svcs *backgroundServices, logger *slog.Logger, startTime time.Time) (*httpserver.Handlers, error) {
+	serverCfg, err := cfg.GetServerConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse server config: %w", err)
 	}
 
 	jwtCfg, err := cfg.GetJWTConfig()
 	if err != nil {
-		return fmt.Errorf("failed to parse JWT config: %w", err)
+		return nil, fmt.Errorf("failed to parse JWT config: %w", err)
 	}
 
-	// Initialize processing Processor
-	proc, err := processing.NewProcessor(repo, storageProvider, converter, serverCfg.NFfmpegAsync, serverCfg.NFfmpegTotal, logger)
-	if err != nil {
-		return fmt.Errorf("failed to initialize processing manager: %w", err)
-	}
-	go proc.StartQueueChecker(ctx)
-
-	// 5. Build Handlers Struct (Dependency Injection)
 	infoH := ih.NewInfoHandler(
 		logger,
-		auditLogger,
+		svcs.auditLogger,
 		docs.SwaggerInfo.Version,
-		converter,
+		svcs.mediaConverter,
 		cfg.Auth.OIDC.Enabled,
 		cfg.Auth.OIDC.DisableLoginPage,
 		cfg.Auth.OIDC.IssuerURL,
 		cfg.Auth.OIDC.ClientID,
 		cfg.Auth.OIDC.RedirectURL,
 	)
-	// Preserve the precise boot time captured at the top of the serve command
 	infoH.StartTime = startTime
 
-	handlers := &httpserver.Handlers{
+	return &httpserver.Handlers{
 		InfoHandler: *infoH,
 		EntryHandler: eh.EntryHandler{
 			Logger:                 logger,
-			Auditor:                auditLogger,
+			Auditor:                svcs.auditLogger,
 			Repo:                   repo,
 			Storage:                storageProvider,
 			MaxSyncUploadSizeBytes: int64(serverCfg.MaxSyncUploadSize),
-			MediaConverter:         converter,
-			Processor:              proc,
+			MediaConverter:         svcs.mediaConverter,
+			Processor:              svcs.processor,
 		},
 		DatabaseHandler: dbh.DatabaseHandler{
 			Logger:      logger,
-			Auditor:     auditLogger,
+			Auditor:     svcs.auditLogger,
 			Repo:        repo,
-			HouseKeeper: *hk,
+			HouseKeeper: *svcs.houseKeeper,
 		},
 		UserHandler: uh.UserHandler{
 			Logger:  logger,
-			Auditor: auditLogger,
+			Auditor: svcs.auditLogger,
 			Repo:    repo,
 		},
 		TokenHandler: th.TokenHandler{
 			Logger:          logger,
-			Auditor:         auditLogger,
+			Auditor:         svcs.auditLogger,
 			Repo:            repo,
 			JWTSecret:       []byte(jwtCfg.Secret),
 			AccessDuration:  jwtCfg.AccessDuration,
@@ -237,19 +289,20 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 			Logger: logger,
 			Repo:   repo,
 		},
-	}
+	}, nil
+}
 
-	// 6. Setup Router
+// startServer configures the routing engine and binds the HTTP listener.
+func startServer(cfg *config.Config, handlers *httpserver.Handlers, authMiddleware *auth.AuthMiddleware, frontendFS fs.FS, logger *slog.Logger) error {
 	var fileSystem http.FileSystem
 	if frontendFS != nil {
-		// TODO update <base href> to the MEDIAHUB_SERVER_BASEPATH
-		// or we do it later in the SetupRouter?
+		// TODO: Update <base href> to the MEDIAHUB_SERVER_BASEPATH
+		// or should we handle it later in SetupRouter?
 		fileSystem = http.FS(frontendFS)
 	}
 
 	mux := httpserver.SetupRouter(handlers, fileSystem, authMiddleware, cfg.Server.Basepath, cfg.Server.CorsAllowedOrigins)
 
-	// 7. Start HTTP Server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	logger.Info("Starting HTTP server", "address", addr)
 
@@ -266,6 +319,7 @@ func serve(globalOptions *GlobalOptions, frontendFS fs.FS) error {
 }
 
 // handleInitialMigration checks the database version and only auto-migrates if it is a completely fresh installation (version 0).
+// If the database exists, it verifies that the schema matches the required version.
 func handleInitialMigration(ctx context.Context, repo repository.Repository, logger *slog.Logger) error {
 	version, err := repo.GetMigrationVersion(ctx)
 	if err != nil {
@@ -280,6 +334,9 @@ func handleInitialMigration(ctx context.Context, repo repository.Repository, log
 		logger.Info("Initial database schema applied successfully.")
 	} else {
 		logger.Info("Existing database detected.", "version", repository.FormatVersion(version))
+		if err := migrations.CheckVersion(version); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -333,3 +390,4 @@ func processInitConfig(ctx context.Context, repo repository.Repository, logger *
 
 	return nil
 }
+

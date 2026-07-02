@@ -12,7 +12,7 @@
             "url": "https://www.swcd.lu",
             "email": "denglerchr@gmail.com"
         },
-        "version": "2.0.1"
+        "version": "2.1.0-beta"
     },
     "basePath": "/api",
     "paths": {
@@ -1916,6 +1916,9 @@
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.HousekeepingPayload"
                 },
+                "n_max_queued": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 }
@@ -1924,6 +1927,12 @@
         "databasehandler.DatabaseCustomField": {
             "type": "object",
             "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "is_indexed": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1952,6 +1961,9 @@
                 },
                 "id": {
                     "type": "string"
+                },
+                "n_max_queued": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -1997,6 +2009,9 @@
                 },
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.HousekeepingPayload"
+                },
+                "n_max_queued": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"

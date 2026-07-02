@@ -1919,6 +1919,9 @@ const docTemplate = `{
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.HousekeepingPayload"
                 },
+                "n_max_queued": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 }
@@ -1927,6 +1930,12 @@ const docTemplate = `{
         "databasehandler.DatabaseCustomField": {
             "type": "object",
             "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "is_indexed": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1955,6 +1964,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "n_max_queued": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -2000,6 +2012,9 @@ const docTemplate = `{
                 },
                 "housekeeping": {
                     "$ref": "#/definitions/databasehandler.HousekeepingPayload"
+                },
+                "n_max_queued": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -2449,7 +2464,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "2.0.1",
+	Version:          "2.1.0-beta",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{"http", "https"},

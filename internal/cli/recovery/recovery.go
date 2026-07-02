@@ -1,6 +1,7 @@
 package recovery
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -74,3 +75,12 @@ func (s *RecoveryService) Close() error {
 	}
 	return nil
 }
+
+// GetMigrationVersion retrieves the current database schema version.
+func (s *RecoveryService) GetMigrationVersion(ctx context.Context) (int, error) {
+	if s.repo == nil {
+		return 0, fmt.Errorf("repository is not initialized")
+	}
+	return s.repo.GetMigrationVersion(ctx)
+}
+

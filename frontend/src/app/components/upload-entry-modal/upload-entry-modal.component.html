@@ -2,11 +2,21 @@
   
   <div *ngIf="currentDatabase && uploadForm"
        appFileDragDrop
-       (fileDropped)="handleFile($event)">
+       (filesDropped)="$event.length > 1 ? handleMultipleFiles($event) : handleFile($event[0])">
        
     <form [formGroup]="uploadForm" (ngSubmit)="onSubmit()">
 
-      <div class="form-group">
+      <!-- Info Alert for Multiple Uploads -->
+      <div class="info-alert" *ngIf="isMultipleUpload">
+        <span class="info-icon">ℹ️</span>
+        <div class="info-content">
+          <p>These files will share the same custom metadata values specified below. You can edit individual files after upload if required.</p>
+          <p><strong>Note:</strong> Timestamps will be extracted from each file individually, or set to <code>now()</code> if not found.</p>
+        </div>
+      </div>
+
+      <!-- Single File Input -->
+      <div class="form-group" *ngIf="!isMultipleUpload">
         <label for="file" class="form-label">File</label>
         
         <div class="form-file-input">
@@ -28,7 +38,20 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <!-- Multiple Files List -->
+      <div class="form-group" *ngIf="isMultipleUpload">
+        <label class="form-label">Files to Upload</label>
+        <div class="multiple-files-list">
+          <strong>{{ selectedFiles.length }} files selected:</strong>
+          <ul>
+            <li *ngFor="let file of selectedFiles.slice(0, 5)">{{ file.name }} ({{ file.size | formatBytes }})</li>
+            <li *ngIf="selectedFiles.length > 5" class="more-items">... and {{ selectedFiles.length - 5 }} more files</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Timestamp input (only for single file upload) -->
+      <div class="form-group" *ngIf="!isMultipleUpload">
         <label for="timestamp" class="form-label">Timestamp</label>
         <input id="timestamp" type="datetime-local" formControlName="timestamp" class="form-control">
       </div>

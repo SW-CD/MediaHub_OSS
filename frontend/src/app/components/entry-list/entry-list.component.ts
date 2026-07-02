@@ -391,10 +391,27 @@ export class EntryListComponent implements OnInit, OnDestroy {
   public nextPage(): void { if (this.hasNextPage) { this.currentPage++; this.manualFetchTrigger$.next(); } }
   public prevPage(): void { if (this.currentPage > 1) { this.currentPage--; this.manualFetchTrigger$.next(); } }
 
-  onFileDropped(file: File): void {
-    if (!this.currentDb || !this.canCreate) return this.notificationService.showInfo('Cannot upload here.');
-    if (!isMimeTypeAllowed(this.currentDb.content_type, file.type)) return this.notificationService.showError(`Invalid file type.`);
-    this.modalService.open(UploadEntryModalComponent.MODAL_ID, { droppedFile: file });
+  onFilesDropped(files: File[]): void {
+    if (!this.currentDb || !this.canCreate) {
+      this.notificationService.showInfo('Cannot upload here.');
+      return;
+    }
+
+    const validFiles = files.filter(f => isMimeTypeAllowed(this.currentDb!.content_type, f.type));
+    if (validFiles.length === 0) {
+      this.notificationService.showError(`No valid files dropped. Allowed types: ${this.currentDb.content_type}`);
+      return;
+    }
+
+    if (validFiles.length < files.length) {
+      this.notificationService.showInfo(`Skipped ${files.length - validFiles.length} files of invalid type.`);
+    }
+
+    if (validFiles.length === 1) {
+      this.modalService.open(UploadEntryModalComponent.MODAL_ID, { droppedFile: validFiles[0] });
+    } else {
+      this.modalService.open(UploadEntryModalComponent.MODAL_ID, { droppedFiles: validFiles });
+    }
   }
 
   ngOnDestroy(): void {

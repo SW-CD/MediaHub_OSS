@@ -42,4 +42,5 @@ const (
 	ErrUnavailable      = Error("service unavailable")
 	ErrValidation       = Error("validation error")
 	ErrNotImplemented   = Error("not implemented")
+	ErrConflict         = Error("conflict")
 )

@@ -1,3 +1,11 @@
+-- Migration: Initialize V2 Schema
+-- Description: Creates the core tables for the v2 system, including:
+--   - databases: Database configurations and statistics
+--   - users: User profiles (with admin flag)
+--   - database_permissions: Mappings of database-specific rights for non-admin users
+--   - refresh_tokens: JWT refresh tokens for active user sessions
+--   - audit_logs: Logging of system actions and actors
+--
 -- +goose Up
 CREATE TABLE IF NOT EXISTS databases (
     id TEXT(26) PRIMARY KEY NOT NULL, -- ULID

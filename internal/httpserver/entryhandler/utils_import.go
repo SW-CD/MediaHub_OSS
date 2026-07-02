@@ -265,7 +265,7 @@ func (h *EntryHandler) parseStandardFields(row []string) (repo.Entry, error) {
 }
 
 // mapCustomFields extracts dynamic columns, applies user mapping, and validates against the DB schema.
-func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields []repo.CustomField, config ImportConfigPayload) (map[string]any, error) {
+func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields []repo.CustomFieldDef, config ImportConfigPayload) (map[string]any, error) {
 	mappedCustomFields := make(map[string]any)
 
 	for i := 7; i < len(headers); i++ {

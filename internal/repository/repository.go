@@ -27,6 +27,12 @@ type Repository interface {
 	DeleteDatabase(ctx context.Context, dbID string) error
 	GetDatabaseStats(ctx context.Context, dbID string) (DatabaseStats, error)
 
+	// Custom Fields
+	AddCustomField(ctx context.Context, dbID string, field CustomFieldDef) (CustomFieldDef, error)
+	UpdateCustomField(ctx context.Context, dbID string, fieldID int, name *string, isIndexed *bool) (CustomFieldDef, error)
+	DeleteCustomField(ctx context.Context, dbID string, fieldID int) error
+	GetCustomFields(ctx context.Context, dbID string) ([]CustomFieldDef, error)
+
 	// Housekeeping
 	HouseKeepingRequired(ctx context.Context) ([]Database, error)              // return all databases where the last housekeeping run was longer ago than the provided interval
 	HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
@@ -43,7 +49,7 @@ type Repository interface {
 	CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error)
 	DeleteEntry(ctx context.Context, dbID string, id int64) (DeletedEntryMeta, error)
 	DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]DeletedEntryMeta, error)
-	SearchEntries(ctx context.Context, dbID string, req SearchRequest, customFields []CustomField) ([]Entry, error)
+	SearchEntries(ctx context.Context, dbID string, req SearchRequest, customFields []CustomFieldDef) ([]Entry, error)
 
 	// User
 	CreateUser(ctx context.Context, user User) (User, error)

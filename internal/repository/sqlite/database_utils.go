@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	repo "mediahub_oss/internal/repository"
@@ -19,7 +18,6 @@ type scanner interface {
 // scanDatabaseRow maps an SQL row from the databases table into the repository.Database struct.
 func scanDatabaseRow(s scanner) (repo.Database, error) {
 	var db repo.Database
-	var customFieldsJSON string
 	var intervalMs, maxAgeMs, HKLastRun int64 // Intermediate variables for millisecond values
 
 	// Make sure ID is the first scanned column matching the modified Select queries
@@ -33,7 +31,6 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 		&db.Config.CreatePreview,
 		&db.Config.AutoConversion,
 		&db.NMaxQueued,
-		&customFieldsJSON,
 		&HKLastRun,
 		&db.Stats.EntryCount,
 		&db.Stats.TotalDiskSpaceBytes,
@@ -53,15 +50,11 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 		db.Housekeeping.LastHkRun = time.UnixMilli(HKLastRun)
 	}
 
-	if err := json.Unmarshal([]byte(customFieldsJSON), &db.CustomFields); err != nil {
-		return repo.Database{}, fmt.Errorf("failed to unmarshal custom fields: %w", err)
-	}
-
 	return db, nil
 }
 
 // BuildDynamicTableSchema generates the CREATE TABLE statement using the database ID.
-func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomField) (string, error) {
+func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomFieldDef) (string, error) {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var sb strings.Builder
@@ -102,7 +95,7 @@ func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, cus
 		datatype := strings.ToUpper(cf.Type)
 		switch datatype {
 		case "TEXT", "INTEGER", "REAL", "BOOLEAN":
-			sb.WriteString(fmt.Sprintf(",\n\t\"%s%s\" %s", customFieldsPrefix, cf.Name, datatype))
+			sb.WriteString(fmt.Sprintf(",\n\t\"%s%d\" %s", customFieldsPrefix, cf.ID, datatype))
 		default:
 			return "", fmt.Errorf("unsupported custom field type: %s", cf.Type)
 		}
@@ -113,7 +106,7 @@ func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, cus
 }
 
 // BuildIndexesSQL creates the indexing statements using the database ID.
-func BuildIndexesSQL(dbID string, customFields []repo.CustomField) []string {
+func BuildIndexesSQL(dbID string, customFields []repo.CustomFieldDef) []string {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	var sqls []string
 
@@ -121,7 +114,9 @@ func BuildIndexesSQL(dbID string, customFields []repo.CustomField) []string {
 	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_status" ON %s(status);`, dbID, tableName))
 
 	for _, cf := range customFields {
-		sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s" ON %s("%s");`, dbID, cf.Name, tableName, cf.Name))
+		if cf.IsIndexed {
+			sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d");`, dbID, customFieldsPrefix, cf.ID, tableName, customFieldsPrefix, cf.ID))
+		}
 	}
 
 	return sqls

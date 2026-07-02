@@ -10,7 +10,7 @@ import (
 func (dbc DatabaseCreatePayload) toModel() repository.Database {
 
 	// convert from package internal model to repository model
-	customFields := make([]repository.CustomField, len(dbc.CustomFields))
+	customFields := make([]repository.CustomFieldDef, len(dbc.CustomFields))
 	for i, cf := range dbc.CustomFields {
 		customFields[i] = cf.toModel()
 	}
@@ -33,10 +33,20 @@ func (dbc DatabaseCreatePayload) toModel() repository.Database {
 	}
 }
 
-func (cf DatabaseCustomField) toModel() repository.CustomField {
-	return repository.CustomField{
-		Name: cf.Name,
-		Type: cf.Type,
+func (cf DatabaseCustomField) toModel() repository.CustomFieldDef {
+	id := 0
+	if cf.ID != nil {
+		id = *cf.ID
+	}
+	isIndexed := true
+	if cf.IsIndexed != nil {
+		isIndexed = *cf.IsIndexed
+	}
+	return repository.CustomFieldDef{
+		ID:        id,
+		Name:      cf.Name,
+		Type:      cf.Type,
+		IsIndexed: isIndexed,
 	}
 }
 
@@ -94,9 +104,13 @@ func mapToDatabaseResponse(db repository.Database) DatabaseResponse {
 	// convert from repository model to package internal model
 	customFields := make([]DatabaseCustomField, len(db.CustomFields))
 	for i, cf := range db.CustomFields {
+		idVal := cf.ID
+		isIndexedVal := cf.IsIndexed
 		customFields[i] = DatabaseCustomField{
-			Name: cf.Name,
-			Type: cf.Type,
+			ID:        &idVal,
+			Name:      cf.Name,
+			Type:      cf.Type,
+			IsIndexed: &isIndexedVal,
 		}
 	}
 

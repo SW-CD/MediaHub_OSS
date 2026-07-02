@@ -116,7 +116,7 @@ func (r PostgresRepository) DeleteEntries(ctx context.Context, dbID string, entr
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomField) ([]repo.Entry, error) {
+func (r PostgresRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
 	// CONSIDERATION: You must whitelist the 'field' and 'operator' strings to prevent SQL injection.
 	// Ensure you use a query builder (like Squirrel) and double-quote the dynamic table name.
 	return nil, customerrors.ErrNotImplemented
@@ -241,4 +241,20 @@ func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID string,
 
 func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error) {
 	return 0, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) AddCustomField(ctx context.Context, dbID string, field repository.CustomFieldDef) (repository.CustomFieldDef, error) {
+	return repository.CustomFieldDef{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) UpdateCustomField(ctx context.Context, dbID string, fieldID int, name *string, isIndexed *bool) (repository.CustomFieldDef, error) {
+	return repository.CustomFieldDef{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) DeleteCustomField(ctx context.Context, dbID string, fieldID int) error {
+	return customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetCustomFields(ctx context.Context, dbID string) ([]repository.CustomFieldDef, error) {
+	return nil, customerrors.ErrNotImplemented
 }

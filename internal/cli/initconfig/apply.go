@@ -38,6 +38,20 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 				continue
 			}
 
+			customFields := make([]repository.CustomFieldDef, len(dbInit.CustomFields))
+			for i, cf := range dbInit.CustomFields {
+				isIndexed := true
+				if cf.IsIndexed != nil {
+					isIndexed = *cf.IsIndexed
+				}
+				customFields[i] = repository.CustomFieldDef{
+					ID:        i,
+					Name:      cf.Name,
+					Type:      cf.Type,
+					IsIndexed: isIndexed,
+				}
+			}
+
 			db := repository.Database{
 				Name:        dbInit.Name,
 				ContentType: dbInit.ContentType,
@@ -47,7 +61,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 					AutoConversion: dbInit.Config.AutoConversion,
 				},
 				Housekeeping: hk,
-				CustomFields: dbInit.CustomFields,
+				CustomFields: customFields,
 			}
 
 			createdDB, err := repo.CreateDatabase(ctx, db)

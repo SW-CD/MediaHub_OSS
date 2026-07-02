@@ -35,11 +35,17 @@ definitions:
         type: array
       housekeeping:
         $ref: '#/definitions/databasehandler.HousekeepingPayload'
+      n_max_queued:
+        type: integer
       name:
         type: string
     type: object
   databasehandler.DatabaseCustomField:
     properties:
+      id:
+        type: integer
+      is_indexed:
+        type: boolean
       name:
         type: string
       type:
@@ -59,6 +65,8 @@ definitions:
         $ref: '#/definitions/databasehandler.DatabaseResponseHK'
       id:
         type: string
+      n_max_queued:
+        type: integer
       name:
         type: string
       stats:
@@ -89,6 +97,8 @@ definitions:
         $ref: '#/definitions/databasehandler.ConfigPayload'
       housekeeping:
         $ref: '#/definitions/databasehandler.HousekeepingPayload'
+      n_max_queued:
+        type: integer
       name:
         type: string
     type: object
@@ -379,7 +389,7 @@ info:
   description: This is a server for a image, audio and file storage with integrated
     web-ui.
   title: SWCD MediaHub-API
-  version: 2.0.1
+  version: 2.1.0-beta
 paths:
   /api/logout:
     post:

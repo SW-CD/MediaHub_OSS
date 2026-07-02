@@ -4,6 +4,7 @@ import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { finalize } from 'rxjs/operators';
 import { DatabaseConfig } from '../../models';
+import { CUSTOM_FIELD_NAME_PATTERN } from '../../utils/validation';
 
 @Component({
   selector: 'app-create-database-modal',
@@ -54,8 +55,9 @@ export class CreateDatabaseModalComponent implements OnInit {
 
   addCustomField(): void {
     const fieldGroup = this.fb.group({
-      name: ['', [Validators.required, Validators.pattern(/^[a-zA-Z_][a-zA-Z0-9_]*$/)]],
+      name: ['', [Validators.required, Validators.pattern(CUSTOM_FIELD_NAME_PATTERN)]],
       type: ['TEXT', Validators.required],
+      is_indexed: [true],
     });
     this.customFields.push(fieldGroup);
   }
