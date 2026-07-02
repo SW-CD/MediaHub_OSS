@@ -186,6 +186,32 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 }
 
 func down02001(ctx context.Context, tx *sql.Tx) error {
+	// 0. Drop any old custom field indexes first to prevent ALTER TABLE RENAME from failing due to index inconsistencies.
+	var databaseCustomFieldsExists bool
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='database_custom_fields')`).Scan(&databaseCustomFieldsExists)
+	if err == nil && databaseCustomFieldsExists {
+		rows, err := tx.QueryContext(ctx, "SELECT database_id, name FROM database_custom_fields")
+		if err == nil {
+			type cfRef struct {
+				dbID string
+				name string
+			}
+			var refs []cfRef
+			for rows.Next() {
+				var ref cfRef
+				if err := rows.Scan(&ref.dbID, &ref.name); err == nil {
+					refs = append(refs, ref)
+				}
+			}
+			rows.Close()
+
+			for _, ref := range refs {
+				_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s"`, ref.dbID, ref.name))
+				_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%s"`, ref.dbID, ref.name))
+			}
+		}
+	}
+
 	// 1. Revert dynamic entries tables check constraints back to status 0, 1, 2, 3
 	if err := migrateCheckConstraints(ctx, tx, []uint8{0, 1, 2, 3}, true); err != nil {
 		return err
@@ -217,9 +243,7 @@ func down02001(ctx context.Context, tx *sql.Tx) error {
 	}
 
 	// 3. Re-populate custom_fields JSON and rename columns back
-	var databaseCustomFieldsExists bool
-	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='database_custom_fields')`).Scan(&databaseCustomFieldsExists)
-	if err == nil && databaseCustomFieldsExists {
+	if databaseCustomFieldsExists {
 		rows, err := tx.QueryContext(ctx, "SELECT database_id, field_id, name, type, is_indexed FROM database_custom_fields ORDER BY database_id, field_id")
 		if err == nil {
 			type cfRecord struct {
@@ -292,8 +316,8 @@ func down02001(ctx context.Context, tx *sql.Tx) error {
 						// Drop new index
 						_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%d"`, dbID, rec.ID))
 
-						// Recreate old index (broken style as it was in BuildIndexesSQL previously)
-						createIdx := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s" ON "entries_%s"("%s")`, dbID, rec.Name, dbID, rec.Name)
+						// Recreate old index (fixing the column name to cf_{name})
+						createIdx := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s" ON "entries_%s"("cf_%s")`, dbID, rec.Name, dbID, rec.Name)
 						_, _ = tx.ExecContext(ctx, createIdx)
 					}
 				}
