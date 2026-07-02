@@ -7,7 +7,9 @@ import { Database, User, DatabaseConfig, CustomField } from '../../models';
 import { DatabaseService, DatabaseUpdatePayload } from '../../services/database.service';
 import { AuthService } from '../../services/auth.service';
 import { ModalService } from '../../services/modal.service';
+import { NotificationService } from '../../services/notification.service';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
+import { isValidCustomFieldName } from '../../utils/validation';
 
 @Component({
   selector: 'app-database-settings',
@@ -42,6 +44,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     private databaseService: DatabaseService,
     private authService: AuthService,
     private modalService: ModalService,
+    private notificationService: NotificationService,
     private fb: FormBuilder
   ) {
     this.selectedDatabase$ = this.databaseService.selectedDatabase$;
@@ -236,10 +239,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   onAddField(): void {
     if (!this.currentDb || !this.canEdit || !this.newFieldName) return;
 
-    // Validate identifier format
-    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-    if (!namePattern.test(this.newFieldName)) {
-      this.databaseService['notificationService'].showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
+    if (!isValidCustomFieldName(this.newFieldName)) {
+      this.notificationService.showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
       return;
     }
 
@@ -273,10 +274,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   onSaveField(fieldId: number): void {
     if (!this.currentDb || !this.canEdit || !this.editingFieldName) return;
 
-    // Validate identifier format
-    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-    if (!namePattern.test(this.editingFieldName)) {
-      this.databaseService['notificationService'].showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
+    if (!isValidCustomFieldName(this.editingFieldName)) {
+      this.notificationService.showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
       return;
     }
 
