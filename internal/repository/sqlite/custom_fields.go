@@ -147,14 +147,14 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, fiel
 
 	// 2. ALTER TABLE entries_ID ADD COLUMN cf_nextID Type
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
-	alterSQL := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN "cf_%d" %s`, tableName, field.ID, datatype)
+	alterSQL := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN "%s%d" %s`, tableName, customFieldsPrefix, field.ID, datatype)
 	if _, err := tx.ExecContext(ctx, alterSQL); err != nil {
 		return repo.CustomFieldDef{}, fmt.Errorf("failed to add column to entries table: %w", err)
 	}
 
 	// 3. Create index if is_indexed is true
 	if field.IsIndexed {
-		indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_cf_%d" ON %s("cf_%d")`, dbID, field.ID, tableName, field.ID)
+		indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID, customFieldsPrefix, field.ID, tableName, customFieldsPrefix, field.ID)
 		if _, err := tx.ExecContext(ctx, indexSQL); err != nil {
 			return repo.CustomFieldDef{}, fmt.Errorf("failed to create index on custom field: %w", err)
 		}
@@ -239,13 +239,13 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, f
 	if newIsIndexed != targetField.IsIndexed {
 		if newIsIndexed {
 			// Create index
-			indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_cf_%d" ON %s("cf_%d")`, dbID, fieldID, tableName, fieldID)
+			indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID, customFieldsPrefix, fieldID, tableName, customFieldsPrefix, fieldID)
 			if _, err := tx.ExecContext(ctx, indexSQL); err != nil {
 				return repo.CustomFieldDef{}, fmt.Errorf("failed to create index: %w", err)
 			}
 		} else {
 			// Drop index
-			dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%d"`, dbID, fieldID)
+			dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID, customFieldsPrefix, fieldID)
 			if _, err := tx.ExecContext(ctx, dropIndexSQL); err != nil {
 				return repo.CustomFieldDef{}, fmt.Errorf("failed to drop index: %w", err)
 			}
@@ -322,14 +322,14 @@ func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID string, f
 	defer tx.Rollback()
 
 	// 1. Drop the index
-	dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%d"`, dbID, fieldID)
+	dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID, customFieldsPrefix, fieldID)
 	if _, err := tx.ExecContext(ctx, dropIndexSQL); err != nil {
 		return fmt.Errorf("failed to drop index: %w", err)
 	}
 
 	// 2. Drop column from entries table
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
-	dropColSQL := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN "cf_%d"`, tableName, fieldID)
+	dropColSQL := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN "%s%d"`, tableName, customFieldsPrefix, fieldID)
 	if _, err := tx.ExecContext(ctx, dropColSQL); err != nil {
 		return fmt.Errorf("failed to drop column from entries table: %w", err)
 	}

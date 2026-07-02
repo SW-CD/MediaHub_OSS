@@ -29,7 +29,7 @@ func newEntryScanner(rows *sql.Rows, customFields []repo.CustomFieldDef) (entryS
 	// Create a map from column name "cf_X" to the actual custom field Name
 	cfMap := make(map[string]string)
 	for _, cf := range customFields {
-		cfMap[fmt.Sprintf("cf_%d", cf.ID)] = cf.Name
+		cfMap[fmt.Sprintf("%s%d", customFieldsPrefix, cf.ID)] = cf.Name
 	}
 
 	size := len(cols)
@@ -202,7 +202,7 @@ func (r *SQLiteRepository) validateAndFormatSearchField(field string, customFiel
 	// 3. Whitelist dynamically generated Custom Fields
 	for _, cf := range customFields {
 		if cf.Name == field {
-			return fmt.Sprintf(`"cf_%d"`, cf.ID), nil
+			return fmt.Sprintf(`"%s%d"`, customFieldsPrefix, cf.ID), nil
 		}
 	}
 

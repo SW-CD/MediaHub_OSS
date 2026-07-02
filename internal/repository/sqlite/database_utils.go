@@ -95,7 +95,7 @@ func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, cus
 		datatype := strings.ToUpper(cf.Type)
 		switch datatype {
 		case "TEXT", "INTEGER", "REAL", "BOOLEAN":
-			sb.WriteString(fmt.Sprintf(",\n\t\"cf_%d\" %s", cf.ID, datatype))
+			sb.WriteString(fmt.Sprintf(",\n\t\"%s%d\" %s", customFieldsPrefix, cf.ID, datatype))
 		default:
 			return "", fmt.Errorf("unsupported custom field type: %s", cf.Type)
 		}
@@ -115,7 +115,7 @@ func BuildIndexesSQL(dbID string, customFields []repo.CustomFieldDef) []string {
 
 	for _, cf := range customFields {
 		if cf.IsIndexed {
-			sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_cf_%d" ON %s("cf_%d");`, dbID, cf.ID, tableName, cf.ID))
+			sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d");`, dbID, customFieldsPrefix, cf.ID, tableName, customFieldsPrefix, cf.ID))
 		}
 	}
 

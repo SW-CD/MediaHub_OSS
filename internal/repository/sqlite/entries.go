@@ -62,7 +62,7 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 	}
 	for key, value := range entry.CustomFields {
 		if id, ok := cfNameToID[key]; ok {
-			insertData[fmt.Sprintf("cf_%d", id)] = value
+			insertData[fmt.Sprintf("%s%d", customFieldsPrefix, id)] = value
 		} else {
 			insertData[customFieldsPrefix+key] = value
 		}
@@ -259,7 +259,7 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 	}
 	for key, value := range entry.CustomFields {
 		if id, ok := cfNameToID[key]; ok {
-			updateData[fmt.Sprintf("cf_%d", id)] = value
+			updateData[fmt.Sprintf("%s%d", customFieldsPrefix, id)] = value
 		} else {
 			updateData[customFieldsPrefix+key] = value
 		}
