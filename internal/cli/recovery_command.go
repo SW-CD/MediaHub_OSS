@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	// Import your new package
 	"mediahub_oss/internal/cli/recovery"
+	"mediahub_oss/internal/repository/migrations"
 
 	"github.com/spf13/cobra"
 )
@@ -53,15 +53,24 @@ func runRecovery(globalOptions *GlobalOptions, recoveryOptions *RecoveryOptions)
 	}
 	defer recoverySvc.Close()
 
-	// 2. Execute Phase 1: Zombie Fix
+	// 2. Verify database schema version compatibility
+	version, err := recoverySvc.GetMigrationVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("could not determine database version: %w", err)
+	}
+	if err := migrations.CheckVersion(version); err != nil {
+		return fmt.Errorf("database schema check failed: %w", err)
+	}
+
+	// 3. Execute Phase 1: Zombie Fix
 	// Scans for entries stuck in "processing" or "deleting"
 	logger.Info("Phase 1: Running Zombie Fix...")
 	if err := recoverySvc.EntryStatusCorrection(ctx); err != nil {
 		return fmt.Errorf("Entry status correction failed: %w", err)
 	}
 
-	// 3. Execute Phase 2: Integrity Check
-	// Verifies file/DB parity
+	// 4. Execute Phase 2: Integrity Check
+	// Verifies file/DB parity.
 	logger.Info("Phase 2: Running Integrity Check...")
 	if err := recoverySvc.IntegrityCheck(ctx); err != nil {
 		return fmt.Errorf("integrity check failed: %w", err)
