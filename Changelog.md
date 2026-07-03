@@ -1,3 +1,15 @@
+# v2.1
+Bug fixes:
+- fix lookup for expired refresh token
+
+Features:
+- add entry queuing and processing limits, to avoid server resource starvation. New config arguments: `server.processing.n_ffmpeg_async` and `server.processing.n_ffmpeg_total`. `n_max_queued` parameter on database level.
+- allow adding, renaming and deleting custom fields after database creation.
+- add option to not index custom field columns via `is_indexed=false`.
+- automatically extract timestamp from certain file format in the frontend
+- allow drag and drop of multiple files at once in the frontend
+- modernize entry grid view
+
 # v2.0.1
 
 Bug Fixes:
@@ -26,12 +38,6 @@ Breaking Changes:
 Other:
 - publish multiarch docker build (ARM64, X86)
 - add Windows ARM64 binaries to release
-
-# v2.1
-Features:
-- add entry queuing and processing limits, to avoid server resource starvation. New config arguments: `server.processing.n_ffmpeg_async` and `server.processing.n_ffmpeg_total`. `n_max_queued` parameter on database level.
-- allow adding, renaming and deleting custom fields after database creation.
-- add option to not index custom field columns via `is_indexed=false`.
 
 # v1.2
 
