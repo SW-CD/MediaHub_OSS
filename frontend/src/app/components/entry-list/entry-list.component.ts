@@ -45,7 +45,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
   // --- STATE PROPERTIES ---
   public viewMode: 'grid' | 'list' = 'grid'; 
   public currentPage = 1;
-  public imagesPerPage = 24;
+  public imagesPerPage = 200;
   public hasNextPage = false;
   
   private currentFilterConditions: SearchFilter | undefined;

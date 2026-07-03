@@ -1,8 +1,13 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
 import { Entry } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common'; 
+import { CommonModule } from '@angular/common'; 
 import { SecureImageDirective } from '../../directives/secure-image.directive';
+
+export interface DateGroup {
+  dateStr: string;
+  entries: Entry[];
+}
 
 @Component({
   selector: 'app-entry-grid',
@@ -11,8 +16,6 @@ import { SecureImageDirective } from '../../directives/secure-image.directive';
   standalone: true,
   imports: [
     CommonModule, 
-    DatePipe,
-    DecimalPipe, 
     SecureImageDirective
   ], 
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -28,14 +31,52 @@ export class EntryGridComponent implements OnChanges {
   @Output() toggleSelection = new EventEmitter<{ entry: Entry, event: MouseEvent }>();
 
   public failedImageIds = new Set<number>();
+  public dateGroups: DateGroup[] = [];
 
   constructor(private entryservice: EntryService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     // UPDATED: Check for dbId changes
     if (changes['dbId'] || changes['entries']) {
-      this.failedImageIds.clear();
+      if (changes['dbId']) {
+        this.failedImageIds.clear();
+      }
+      this.groupEntries();
     }
+  }
+
+  private groupEntries(): void {
+    if (!this.entries || this.entries.length === 0) {
+      this.dateGroups = [];
+      return;
+    }
+
+    const groupsMap = new Map<string, Entry[]>();
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (const entry of this.entries) {
+      const ts = entry.timestamp;
+      // Handle both seconds and milliseconds Unix epoch timestamps safely
+      const ms = ts < 10000000000 ? ts * 1000 : ts;
+      const date = new Date(ms);
+
+      const dayName = weekdays[date.getDay()];
+      const dayVal = date.getDate();
+      const monthName = months[date.getMonth()];
+      const yearVal = date.getFullYear();
+      const dateStr = `${dayName} ${dayVal} ${monthName} ${yearVal}`;
+
+      if (!groupsMap.has(dateStr)) {
+        groupsMap.set(dateStr, []);
+      }
+      groupsMap.get(dateStr)!.push(entry);
+    }
+
+    this.dateGroups = Array.from(groupsMap.entries()).map(([dateStr, entries]) => ({
+      dateStr,
+      entries
+    }));
   }
 
   public getPreviewUrl(entry: Entry): string {

@@ -242,3 +242,12 @@
   align-items: center;
 }
 
+@media (min-width: 1024px) {
+  .header h2 {
+    font-size: 1.35rem;
+  }
+  .stat-value {
+    font-size: 1.35rem;
+  }
+}
+

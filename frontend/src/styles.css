@@ -1,5 +1,5 @@
 /* frontend/src/styles.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 /* Modern standard for Firefox & Chromium Scrollbars */
 html {
@@ -46,16 +46,16 @@ html {
   --segmented-text: var(--text-secondary);
   --segmented-hover-bg: var(--item-bg-hover);
 
-  --font-family-sans: 'Inter', sans-serif;
+  --font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* =========================================
      FLUID TYPOGRAPHY SCALE
      ========================================= */
-  --text-base: clamp(0.875rem, 0.4vw + 0.75rem, 1rem); 
-  --text-md: clamp(1rem, 1vw + 0.75rem, 1.2rem);
-  --text-lg: clamp(1.1rem, 2.2vw + 0.6rem, 1.7rem);
-  --text-xl: clamp(1.3rem, 3.8vw + 0.4rem, 2.0rem);
-  --text-2xl: clamp(1.6rem, 5.8vw + 0.2rem, 3.0rem);
+  --text-base: clamp(0.875rem, 0.2vw + 0.8rem, 1rem); 
+  --text-md: clamp(0.95rem, 0.5vw + 0.85rem, 1.15rem);
+  --text-lg: clamp(1.05rem, 1vw + 0.9rem, 1.35rem);
+  --text-xl: clamp(1.15rem, 1.5vw + 0.95rem, 1.5rem);
+  --text-2xl: clamp(1.3rem, 2vw + 1rem, 1.8rem);
 
   /* =========================================
      GLOBAL Z-INDEX SCALE

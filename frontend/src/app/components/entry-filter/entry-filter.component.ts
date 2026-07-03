@@ -30,7 +30,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
 
   constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef) {
     this.filterForm = this.fb.group({
-      limitPerPage: [24, [Validators.required, Validators.min(1)]],
+      limitPerPage: [200, [Validators.required, Validators.min(1)]],
       tstart: [''],
       tend: [''],
       customFilters: this.fb.array([])
