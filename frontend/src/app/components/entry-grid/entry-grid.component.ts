@@ -141,4 +141,13 @@ export class EntryGridComponent implements OnChanges {
       this.cdr.markForCheck();
     }
   }
+
+  public getGroupAspectRatio(group: DateGroup): number {
+    if (!group || !group.entries) return 1.0;
+    let sum = 0;
+    for (const entry of group.entries) {
+      sum += this.getAspectRatio(entry);
+    }
+    return sum > 0 ? sum : 1.0;
+  }
 }

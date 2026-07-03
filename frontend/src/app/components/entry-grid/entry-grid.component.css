@@ -2,8 +2,10 @@
 
 .groups-container {
   display: flex;
-  flex-direction: column;
-  gap: 24px; /* Larger vertical space between groups */
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px; /* Space between groups */
   width: 100%;
   user-select: none;
   --tile-height: 150px;
@@ -144,7 +146,8 @@
   object-fit: cover; /* Cover for a beautiful immersive borderless grid! */
 }
 
-.group-spacer {
+.group-spacer,
+.groups-spacer {
   flex-grow: 999;
   flex-shrink: 0;
   flex-basis: 0;

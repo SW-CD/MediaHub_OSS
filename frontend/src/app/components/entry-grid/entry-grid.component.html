@@ -1,5 +1,7 @@
 <div class="groups-container">
-  <div class="date-group" *ngFor="let group of dateGroups">
+  <div class="date-group" *ngFor="let group of dateGroups"
+       [style.flex-grow]="getGroupAspectRatio(group)"
+       [style.flex-basis]="'calc(var(--tile-height) * ' + getGroupAspectRatio(group) + ')'">
     <div class="group-header">{{ group.dateStr }}</div>
     <div class="group-items">
       <div 
@@ -71,4 +73,5 @@
       <div class="group-spacer"></div>
     </div>
   </div>
+  <div class="groups-spacer"></div>
 </div>
