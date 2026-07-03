@@ -1,4 +1,5 @@
 # v2.1
+
 Bug fixes:
 - fix lookup for expired refresh token
 
@@ -8,7 +9,8 @@ Features:
 - add option to not index custom field columns via `is_indexed=false`.
 - automatically extract timestamp from certain file format in the frontend
 - allow drag and drop of multiple files at once in the frontend
-- modernize entry grid view
+- modernize entry grid view with tiling
+- adjust preview generation to clip aspect ration, for frontend alignment
 
 # v2.0.1
 

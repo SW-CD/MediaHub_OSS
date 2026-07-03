@@ -26,7 +26,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
   @Output() filterApplied = new EventEmitter<FilterChangedEvent>();
 
   public filterForm: FormGroup;
-  public isCollapsed = false;
+  public isCollapsed = true;
 
   constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef) {
     this.filterForm = this.fb.group({
@@ -38,19 +38,10 @@ export class EntryFilterComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.checkMobileState();
-    
     // Automatically re-evaluate the active filters count if the form changes
     this.filterForm.valueChanges.subscribe(() => {
       this.cdr.markForCheck();
     });
-  }
-
-  // Determine initial state based on window size
-  private checkMobileState(): void {
-    if (window.innerWidth < 768) {
-      this.isCollapsed = true;
-    }
   }
 
   toggleCollapse(): void {
