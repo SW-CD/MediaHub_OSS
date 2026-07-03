@@ -2,10 +2,11 @@
 
 .groups-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px; /* Larger horizontal/vertical space between groups */
+  flex-direction: column;
+  gap: 24px; /* Larger vertical space between groups */
   width: 100%;
   user-select: none;
+  --tile-height: 150px;
 }
 
 .date-group {
@@ -31,8 +32,7 @@
 
 .grid-card {
   position: relative;
-  width: 150px;
-  height: 150px;
+  height: var(--tile-height);
   border-radius: 4px; /* subtle modern corner */
   overflow: hidden;
   cursor: pointer;
@@ -144,14 +144,18 @@
   object-fit: cover; /* Cover for a beautiful immersive borderless grid! */
 }
 
+.group-spacer {
+  flex-grow: 999;
+  flex-shrink: 0;
+  flex-basis: 0;
+  height: 0;
+}
+
 /* Responsive sizes for grid tiles */
 @media (max-width: 768px) {
-  .grid-card {
-    width: 100px;
-    height: 100px;
-  }
   .groups-container {
     gap: 16px;
+    --tile-height: 100px;
   }
   .group-items {
     gap: 2px;

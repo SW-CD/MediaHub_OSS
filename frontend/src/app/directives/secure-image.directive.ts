@@ -8,7 +8,8 @@ import {
   OnChanges,
   OnDestroy,
   SimpleChanges,
-  Renderer2
+  Renderer2,
+  HostListener
 } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription, BehaviorSubject } from 'rxjs';
@@ -27,6 +28,7 @@ import { switchMap, filter } from 'rxjs/operators';
 export class SecureImageDirective implements OnChanges, OnDestroy {
   @Input() secureSrc: string | null = null;
   @Output() imageError = new EventEmitter<void>();
+  @Output() aspectLoaded = new EventEmitter<number>();
 
   private currentUrlSubject = new BehaviorSubject<string | null>(null);
   private subscription: Subscription;
@@ -126,6 +128,15 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
     if (this.currentObjectUrl) {
       URL.revokeObjectURL(this.currentObjectUrl);
       this.currentObjectUrl = null;
+    }
+  }
+
+  @HostListener('load')
+  onLoad(): void {
+    const img = this.el.nativeElement as HTMLImageElement;
+    if (img && img.naturalWidth && img.naturalHeight) {
+      const ar = img.naturalWidth / img.naturalHeight;
+      this.aspectLoaded.emit(ar);
     }
   }
 }

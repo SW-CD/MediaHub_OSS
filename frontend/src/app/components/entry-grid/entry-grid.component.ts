@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { Entry } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
 import { CommonModule } from '@angular/common'; 
@@ -32,8 +32,12 @@ export class EntryGridComponent implements OnChanges {
 
   public failedImageIds = new Set<number>();
   public dateGroups: DateGroup[] = [];
+  public aspectRatios = new Map<number, number>();
 
-  constructor(private entryservice: EntryService) {}
+  constructor(
+    private entryservice: EntryService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     // UPDATED: Check for dbId changes
@@ -107,5 +111,34 @@ export class EntryGridComponent implements OnChanges {
 
   public getEntryTitle(entry: Entry): string {
     return entry.filename || `ID: ${entry.id}`; 
+  }
+
+  public getAspectRatio(entry: Entry): number {
+    // 1. Check if we have dynamically loaded aspect ratio
+    if (this.aspectRatios.has(entry.id)) {
+      return this.aspectRatios.get(entry.id)!;
+    }
+    // 2. Check if we have width and height in metadata
+    if (entry.media_fields?.width && entry.media_fields?.height) {
+      const ar = entry.media_fields.width / entry.media_fields.height;
+      return this.clampAspectRatio(ar);
+    }
+    // 3. Fallback to square
+    return 1.0;
+  }
+
+  private clampAspectRatio(ar: number): number {
+    if (isNaN(ar) || ar <= 0) return 1.0;
+    if (ar > 4.0) return 4.0;
+    if (ar < 0.25) return 0.25;
+    return ar;
+  }
+
+  public onAspectLoaded(entryId: number, ar: number): void {
+    const clamped = this.clampAspectRatio(ar);
+    if (this.aspectRatios.get(entryId) !== clamped) {
+      this.aspectRatios.set(entryId, clamped);
+      this.cdr.markForCheck();
+    }
   }
 }
