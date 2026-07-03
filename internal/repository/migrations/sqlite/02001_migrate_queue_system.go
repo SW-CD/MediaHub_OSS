@@ -122,6 +122,16 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 		}
 		rows.Close()
 
+		// 3.1. Drop ALL old custom field indexes first across all databases
+		// This prevents ALTER TABLE RENAME COLUMN on any field from failing due to schema validation on OTHER fields.
+		for _, m := range migrations {
+			for _, cf := range m.customFields {
+				_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s"`, m.dbID, cf.Name))
+				_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%s"`, m.dbID, cf.Name))
+			}
+		}
+
+		// 3.2. Migrate custom fields definitions and rename entry table columns
 		for _, m := range migrations {
 			for i, cf := range m.customFields {
 				// Insert into new table
@@ -137,10 +147,6 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 					return err
 				}
 				if hasTable {
-					// Drop old indexes first to prevent ALTER TABLE RENAME COLUMN from failing due to schema inconsistencies
-					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s"`, m.dbID, cf.Name))
-					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%s"`, m.dbID, cf.Name))
-
 					var hasCol bool
 					colRows, err := tx.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info("entries_%s")`, m.dbID))
 					if err == nil {
