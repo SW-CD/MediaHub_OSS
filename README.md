@@ -1,17 +1,29 @@
 # MediaHub API & Web Interface (upcoming v2.1.0) ✨
 
-This open source project provides a HTTP REST API and web frontend for storing, converting, auto-deleting, managing custom metadata and retrieving files, organized into distinct databases. The focus is on image, video and audio data, but generic files can be stored as well. The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
+This open source project provides a HTTP REST API and web frontend for working with images, audio, videos or generic files The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
 <p align="center">
   <img src="screenshots/DataFlow.webp" alt="MediaHub" width="600">
 </p>
 
-Intended use-cases for the software are:
+Intended use-cases for the software are data acquisition pipelines:
 
   * storing of camera data with metadata in a production environment, e.g., images or videos for product quality checks, wildlife observation etc
   * storing of audio samples captured using microphones, e.g., for condition monitoring of machines, animal observation
 
 You can find screenshots of what the frontend looks like in the [screenshots](/screenshots/) folder.
+
+## Distinction from other tools
+
+There are some other tools for self-hosted image storage and retrieval available, e.g., you might want to check out Immich, PhotoPrism or LibrePhotos, and there might be others. Those tools focus on providing a replacement for cloud solutions like Google Photos, and organize photos and videos in albums. 
+
+Mediahub is not trying to be a self-hosted replacement for Google Photos, but was developed mainly to serve as part of the backend pipeline for automated picture and audio acquisition and processing systems. It is distinct by these two features:
+
+- configurable deletion of old pictures, which is required on edge devices
+- rich and indexed metadata management (e.g., results of an ML pipeline)
+- auto-conversion on ingestion to target format to keep the database footprint low
+
+In summary, if you need a place to store your private photos, other solutions might have an edge. If you have a camera acquisition system that runs 24/7 and you want to store the captured media, Mediahub might be the tool for you. 
 
 -----
 
@@ -24,6 +36,7 @@ You can find screenshots of what the frontend looks like in the [screenshots](/s
   * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). The size threshold for this switch is configurable (default: 4MB). This provides immediate feedback to the user for large files, which can then be processed in the background.
   * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
   * **Drag & Drop Uploads:** Intuitive file uploading by dragging files directly onto the entry list or the upload modal.
+  * **Metadata Auto-Extraction:** Automatically extracts capture and creation timestamps from JPEGs (EXIF headers) and MP4 videos (Movie Header Box) on upload to pre-populate entry timestamps.
   * **Bulk Import & Export:** Export and import your data as zip-files.
   * **Preview Generation:** Automatically generates downscaled Webp previews for images or videos and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
   * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
