@@ -137,6 +137,10 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 					return err
 				}
 				if hasTable {
+					// Drop old indexes first to prevent ALTER TABLE RENAME COLUMN from failing due to schema inconsistencies
+					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s"`, m.dbID, cf.Name))
+					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%s"`, m.dbID, cf.Name))
+
 					var hasCol bool
 					colRows, err := tx.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info("entries_%s")`, m.dbID))
 					if err == nil {
@@ -161,10 +165,6 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 							return fmt.Errorf("failed to rename column: %w", err)
 						}
 					}
-
-					// Drop old indexes
-					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s"`, m.dbID, cf.Name))
-					_, _ = tx.ExecContext(ctx, fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_cf_%s"`, m.dbID, cf.Name))
 
 					// Create new index (since is_indexed defaults to true)
 					createIdx := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_cf_%d" ON "entries_%s"("cf_%d")`, m.dbID, i, m.dbID, i)
