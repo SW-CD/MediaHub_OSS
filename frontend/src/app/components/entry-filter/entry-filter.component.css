@@ -1,54 +1,23 @@
-/* frontend/src/app/components/entry-filter/entry-filter.component.css */
-
 .filter-wrapper {
   background-color: var(--content-bg);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
   overflow: hidden; /* Keeps the rounded corners clean when collapsed */
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.25s ease-in-out, 
+              margin-bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s ease-in-out;
+  max-height: 1000px; /* High enough to contain all filter rows */
+  opacity: 1;
 }
 
-/* --- NEW: Collapsible Header --- */
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  cursor: pointer;
-  background-color: var(--sidebar-bg); /* Slightly darker to look like a header */
-  user-select: none;
-  transition: background-color 0.2s;
-}
-
-.filter-header:hover {
-  background-color: var(--item-bg-hover);
-}
-
-.filter-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-badge {
-  background-color: var(--button-primary-bg);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 9999px;
-  font-weight: bold;
-}
-
-.toggle-icon {
-  color: var(--text-muted);
-  transition: transform 0.3s ease;
-}
-
-.toggle-icon.rotated {
-  transform: rotate(180deg);
+.filter-wrapper.collapsed {
+  max-height: 0;
+  margin-bottom: 0;
+  border-color: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* --- Body Layout --- */
@@ -57,9 +26,6 @@
   display: block;
 }
 
-.filter-body.collapsed {
-  display: none;
-}
 
 .filter-controls {
   display: flex;

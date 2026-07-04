@@ -4,7 +4,7 @@
   
   <header class="sidebar-header">
     <div class="logo-area">
-      <div class="logo-container">
+      <div class="logo-container cursor-pointer" routerLink="/dashboard" title="Go to Databases Overview">
         <img src="assets/logo.svg" alt="App Logo" class="logo-icon">
         <h1 class="logo-text" *ngIf="!isCollapsed">MediaHub</h1>
       </div>
@@ -19,43 +19,24 @@
     </div>
   </header>
 
-  <div class="databases-section">
-    <div class="section-header">
-      <h2 class="section-title" *ngIf="!isCollapsed">Databases</h2>
+  <div class="databases-section" *ngIf="user.is_admin">
+    <nav class="nav-links" style="margin-top: 0; padding: 0 0.5rem;">
+      <a routerLink="/dashboard/admin/users" 
+         routerLinkActive="active" 
+         class="nav-link"
+         [title]="isCollapsed ? 'Admin Panel' : ''">
+        <img src="assets/icons/admin-icon.svg" class="nav-link-icon" alt="admin-icon" />
+        <span *ngIf="!isCollapsed">Admin Panel</span>
+      </a>
       
-      <button 
-        *ngIf="user.is_admin && !isCollapsed"
-        class="create-db-btn" 
-        (click)="openCreateDatabaseModal()" 
-        title="Create New Database">
-        +
-      </button>
-    </div>
-    
-    <ul class="db-list" *ngIf="databases$ | async as databases">
-      <li *ngIf="databases.length === 0 && !isCollapsed" class="db-list-item-empty">
-        No databases found.
-      </li>
-
-      <li *ngFor="let db of databases; trackBy: trackByDbId" 
-          class="db-list-item"
-          [class.active]="db.id === selectedDbId">
-        <a [routerLink]="['/dashboard/db', db.id]" 
-           class="db-link"
-           [title]="isCollapsed ? db.name : ''">
-            <img [src]="getIconForDb(db)" class="db-icon" alt="db-icon" />
-            <span class="truncate flex-grow" *ngIf="!isCollapsed">{{ db.name }}</span>
-            
-            <span class="settings-icon flex-shrink-0" 
-                  *ngIf="!isCollapsed && canManageDatabase(db.id, user)" 
-                  (click)="goToSettings($event, db.id)" 
-                  title="Settings">
-              <img src="assets/icons/settings-icon.svg" class="settings-icon-img" alt="settings-icon" />
-            </span>
-        </a>
-      </li>
-    </ul>
-
+      <a routerLink="/dashboard/admin/audit" 
+         routerLinkActive="active" 
+         class="nav-link"
+         [title]="isCollapsed ? 'Audit Logs' : ''">
+        <img src="assets/icons/api-icon.svg" class="nav-link-icon" alt="audit-icon" />
+        <span *ngIf="!isCollapsed">Audit Logs</span>
+      </a>
+    </nav>
   </div>
 
   <footer class="sidebar-footer">
@@ -69,16 +50,6 @@
     </div>
 
     <nav class="nav-links" *ngIf="!isCollapsed">
-        <a *ngIf="user.is_admin" routerLink="/dashboard/admin/users" class="nav-link">
-            <img src="assets/icons/admin-icon.svg" class="nav-link-icon" alt="admin-icon" />
-            Admin Panel
-        </a>
-        
-        <a *ngIf="user.is_admin" routerLink="/dashboard/admin/audit" class="nav-link">
-            <img src="assets/icons/api-icon.svg" class="nav-link-icon" alt="audit-icon" />
-            Audit Logs
-        </a>
-
         <a (click)="openChangePasswordModal()" class="nav-link cursor-pointer">
             <img src="assets/icons/password-icon.svg" class="nav-link-icon" alt="password-icon" />
             Change Password

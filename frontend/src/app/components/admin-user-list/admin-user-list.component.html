@@ -1,7 +1,15 @@
-<div class="user-management-container">
+<div class="user-management-container page-container">
   
-  <div class="header">
-    <h2>User Management</h2>
+  <div class="sticky-header">
+    <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
+      <a routerLink="/dashboard" class="back-btn" title="Back to Overview">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+      <h2 class="shortened-title" title="User Management">User Management</h2>
+    </div>
     <button class="btn btn-primary" (click)="createNewUser()">
       Create User
     </button>

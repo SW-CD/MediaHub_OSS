@@ -1,14 +1,11 @@
-<!-- frontend/src/app/pages/dashboard-page/dashboard-page.component.html -->
-
-<!-- 
-  Bind the 'sidebar-collapsed' class based on the component's state.
-  This class will drive the CSS grid transition.
--->
 <div 
   class="dashboard-layout" 
-  [ngClass]="{ 'sidebar-collapsed': isSidebarCollapsed }">
+  [ngClass]="{ 
+    'sidebar-collapsed': isSidebarCollapsed,
+    'no-sidebar': !showSidebar
+  }">
 
-  <aside class="dashboard-sidebar">
+  <aside class="dashboard-sidebar" *ngIf="showSidebar">
     <!-- 
       Pass the collapsed state down to the sidebar component.
       Listen for the toggle event coming back up.

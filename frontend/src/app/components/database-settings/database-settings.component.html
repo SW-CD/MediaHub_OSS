@@ -1,7 +1,17 @@
-<div class="settings-container" *ngIf="selectedDatabase$ | async as db; else loadingOrError">
-  <div class="header">
-    <h2>Settings for: {{ db.name }}</h2>
+<div class="settings-container page-container" *ngIf="selectedDatabase$ | async as db; else loadingOrError">
+  <div class="sticky-header">
+    <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
+      <a routerLink="/dashboard" class="back-btn" title="Back to Overview">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+      <h2 class="shortened-title" title="{{ db.name }}">{{ db.name }} Settings</h2>
+    </div>
   </div>
+
+  <div class="scroll-content">
 
   <div class="settings-card">
      <h3>Statistics</h3>
@@ -321,6 +331,7 @@
         Delete this Database
       </button>
     </div>
+  </div>
   </div>
 </div>
 

@@ -50,3 +50,8 @@
   */
   padding: clamp(1rem, 3vw, 2.5rem) clamp(1rem, 5vw, 3rem);
 }
+
+.dashboard-layout.no-sidebar {
+  grid-template-columns: 1fr;
+  grid-template-areas: 'content';
+}

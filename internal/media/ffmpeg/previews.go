@@ -58,10 +58,10 @@ func (c *FfmpegConverter) generatePreview(ctx context.Context, inputSource strin
 			preInputArgs = append(preInputArgs, "-ss", "00:00:01.000")
 		}
 
-		// Crop to aspect ratio [0.25, 4.0] then scale to fit 200x200
+		// Crop to aspect ratio [0.4, 2.5] then scale to fit 200x200
 		filterArgs = []string{
 			"-vframes", "1",
-			"-vf", fmt.Sprintf("crop=min(iw\\,4*ih):min(ih\\,4*iw),scale='%d:%d':force_original_aspect_ratio=decrease", maxPreviewWidth, maxPreviewHeight),
+			"-vf", fmt.Sprintf("crop=min(iw\\,2.5*ih):min(ih\\,2.5*iw),scale='%d:%d':force_original_aspect_ratio=decrease", maxPreviewWidth, maxPreviewHeight),
 		}
 	case "audio":
 		// Generate a 200x120 waveform image (using a pleasant blue color)

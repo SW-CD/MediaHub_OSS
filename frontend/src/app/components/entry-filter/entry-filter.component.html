@@ -1,19 +1,6 @@
-<div class="filter-wrapper">
+<div class="filter-wrapper" [class.collapsed]="isCollapsed">
   
-  <div class="filter-header" (click)="toggleCollapse()">
-    <div class="filter-title">
-      <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-      </svg>
-      Filters
-      <span class="filter-badge" *ngIf="activeFiltersCount > 0">{{ activeFiltersCount }} Active</span>
-    </div>
-    <svg class="toggle-icon" [class.rotated]="!isCollapsed" xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="6 9 12 15 18 9"></polyline>
-    </svg>
-  </div>
-
-  <div class="filter-body" [class.collapsed]="isCollapsed">
+  <div class="filter-body">
     <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
       <div class="filter-controls">
         

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges, ChangeDetectorRef, HostListener, ElementRef } from '@angular/core';
 import { Entry } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
 import { CommonModule } from '@angular/common'; 
@@ -36,7 +36,8 @@ export class EntryGridComponent implements OnChanges {
 
   constructor(
     private entryservice: EntryService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private el: ElementRef
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -129,8 +130,8 @@ export class EntryGridComponent implements OnChanges {
 
   private clampAspectRatio(ar: number): number {
     if (isNaN(ar) || ar <= 0) return 1.0;
-    if (ar > 4.0) return 4.0;
-    if (ar < 0.25) return 0.25;
+    if (ar > 2.5) return 2.5;
+    if (ar < 0.4) return 0.4;
     return ar;
   }
 
@@ -149,5 +150,32 @@ export class EntryGridComponent implements OnChanges {
       sum += this.getAspectRatio(entry);
     }
     return sum > 0 ? sum : 1.0;
+  }
+
+  @HostListener('window:resize')
+  onResize() {
+    this.cdr.markForCheck();
+  }
+
+  private getContainerWidth(): number {
+    if (typeof window === 'undefined') return 1200;
+    if (this.el && this.el.nativeElement) {
+      const width = this.el.nativeElement.getBoundingClientRect().width;
+      if (width > 0) return width;
+    }
+    const isSidebarShown = window.location.pathname === '/dashboard' || window.location.pathname === '/';
+    const sidebarWidth = isSidebarShown ? 260 : 0;
+    const padding = 48;
+    return window.innerWidth - sidebarWidth - padding;
+  }
+
+  public get maxRowAspectRatio(): number {
+    const width = this.getContainerWidth();
+    const tileHeight = window.innerWidth <= 768 ? 100 : 150;
+    return width / tileHeight;
+  }
+
+  public isLargeGroup(group: DateGroup): boolean {
+    return this.getGroupAspectRatio(group) > this.maxRowAspectRatio;
   }
 }

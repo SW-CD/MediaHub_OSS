@@ -36,6 +36,7 @@ import { DatetimeDefaultDirective } from './directives/datetime-default.directiv
 import { FullscreenSettingsModalComponent } from './components/fullscreen-settings-modal/fullscreen-settings-modal.component';
 import { FullscreenPlayerComponent } from './components/fullscreen-player/fullscreen-player.component';
 import { ImportPageComponent } from './pages/import-page/import-page.component';
+import { OverviewPageComponent } from './pages/overview-page/overview-page.component';
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
@@ -69,6 +70,7 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     FullscreenSettingsModalComponent,
     FullscreenPlayerComponent,
     ImportPageComponent,
+    OverviewPageComponent,
   ],
   imports: [
     BrowserModule,

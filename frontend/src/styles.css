@@ -557,3 +557,71 @@ input:focus-visible + .toggle-slider {
 .block { display: block; }
 .mt-1 { margin-top: 0.25rem; }
 .pt-4 { padding-top: 1rem; }
+
+/* =========================================
+   STICKY HEADER & LAYOUT HELPER SYSTEM
+   ========================================= */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.sticky-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  background-color: var(--app-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.scroll-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: color 0.2s, transform 0.2s, background-color 0.2s;
+  cursor: pointer;
+  padding: 0.375rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-color);
+  background: var(--content-bg);
+}
+
+.back-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--item-bg-hover);
+  text-decoration: none;
+  transform: translateX(-2px);
+}
+
+.shortened-title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+@media (max-width: 600px) {
+  .shortened-title {
+    max-width: 120px; /* Shortens e.g. "MyVeryLongTitle" to "MyVe..." */
+  }
+}

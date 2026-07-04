@@ -11,6 +11,7 @@ import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit
 import { DatabaseSettingsComponent } from './components/database-settings/database-settings.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
 import { ImportPageComponent } from './pages/import-page/import-page.component';
+import { OverviewPageComponent } from './pages/overview-page/overview-page.component';
 
 /**
  * Defines the application's routes.
@@ -50,10 +51,7 @@ const routes: Routes = [
       },
       {
         path: '',
-        // Note: If the user navigates directly to /dashboard without a database id,
-        // this component will load. You might want to display a "Welcome" or "Select a Database"
-        // view here instead of the EntryListComponent if the list requires a :id parameter!
-        component: EntryListComponent,
+        component: OverviewPageComponent,
         pathMatch: 'full',
       },
       {

@@ -46,6 +46,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
 
   toggleCollapse(): void {
     this.isCollapsed = !this.isCollapsed;
+    this.cdr.markForCheck();
   }
 
   /**
@@ -72,6 +73,8 @@ export class EntryFilterComponent implements OnInit, OnChanges {
     if (changes['availableFilters'] && !changes['availableFilters'].firstChange) {
       this.customFilters.clear();
       this.filterForm.patchValue({ tstart: '', tend: '' });
+      this.isCollapsed = true;
+      this.cdr.markForCheck();
     }
   }
 

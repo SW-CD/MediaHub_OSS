@@ -1,10 +1,23 @@
-<div class="audit-log-container">
+<div class="audit-log-container page-container">
   
-  <div class="header">
-    <h2>System Audit Logs</h2>
+  <div class="sticky-header">
+    <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
+      <a routerLink="/dashboard" class="back-btn" title="Back to Overview">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+      <h2 class="shortened-title" title="System Audit Logs">System Audit Logs</h2>
+    </div>
+    
+    <button class="btn btn-outline" style="padding: 0.5rem 0.75rem;" (click)="toggleFilter()" title="Toggle Filters">
+      <span class="badge" style="background-color: var(--button-primary-bg); color: var(--text-primary); border-radius: 0.25rem; padding: 0.1rem 0.35rem; margin-right: 0.35rem; font-size: 0.75rem; font-weight: bold;" *ngIf="activeFiltersCount > 0">{{ activeFiltersCount }}</span>
+      Filter
+    </button>
   </div>
 
-  <div class="filters-container">
+  <div class="filters-container" [class.collapsed]="isFilterCollapsed">
     <div class="form-group flex-1">
       <label class="form-label">Start Date (Local)</label>
       <input type="datetime-local" class="form-control" [(ngModel)]="startDate" [disabled]="isLoading" appDatetimeDefault>
@@ -25,6 +38,8 @@
       </button>
     </div>
   </div>
+
+  <div class="scroll-content">
 
   <div *ngIf="isLoading && logs.length === 0" class="loading-state">
     <p>Loading audit logs...</p>
@@ -79,4 +94,5 @@
     </button>
   </div>
 
+  </div>
 </div>

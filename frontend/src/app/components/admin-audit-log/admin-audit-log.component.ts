@@ -26,6 +26,16 @@ export class AdminAuditLogComponent implements OnInit, OnDestroy {
   public startDate: string = '';
   public endDate: string = '';
   
+  public isFilterCollapsed = true;
+
+  get activeFiltersCount(): number {
+    return (this.startDate ? 1 : 0) + (this.endDate ? 1 : 0);
+  }
+
+  public toggleFilter(): void {
+    this.isFilterCollapsed = !this.isFilterCollapsed;
+  }
+  
   private destroy$ = new Subject<void>();
 
   constructor(

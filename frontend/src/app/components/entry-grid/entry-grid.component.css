@@ -18,6 +18,16 @@
   max-width: 100%;
 }
 
+/* Prevent small groups from shrinking below their content width */
+.date-group:not(.large-group) {
+  flex-shrink: 0;
+}
+
+/* Large groups span full width of the row */
+.date-group.large-group {
+  width: 100%;
+}
+
 .group-header {
   font-size: 0.8rem;
   font-weight: 700;
@@ -30,6 +40,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px; /* Borderless tiles close to one another */
+}
+
+.group-items.nowrap {
+  flex-wrap: nowrap;
 }
 
 .grid-card {

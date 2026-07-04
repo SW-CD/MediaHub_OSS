@@ -1,3 +1,11 @@
+# v2.2
+
+Features:
+- updated frontend layout and navigation to work better on mobile devices.
+
+Other changes:
+- preview generation and display clipped to aspect ratios 0.4 and 2.5 instead of 0.25 and 4.
+
 # v2.1
 
 Bug fixes:
