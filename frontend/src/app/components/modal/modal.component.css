@@ -69,3 +69,15 @@
   overflow-y: auto;
   color: var(--text-secondary);
 }
+
+@media (min-width: 640px) {
+  .modal-content.modal-lg {
+    max-width: 800px;
+  }
+}
+
+@media (min-width: 992px) {
+  .modal-content.modal-lg {
+    max-width: 900px;
+  }
+}

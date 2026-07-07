@@ -13,6 +13,7 @@ import { ModalService, ModalEvent } from '../../services/modal.service';
 export class ModalComponent implements OnInit, OnDestroy {
   @Input() modalId: string = '';
   @Input() modalTitle: string = 'Modal';
+  @Input() size: 'sm' | 'md' | 'lg' = 'md';
   
   public isOpen = false;
   private destroy$ = new Subject<void>();

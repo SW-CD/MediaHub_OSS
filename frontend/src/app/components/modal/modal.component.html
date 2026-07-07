@@ -6,7 +6,7 @@
   aria-modal="true"
   [attr.aria-labelledby]="modalId + '-title'">
   
-  <div class="modal-content" (click)="onContentClick($event)">
+  <div class="modal-content" [class.modal-lg]="size === 'lg'" [class.modal-sm]="size === 'sm'" (click)="onContentClick($event)">
     
     <div class="modal-header">
       <h2 class="modal-title" [id]="modalId + '-title'">{{ modalTitle }}</h2>
