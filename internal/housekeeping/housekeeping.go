@@ -165,7 +165,12 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 		for {
 			// We process in batches of 100 to prevent memory spikes.
-			entries, err := s.Repo.GetEntries(ctx, db.ID, 100, 0, "asc", time.Time{}, cutoff)
+			entries, err := s.Repo.GetEntries(ctx, db.ID, repository.QueryOptions{
+				Limit:  100,
+				Offset: 0,
+				Order:  "asc",
+				TEnd:   cutoff,
+			})
 			if err != nil {
 				s.Logger.Error("Housekeeper failed to fetch entries for MaxAge", "error", err, "database_id", db.ID, "database_name", db.Name)
 				break
@@ -195,7 +200,11 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 		for currentSpace > limit {
 			// Fetch the absolute oldest entries in the DB, regardless of age
-			entries, err := s.Repo.GetEntries(ctx, db.ID, 100, 0, "asc", time.Time{}, time.Time{})
+			entries, err := s.Repo.GetEntries(ctx, db.ID, repository.QueryOptions{
+				Limit:  100,
+				Offset: 0,
+				Order:  "asc",
+			})
 			if err != nil || len(entries) == 0 {
 				break // Cannot fetch or no entries left
 			}

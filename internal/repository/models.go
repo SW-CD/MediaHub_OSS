@@ -47,6 +47,8 @@ type Entry struct {
 	Size         uint64
 	PreviewSize  uint64
 	Timestamp    time.Time // The zero value (time.Time{}) indicates a missing timestamp
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 	MimeType     string
 	Status       EntryStatus    // "processing" 0x01 or "ready" 0x00 for now
 	MediaFields  map[string]any // contains fields that are related to the filetype, e.g., image size

@@ -57,7 +57,20 @@ func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Fetch logs from repository
-	logs, err := h.Repo.GetLogs(ctx, limit, offset, order, tStart, tEnd)
+	opts := repository.QueryOptions{
+		Limit:  limit,
+		Offset: offset,
+		Order:  order,
+		TStart: tStart,
+		TEnd:   tEnd,
+	}
+
+	if err := opts.Validate(); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	logs, err := h.Repo.GetLogs(ctx, opts)
 	if err != nil {
 		h.Logger.Error("Failed to retrieve audit logs", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve audit logs")

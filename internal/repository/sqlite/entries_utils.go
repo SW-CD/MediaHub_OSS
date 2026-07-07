@@ -86,8 +86,16 @@ func (s entryScanner) scan(rows *sql.Rows) (repo.Entry, error) {
 			if tsMs > 0 { // Avoid mapping 1970 if the DB returned 0
 				entry.Timestamp = time.UnixMilli(tsMs)
 			}
-		case "created_at", "updated_at":
-			// Ignored
+		case "created_at":
+			tsMs := asInt64(val)
+			if tsMs > 0 {
+				entry.CreatedAt = time.UnixMilli(tsMs)
+			}
+		case "updated_at":
+			tsMs := asInt64(val)
+			if tsMs > 0 {
+				entry.UpdatedAt = time.UnixMilli(tsMs)
+			}
 		case "filesize":
 			entry.Size = uint64(asInt64(val))
 		case "preview_filesize":

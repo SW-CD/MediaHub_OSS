@@ -146,6 +146,8 @@ definitions:
     type: object
   entryhandler.EntryResponse:
     properties:
+      created_at:
+        type: integer
       custom_fields:
         additionalProperties: {}
         type: object
@@ -167,6 +169,8 @@ definitions:
       status:
         type: string
       timestamp:
+        type: integer
+      updated_at:
         type: integer
     type: object
   entryhandler.ExportRequest:
@@ -195,6 +199,8 @@ definitions:
     type: object
   entryhandler.PartialEntryResponse:
     properties:
+      created_at:
+        type: integer
       custom_fields:
         additionalProperties: {}
         type: object
@@ -207,6 +213,8 @@ definitions:
       status:
         type: string
       timestamp:
+        type: integer
+      updated_at:
         type: integer
     type: object
   entryhandler.PostPatchEntryRequest:
@@ -718,6 +726,16 @@ paths:
       - description: Sort order ('asc' or 'desc', default 'desc')
         in: query
         name: order
+        type: string
+      - description: The field to sort the results by ('timestamp', 'created_at',
+          'updated_at', 'id', default 'timestamp')
+        in: query
+        name: sort_by
+        type: string
+      - description: The field that tstart and tend should filter against ('timestamp',
+          'created_at', 'updated_at', default 'timestamp')
+        in: query
+        name: time_field
         type: string
       - description: Start timestamp (Unix milliseconds)
         format: int64

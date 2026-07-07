@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared"
@@ -43,7 +42,12 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 
 		// --- PHASE 1: Scanning ---
 		for offset := 0; uint64(offset) < totalEntries; offset += limit {
-			entries, err := s.repo.GetEntries(ctx, db.ID, limit, offset, "id asc", time.Time{}, time.Time{})
+			entries, err := s.repo.GetEntries(ctx, db.ID, repository.QueryOptions{
+				Limit:  limit,
+				Offset: offset,
+				Order:  "asc",
+				SortBy: "id",
+			})
 			if err != nil {
 				return fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
 			}

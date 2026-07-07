@@ -41,7 +41,7 @@ type Repository interface {
 	// Deleting or creating entries will also update the database statistics
 	CreateEntry(ctx context.Context, db Database, entry Entry) (Entry, error)
 	GetEntry(ctx context.Context, dbID string, id int64) (Entry, error)
-	GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]Entry, error)
+	GetEntries(ctx context.Context, dbID string, opts QueryOptions) ([]Entry, error)
 	UpdateEntry(ctx context.Context, dbID string, entry Entry) (Entry, error)
 	UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status EntryStatus) error
 	ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error)
@@ -72,7 +72,7 @@ type Repository interface {
 
 	// Logging
 	LogAudit(ctx context.Context, log AuditLog) error
-	GetLogs(ctx context.Context, limit, offset int, order string, tstart, tend time.Time) ([]AuditLog, error)
+	GetLogs(ctx context.Context, opts QueryOptions) ([]AuditLog, error)
 	DeleteLogs(ctx context.Context, maxAge time.Duration) error // delete all logs where the timestamp (checked again server time) is too old // TODO adapt implementations
 
 	// Distributed Locking

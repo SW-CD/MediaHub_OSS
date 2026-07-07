@@ -37,31 +37,35 @@ func (r *SQLiteRepository) LogAudit(ctx context.Context, log repository.AuditLog
 }
 
 // GetLogs retrieves a paginated list of audit logs, optionally filtered by a time range.
-func (r *SQLiteRepository) GetLogs(ctx context.Context, limit, offset int, order string, tstart, tend time.Time) ([]repository.AuditLog, error) {
+func (r *SQLiteRepository) GetLogs(ctx context.Context, opts repository.QueryOptions) ([]repository.AuditLog, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
+
 	builder := r.Builder.Select("id", "timestamp", "action", "actor", "resource", "details").
 		From("audit_logs")
 
 	// Apply time filters (converting unix milliseconds to time.Time for the SQLite timestamp column)
-	if !tstart.IsZero() && tstart.After(time.Unix(0, 0)) {
-		builder = builder.Where(squirrel.GtOrEq{"timestamp": tstart.UnixMilli()})
+	if !opts.TStart.IsZero() && opts.TStart.After(time.Unix(0, 0)) {
+		builder = builder.Where(squirrel.GtOrEq{"timestamp": opts.TStart.UnixMilli()})
 	}
-	if !tend.IsZero() && tend.After(time.Unix(0, 0)) {
-		builder = builder.Where(squirrel.LtOrEq{"timestamp": tend.UnixMilli()})
+	if !opts.TEnd.IsZero() && opts.TEnd.After(time.Unix(0, 0)) {
+		builder = builder.Where(squirrel.LtOrEq{"timestamp": opts.TEnd.UnixMilli()})
 	}
 
 	// Apply sorting
-	if strings.ToLower(order) == "asc" {
+	if strings.ToLower(opts.Order) == "asc" {
 		builder = builder.OrderBy("timestamp ASC")
 	} else {
 		builder = builder.OrderBy("timestamp DESC") // Default to newest first
 	}
 
 	// Apply pagination
-	if limit > 0 {
-		builder = builder.Limit(uint64(limit))
+	if opts.Limit > 0 {
+		builder = builder.Limit(uint64(opts.Limit))
 	}
-	if offset > 0 {
-		builder = builder.Offset(uint64(offset))
+	if opts.Offset > 0 {
+		builder = builder.Offset(uint64(opts.Offset))
 	}
 
 	query, args, err := builder.ToSql()

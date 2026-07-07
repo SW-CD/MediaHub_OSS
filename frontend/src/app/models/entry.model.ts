@@ -10,6 +10,8 @@ export interface MediaFields {
 export interface Entry {
   id: number;
   timestamp: number;
+  created_at: number;
+  updated_at: number;
   status: EntryStatus | string; 
   database_id?: string; 
   
@@ -27,6 +29,8 @@ export interface Entry {
 export interface PartialEntryResponse {
   id: number;
   timestamp: number;
+  created_at: number;
+  updated_at: number;
   database_id: string;
   status: EntryStatus | string;
   custom_fields?: Record<string, any>; 

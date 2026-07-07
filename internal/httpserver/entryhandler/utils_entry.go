@@ -12,6 +12,8 @@ func mapToPartialEntryResponse(db_id string, entry repo.Entry) PartialEntryRespo
 		EntryID:      entry.ID,
 		Status:       statusStr,
 		Timestamp:    entry.Timestamp.UnixMilli(),
+		CreatedAt:    entry.CreatedAt.UnixMilli(),
+		UpdatedAt:    entry.UpdatedAt.UnixMilli(),
 		MimeType:     entry.MimeType,
 		CustomFields: entry.CustomFields,
 	}
@@ -29,6 +31,8 @@ func mapToEntryResponse(db_id string, entry repo.Entry) EntryResponse {
 		PreviewSize:  entry.PreviewSize,
 		Status:       statusStr,
 		Timestamp:    entry.Timestamp.UnixMilli(),
+		CreatedAt:    entry.CreatedAt.UnixMilli(),
+		UpdatedAt:    entry.UpdatedAt.UnixMilli(),
 		MimeType:     entry.MimeType,
 		MediaFields:  entry.MediaFields,
 		CustomFields: entry.CustomFields,

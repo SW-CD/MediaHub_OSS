@@ -72,8 +72,16 @@
               </td>
             </tr>
             <tr>
-              <th>Created</th>
+              <th>Timestamp</th>
               <td>{{ entryForMetadata.timestamp | date:'yyyy.MM.dd HH:mm:ss' }}</td>
+            </tr>
+            <tr>
+              <th>Uploaded At</th>
+              <td>{{ entryForMetadata.created_at | date:'yyyy.MM.dd HH:mm:ss' }}</td>
+            </tr>
+            <tr>
+              <th>Updated At</th>
+              <td>{{ entryForMetadata.updated_at | date:'yyyy.MM.dd HH:mm:ss' }}</td>
             </tr>
           </tbody>
         </table>

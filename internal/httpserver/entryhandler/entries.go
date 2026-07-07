@@ -689,6 +689,8 @@ func (h *EntryHandler) DeleteEntries(w http.ResponseWriter, r *http.Request) {
 // @Param   limit   query  int     false  "Number of entries to return (default 30)"
 // @Param   offset  query  int     false  "Offset for pagination (default 0)"
 // @Param   order   query  string  false  "Sort order ('asc' or 'desc', default 'desc')"
+// @Param   sort_by query  string  false  "The field to sort the results by ('timestamp', 'created_at', 'updated_at', 'id', default 'timestamp')"
+// @Param   time_field query string false  "The field that tstart and tend should filter against ('timestamp', 'created_at', 'updated_at', default 'timestamp')"
 // @Param   tstart  query  int64   false  "Start timestamp (Unix milliseconds)"
 // @Param   tend    query  int64   false  "End timestamp (Unix milliseconds)"
 // @Success 200 {array} EntryResponse "Returns an array of entry metadata objects"
@@ -713,9 +715,8 @@ func (h *EntryHandler) QueryEntries(w http.ResponseWriter, r *http.Request) {
 	offset := parseQueryInt(r, "offset", 0)
 
 	order := r.URL.Query().Get("order")
-	if order != "asc" {
-		order = "desc" // Default to desc
-	}
+	sortBy := r.URL.Query().Get("sort_by")
+	timeField := r.URL.Query().Get("time_field")
 
 	var tStart, tEnd time.Time
 	tStartQuery := parseQueryInt64(r, "tstart", math.MinInt64)
@@ -727,7 +728,22 @@ func (h *EntryHandler) QueryEntries(w http.ResponseWriter, r *http.Request) {
 		tEnd = time.UnixMilli(tEndQuery)
 	}
 
-	entries, err := h.Repo.GetEntries(r.Context(), dbID, limit, offset, order, tStart, tEnd)
+	opts := repo.QueryOptions{
+		Limit:     limit,
+		Offset:    offset,
+		Order:     order,
+		SortBy:    sortBy,
+		TimeField: timeField,
+		TStart:    tStart,
+		TEnd:      tEnd,
+	}
+
+	if err := opts.Validate(); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	entries, err := h.Repo.GetEntries(r.Context(), dbID, opts)
 	if err != nil {
 		h.Logger.Error("Failed to query entries", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve entries")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared/customerrors"
@@ -111,7 +110,12 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 
 	// DB -> Storage (Find missing files)
 	for offset := 0; true; offset += limit {
-		entries, err := s.repo.GetEntries(ctx, db.ID, limit, offset, "id asc", time.Time{}, time.Time{})
+		entries, err := s.repo.GetEntries(ctx, db.ID, repository.QueryOptions{
+			Limit:  limit,
+			Offset: offset,
+			Order:  "asc",
+			SortBy: "id",
+		})
 		if err != nil {
 			return missingFileIDs, totalEntries, fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
 		}

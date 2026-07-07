@@ -524,6 +524,18 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "The field to sort the results by ('timestamp', 'created_at', 'updated_at', 'id', default 'timestamp')",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "The field that tstart and tend should filter against ('timestamp', 'created_at', 'updated_at', default 'timestamp')",
+                        "name": "time_field",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "format": "int64",
                         "description": "Start timestamp (Unix milliseconds)",
@@ -2089,6 +2101,9 @@ const docTemplate = `{
         "entryhandler.EntryResponse": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
                 "custom_fields": {
                     "type": "object",
                     "additionalProperties": {}
@@ -2119,6 +2134,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timestamp": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "integer"
                 }
             }
@@ -2163,6 +2181,9 @@ const docTemplate = `{
         "entryhandler.PartialEntryResponse": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
                 "custom_fields": {
                     "type": "object",
                     "additionalProperties": {}
@@ -2180,6 +2201,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timestamp": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "integer"
                 }
             }

@@ -78,7 +78,7 @@ func (r PostgresRepository) GetEntry(ctx context.Context, dbID string, id int64)
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
+func (r PostgresRepository) GetEntries(ctx context.Context, dbID string, opts repo.QueryOptions) ([]repo.Entry, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
@@ -190,7 +190,7 @@ func (r PostgresRepository) LogAudit(ctx context.Context, log repository.AuditLo
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetLogs(ctx context.Context, limit, offset int, order string, tstart, tend time.Time) ([]repository.AuditLog, error) {
+func (r PostgresRepository) GetLogs(ctx context.Context, opts repository.QueryOptions) ([]repository.AuditLog, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 

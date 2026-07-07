@@ -76,6 +76,8 @@ type EntryResponse struct {
 	PreviewSize  uint64         `json:"preview_filesize"`
 	Status       string         `json:"status"`
 	Timestamp    int64          `json:"timestamp"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
 	MimeType     string         `json:"mime_type"`
 	MediaFields  map[string]any `json:"media_fields"`
 	CustomFields map[string]any `json:"custom_fields"`
@@ -87,6 +89,8 @@ type PartialEntryResponse struct {
 	EntryID      int64          `json:"id"`
 	Status       string         `json:"status"`
 	Timestamp    int64          `json:"timestamp"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
 	MimeType     string         `json:"mime_type"`
 	CustomFields map[string]any `json:"custom_fields"`
 }

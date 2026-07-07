@@ -119,6 +119,9 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 		return repo.Entry{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	entry.CreatedAt = now
+	entry.UpdatedAt = now
+
 	return entry, nil
 }
 
@@ -150,29 +153,29 @@ func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) 
 }
 
 // GetEntries retrieves a paginated list of entries, optionally filtered by a time range.
-func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, limit, offset int, order string, tstart, tend time.Time) ([]repo.Entry, error) {
+func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, opts repo.QueryOptions) ([]repo.Entry, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	builder := r.Builder.Select("*").From(tableName)
 
 	// Apply time filters only if they differ from the absolute minimum/maximum
-	if !tstart.IsZero() && tstart.After(time.Unix(0, 0)) {
-		builder = builder.Where(squirrel.GtOrEq{"timestamp": tstart.UnixMilli()})
+	if !opts.TStart.IsZero() && opts.TStart.After(time.Unix(0, 0)) {
+		builder = builder.Where(squirrel.GtOrEq{opts.TimeField: opts.TStart.UnixMilli()})
 	}
-	if !tend.IsZero() && tend.After(time.Unix(0, 0)) {
-		builder = builder.Where(squirrel.LtOrEq{"timestamp": tend.UnixMilli()})
-	}
-
-	if strings.ToLower(order) == "asc" {
-		builder = builder.OrderBy("timestamp ASC")
-	} else {
-		builder = builder.OrderBy("timestamp DESC") // Default to newest first
+	if !opts.TEnd.IsZero() && opts.TEnd.After(time.Unix(0, 0)) {
+		builder = builder.Where(squirrel.LtOrEq{opts.TimeField: opts.TEnd.UnixMilli()})
 	}
 
-	if limit > 0 {
-		builder = builder.Limit(uint64(limit))
+	builder = builder.OrderBy(fmt.Sprintf("%s %s", opts.SortBy, strings.ToUpper(opts.Order)))
+
+	if opts.Limit > 0 {
+		builder = builder.Limit(uint64(opts.Limit))
 	}
-	if offset > 0 {
-		builder = builder.Offset(uint64(offset))
+	if opts.Offset > 0 {
+		builder = builder.Offset(uint64(opts.Offset))
 	}
 
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
@@ -298,6 +301,8 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 	if err := tx.Commit(); err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	entry.UpdatedAt = time.UnixMilli(now)
 
 	return entry, nil
 }
