@@ -303,7 +303,7 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 }
 
 // UpdateEntriesStatus efficiently modifies the async processing status of multiple entries at once.
-func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error {
+func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status repo.EntryStatus) error {
 	if len(entryIDs) == 0 {
 		return nil
 	}
@@ -562,7 +562,7 @@ func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID string, en
 }
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
-func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]repo.Entry, error) {
+func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, status repo.EntryStatus) ([]repo.Entry, error) {
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
 	if err != nil {
 		return nil, err
@@ -589,7 +589,7 @@ func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, 
 }
 
 // CountEntriesByStatus counts the number of entries with the specified status.
-func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error) {
+func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID string, status repo.EntryStatus) (int64, error) {
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 	query, args, err := r.Builder.Select("COUNT(*)").From(tableName).Where(squirrel.Eq{"status": status}).ToSql()
 	if err != nil {

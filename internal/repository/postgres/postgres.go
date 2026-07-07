@@ -95,7 +95,7 @@ func (r PostgresRepository) UpdateEntry(ctx context.Context, dbID string, entry 
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status uint8) error {
+func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status repo.EntryStatus) error {
 	// CONSIDERATION: Use Postgres's `UPDATE ... WHERE id = ANY($1)` array binding for efficient bulk updates.
 	return customerrors.ErrNotImplemented
 }
@@ -235,11 +235,11 @@ func (r PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID string, e
 	return false, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID string, status uint8) ([]repository.Entry, error) {
+func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID string, status repository.EntryStatus) ([]repository.Entry, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID string, status uint8) (int64, error) {
+func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID string, status repository.EntryStatus) (int64, error) {
 	return 0, customerrors.ErrNotImplemented
 }
 

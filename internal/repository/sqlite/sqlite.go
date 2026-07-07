@@ -26,7 +26,7 @@ type SQLiteRepository struct {
 	Cache   *cache.Cache
 	Builder squirrel.StatementBuilderType // SQL Query Builder
 
-	AllowedStatuses []uint8
+	AllowedStatuses []repository.EntryStatus
 	MediaFields     map[string][]MediaField // Added MediaFields
 }
 

@@ -259,7 +259,7 @@ func (h *EntryHandler) parseStandardFields(row []string) (repo.Entry, error) {
 	if err != nil {
 		return entry, fmt.Errorf("invalid status: %s", row[6])
 	}
-	entry.Status = uint8(statusVal)
+	entry.Status = repo.EntryStatus(statusVal)
 
 	return entry, nil
 }

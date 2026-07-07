@@ -188,7 +188,7 @@ func up02001(ctx context.Context, tx *sql.Tx) error {
 	}
 
 	// 5. Migrate dynamic entries tables check constraints to include status 4 (queued)
-	return migrateCheckConstraints(ctx, tx, []uint8{0, 1, 2, 3, 4}, false)
+	return migrateCheckConstraints(ctx, tx, []repository.EntryStatus{0, 1, 2, 3, 4}, false)
 }
 
 func down02001(ctx context.Context, tx *sql.Tx) error {
@@ -219,7 +219,7 @@ func down02001(ctx context.Context, tx *sql.Tx) error {
 	}
 
 	// 1. Revert dynamic entries tables check constraints back to status 0, 1, 2, 3
-	if err := migrateCheckConstraints(ctx, tx, []uint8{0, 1, 2, 3}, true); err != nil {
+	if err := migrateCheckConstraints(ctx, tx, []repository.EntryStatus{0, 1, 2, 3}, true); err != nil {
 		return err
 	}
 
@@ -363,7 +363,7 @@ func down02001(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []uint8, isDowngrade bool) error {
+func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []repository.EntryStatus, isDowngrade bool) error {
 	// 1. Query databases
 	rows, err := tx.QueryContext(ctx, "SELECT id, content_type FROM databases")
 	if err != nil {

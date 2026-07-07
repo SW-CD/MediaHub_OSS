@@ -14,7 +14,7 @@ func (p *Processor) createPreliminaryEntry(
 	db repo.Database,
 	entryMetadata EntryRequest,
 	plan ProcessingPlan,
-	status uint8,
+	status repo.EntryStatus,
 	useResultMimeType bool,
 ) (repo.Entry, error) {
 	var err error

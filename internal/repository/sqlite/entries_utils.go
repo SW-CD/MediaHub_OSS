@@ -95,7 +95,7 @@ func (s entryScanner) scan(rows *sql.Rows) (repo.Entry, error) {
 		case "filename":
 			entry.FileName = asString(val)
 		case "status":
-			entry.Status = uint8(asInt64(val))
+			entry.Status = repo.EntryStatus(asInt64(val))
 		case "mime_type":
 			entry.MimeType = asString(val)
 		default:

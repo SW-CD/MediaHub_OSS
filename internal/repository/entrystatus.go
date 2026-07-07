@@ -1,17 +1,20 @@
 package repository
 
+// EntryStatus represents the status of a database media entry.
+type EntryStatus uint8
+
 // Status constants used for the Entry
 const (
-	EntryStatusReady      uint8 = 0x00
-	EntryStatusProcessing uint8 = 0x01
-	EntryStatusError      uint8 = 0x02
-	EntryStatusDeleting   uint8 = 0x03
-	EntryStatusQueued     uint8 = 0x04
+	EntryStatusReady      EntryStatus = 0x00
+	EntryStatusProcessing EntryStatus = 0x01
+	EntryStatusError      EntryStatus = 0x02
+	EntryStatusDeleting   EntryStatus = 0x03
+	EntryStatusQueued     EntryStatus = 0x04
 )
 
 // GetAllEntryStatuses provides a centralized list of all valid statuses.
-func GetAllEntryStatuses() []uint8 {
-	return []uint8{
+func GetAllEntryStatuses() []EntryStatus {
+	return []EntryStatus{
 		EntryStatusReady,
 		EntryStatusProcessing,
 		EntryStatusError,
@@ -20,7 +23,7 @@ func GetAllEntryStatuses() []uint8 {
 	}
 }
 
-func GetEntryStatusString(status uint8) string {
+func GetEntryStatusString(status EntryStatus) string {
 	switch status {
 	case EntryStatusReady:
 		return "ready"
