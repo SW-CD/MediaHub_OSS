@@ -116,7 +116,7 @@ func mapToDatabaseResponse(db repository.Database) DatabaseResponse {
 
 	// create return object
 	return DatabaseResponse{
-		ID:          db.ID,
+		ID:          db.ID.String(),
 		Name:        db.Name,
 		ContentType: db.ContentType,
 		NMaxQueued:  db.NMaxQueued,

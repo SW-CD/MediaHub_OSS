@@ -13,7 +13,7 @@ func GenerateULID() string {
 
 // IsValidULID checks if the string is a valid ULID.
 func IsValidULID(s string) bool {
-	_, err := ulid.Parse(s)
+	_, err := ulid.ParseStrict(s)
 	return err == nil
 }
 

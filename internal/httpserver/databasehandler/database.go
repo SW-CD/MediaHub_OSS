@@ -38,7 +38,7 @@ func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := h.Repo.GetDatabase(ctx, id)
+	db, err := h.Repo.GetDatabase(ctx, repository.ULID(id))
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return
@@ -89,14 +89,14 @@ func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 		for _, perm := range permissions {
 			// Check if the user has a non-empty Roles string
 			if len(perm.Roles) > 0 {
-				allowedDBs[perm.DatabaseID] = true
+				allowedDBs[perm.DatabaseID.String()] = true
 			}
 		}
 
 		// Filter the original database list into a new slice
 		var filteredDBs []repository.Database
 		for _, db := range dbs {
-			if allowedDBs[db.ID] {
+			if allowedDBs[db.ID.String()] {
 				filteredDBs = append(filteredDBs, db)
 			}
 		}
@@ -174,7 +174,7 @@ func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Audit Log
-	h.Auditor.Log(ctx, "database.create", user.Username, createdDB.ID, map[string]any{
+	h.Auditor.Log(ctx, "database.create", user.Username, createdDB.ID.String(), map[string]any{
 		"name":         createdDB.Name,
 		"content_type": createdDB.ContentType,
 	})
@@ -207,7 +207,7 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	db, err := h.Repo.GetDatabase(ctx, id)
+	db, err := h.Repo.GetDatabase(ctx, repository.ULID(id))
 	if errors.Is(err, customerrors.ErrNotFound) {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return
@@ -248,7 +248,7 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Audit Log
-	h.Auditor.Log(ctx, "database.update", user.Username, updatedDB.ID, nil)
+	h.Auditor.Log(ctx, "database.update", user.Username, updatedDB.ID.String(), nil)
 
 	resp := mapToDatabaseResponse(updatedDB)
 	utils.RespondWithJSON(w, http.StatusOK, resp)
@@ -280,7 +280,7 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.Repo.DeleteDatabase(ctx, id); err != nil {
+	if err := h.Repo.DeleteDatabase(ctx, repository.ULID(id)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		} else if strings.Contains(err.Error(), "invalid database name") {
@@ -333,7 +333,7 @@ func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Req
 	}
 
 	// 3. Verify the database exists
-	db, err := h.Repo.GetDatabase(ctx, id)
+	db, err := h.Repo.GetDatabase(ctx, repository.ULID(id))
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found")
 		return

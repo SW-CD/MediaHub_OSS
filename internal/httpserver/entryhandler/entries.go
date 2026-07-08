@@ -57,7 +57,7 @@ func (h *EntryHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
 		return
 	}
-	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
@@ -181,7 +181,7 @@ func (h *EntryHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Delete using the Safe 2-Phase Approach
-	_, err = shared.DeleteSafe(r.Context(), h.Repo, h.Storage, dbID, id)
+	_, err = shared.DeleteSafe(r.Context(), h.Repo, h.Storage, repo.ULID(dbID), id)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or entry not found.")
@@ -243,7 +243,7 @@ func (h *EntryHandler) GetEntryFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Get Metadata (Crucial for File Size)
-	filemeta, err := h.Repo.GetEntry(r.Context(), dbID, id)
+	filemeta, err := h.Repo.GetEntry(r.Context(), repo.ULID(dbID), id)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or entry not found.")
@@ -387,7 +387,7 @@ func (h *EntryHandler) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Get Metadata from Database
-	filemeta, err := h.Repo.GetEntry(r.Context(), dbID, id)
+	filemeta, err := h.Repo.GetEntry(r.Context(), repo.ULID(dbID), id)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or entry not found.")
@@ -537,7 +537,7 @@ func (h *EntryHandler) PatchEntry(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// 3. Fetch the Existing Entry and Database
-	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
 		if errors.Is(err, customerrors.ErrRepoUnavailable) {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Connection to repository failed.")
@@ -553,7 +553,7 @@ func (h *EntryHandler) PatchEntry(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	existingEntry, err := h.Repo.GetEntry(r.Context(), dbID, id)
+	existingEntry, err := h.Repo.GetEntry(r.Context(), repo.ULID(dbID), id)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or entry not found.")
@@ -593,7 +593,7 @@ func (h *EntryHandler) PatchEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Save the Updated Entry back to the Database
-	updatedEntry, err := h.Repo.UpdateEntry(r.Context(), dbID, existingEntry)
+	updatedEntry, err := h.Repo.UpdateEntry(r.Context(), repo.ULID(dbID), existingEntry)
 	if err != nil {
 		h.Logger.Error("Failed to update entry metadata", "entry", id, "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to apply updates to database.")
@@ -640,7 +640,7 @@ func (h *EntryHandler) DeleteEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Delete the files and entries
-	deletedMeta, err := shared.DeleteMultipleSafe(ctx, h.Repo, h.Storage, dbID, req.IDs)
+	deletedMeta, err := shared.DeleteMultipleSafe(ctx, h.Repo, h.Storage, repo.ULID(dbID), req.IDs)
 
 	// 3. Calculate disk space freed
 	var spaceFreed uint64 = 0
@@ -743,7 +743,7 @@ func (h *EntryHandler) QueryEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, err := h.Repo.GetEntries(r.Context(), dbID, opts)
+	entries, err := h.Repo.GetEntries(r.Context(), repo.ULID(dbID), opts)
 	if err != nil {
 		h.Logger.Error("Failed to query entries", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve entries")
@@ -792,14 +792,14 @@ func (h *EntryHandler) SearchEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch database to get custom fields for query validation
-	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
-		utils.RespondWithError(w, http.StatusNotFound, "Database not found")
+		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return
 	}
 
 	searchReq := searchPayload.toModel()
-	entries, err := h.Repo.SearchEntries(r.Context(), dbID, searchReq, db.CustomFields)
+	entries, err := h.Repo.SearchEntries(r.Context(), repo.ULID(dbID), searchReq, db.CustomFields)
 	if err != nil {
 		h.Logger.Error("Search failed", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
@@ -848,7 +848,7 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify database existence and fetch custom fields
-	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found")
 		return
@@ -890,7 +890,7 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 		// Pass 1: Fetch metadata and write all CSV rows
 		for _, id := range req.IDs {
 			// Fetch metadata
-			entry, err := h.Repo.GetEntry(r.Context(), dbID, id)
+			entry, err := h.Repo.GetEntry(r.Context(), repo.ULID(dbID), id)
 			if err != nil {
 				h.Logger.Warn("Skipping entry in export (not found)", "id", id)
 				continue
@@ -1013,7 +1013,7 @@ func (h *EntryHandler) ImportEntries(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: database_id")
 		return
 	}
-	db, err := h.Repo.GetDatabase(r.Context(), dbID)
+	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
 		utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		return

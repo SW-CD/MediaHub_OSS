@@ -9,32 +9,32 @@ import (
 
 // DeleteSafe safely deletes a single entry from the DB and storage using a 2-Phase approach.
 // Returns the entry data of the deleted file and any error if encountered.
-func DeleteSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbName string, id int64) (repository.DeletedEntryMeta, error) {
+func DeleteSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbID repository.ULID, id int64) (repository.DeletedEntryMeta, error) {
 
 	// PHASE 1: LOCK
 	// Mark as "Deleting" so it disappears from normal API usage
-	if err := repo.UpdateEntriesStatus(ctx, dbName, []int64{id}, repository.EntryStatusDeleting); err != nil {
+	if err := repo.UpdateEntriesStatus(ctx, dbID, []int64{id}, repository.EntryStatusDeleting); err != nil {
 		return repository.DeletedEntryMeta{}, err // Abort early; database untouched, files untouched!
 	}
 
 	// PHASE 2: STORAGE DELETION
 	// Attempt to delete the main file from storage
-	err := storage.Delete(ctx, dbName, id)
+	err := storage.Delete(ctx, dbID.String(), id)
 
 	if err != nil {
 		// PHASE 3: ROLLBACK
 		// Storage deletion failed, revert stuck file to Error status so admins can investigate
-		_ = repo.UpdateEntriesStatus(ctx, dbName, []int64{id}, repository.EntryStatusError)
+		_ = repo.UpdateEntriesStatus(ctx, dbID, []int64{id}, repository.EntryStatusError)
 
 		return repository.DeletedEntryMeta{}, err
 	}
 
 	// We only try to delete the preview if the main file deletion succeeded
-	_ = storage.DeletePreview(ctx, dbName, id)
+	_ = storage.DeletePreview(ctx, dbID.String(), id)
 
 	// PHASE 3: COMMIT
 	// Hard delete the record that was successfully wiped from disk
-	deletedMeta, deleteErr := repo.DeleteEntry(ctx, dbName, id)
+	deletedMeta, deleteErr := repo.DeleteEntry(ctx, dbID, id)
 	if deleteErr != nil {
 		return repository.DeletedEntryMeta{}, deleteErr
 	}
@@ -47,7 +47,7 @@ func DeleteSafe(ctx context.Context, repo repository.Repository, storage storage
 // Returns
 // - entry data of deleted files
 // - error if any
-func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbID string, ids []int64) ([]repository.DeletedEntryMeta, error) {
+func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbID repository.ULID, ids []int64) ([]repository.DeletedEntryMeta, error) {
 
 	// PHASE 1: LOCK
 	// Mark as "Deleting" so they disappear from normal API usage
@@ -56,11 +56,11 @@ func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage
 	}
 
 	// PHASE 2: STORAGE DELETION
-	delResult, err := storage.DeleteMultiple(ctx, dbID, ids)
+	delResult, err := storage.DeleteMultiple(ctx, dbID.String(), ids)
 
 	// We only try to delete previews for the files where the main file deletion succeeded
 	if len(delResult.Success) > 0 {
-		_, _ = storage.DeleteMultiplePreviews(ctx, dbID, delResult.Success)
+		_, _ = storage.DeleteMultiplePreviews(ctx, dbID.String(), delResult.Success)
 	}
 
 	// PHASE 3: COMMIT OR ROLLBACK

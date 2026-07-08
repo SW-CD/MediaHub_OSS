@@ -25,7 +25,7 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 	// Generate ULID if not provided by the handler
 	if db.ID == "" {
-		db.ID = shared.GenerateULID()
+		db.ID = repo.ULID(shared.GenerateULID())
 	}
 
 	var hkLastRunMs int64 = 0
@@ -39,11 +39,11 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	}
 
 	// 1. Generate the dynamic schema and index queries using the ID instead of Name
-	createTableSQL, err := r.BuildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
+	createTableSQL, err := r.BuildDynamicTableSchema(db.ID.String(), db.ContentType, db.CustomFields)
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
-	indexSQLs := BuildIndexesSQL(db.ID, db.CustomFields)
+	indexSQLs := BuildIndexesSQL(db.ID.String(), db.CustomFields)
 
 	// 2. Execute within a transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -115,10 +115,10 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 }
 
 // GetDatabase retrieves a single database configuration by its ULID.
-func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
+func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID repo.ULID) (repo.Database, error) {
 	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
-		Where(squirrel.Eq{"id": dbID}).
+		Where(squirrel.Eq{"id": dbID.String()}).
 		ToSql()
 	if err != nil {
 		return repo.Database{}, fmt.Errorf("failed to build select query: %w", err)
@@ -202,7 +202,7 @@ func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, e
 	}
 
 	for i := range databases {
-		if cfs, ok := cfMap[databases[i].ID]; ok {
+		if cfs, ok := cfMap[databases[i].ID.String()]; ok {
 			databases[i].CustomFields = cfs
 		} else {
 			databases[i].CustomFields = []repo.CustomFieldDef{}
@@ -251,7 +251,7 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 }
 
 // DeleteDatabase permanently removes a database, its entries table, and cascades to permissions.
-func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID string) error {
+func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID repo.ULID) error {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -259,13 +259,13 @@ func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID string) erro
 	defer tx.Rollback()
 
 	// Drop the dynamic entry table using the ULID
-	dropTableSQL := fmt.Sprintf(`DROP TABLE IF EXISTS "entries_%s"`, dbID)
+	dropTableSQL := fmt.Sprintf(`DROP TABLE IF EXISTS "entries_%s"`, dbID.String())
 	if _, err := tx.ExecContext(ctx, dropTableSQL); err != nil {
 		return fmt.Errorf("failed to drop dynamic table: %w", err)
 	}
 
 	// Delete from the main metadata table (permissions cascade automatically)
-	query, args, err := r.Builder.Delete("databases").Where(squirrel.Eq{"id": dbID}).ToSql()
+	query, args, err := r.Builder.Delete("databases").Where(squirrel.Eq{"id": dbID.String()}).ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build delete query: %w", err)
 	}
@@ -288,10 +288,10 @@ func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID string) erro
 }
 
 // GetDatabaseStats retrieves live statistics for a specific database by its ID.
-func (r *SQLiteRepository) GetDatabaseStats(ctx context.Context, dbID string) (repo.DatabaseStats, error) {
+func (r *SQLiteRepository) GetDatabaseStats(ctx context.Context, dbID repo.ULID) (repo.DatabaseStats, error) {
 	query, args, err := r.Builder.Select("entry_count", "total_disk_space_bytes").
 		From("databases").
-		Where(squirrel.Eq{"id": dbID}).
+		Where(squirrel.Eq{"id": dbID.String()}).
 		ToSql()
 	if err != nil {
 		return repo.DatabaseStats{}, fmt.Errorf("failed to build select query: %w", err)

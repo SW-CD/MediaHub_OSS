@@ -61,7 +61,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	// 5. Parse the comma-separated roles string into boolean flags
 	for _, rp := range rawPerms {
 		response.Permissions = append(response.Permissions, DatabasePermission{
-			DatabaseID: rp.DatabaseID, // Updated to DatabaseID
+			DatabaseID: rp.DatabaseID.String(), // Updated to DatabaseID
 			CanView:    strings.Contains(rp.Roles, "CanView"),
 			CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
 			CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
@@ -205,7 +205,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 			// 5. Parse the comma-separated roles into boolean flags
 			for _, rp := range rawPerms {
 				userRes.Permissions = append(userRes.Permissions, DatabasePermission{
-					DatabaseID: rp.DatabaseID, // Updated to DatabaseID
+					DatabaseID: rp.DatabaseID.String(), // Updated to DatabaseID
 					CanView:    strings.Contains(rp.Roles, "CanView"),
 					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
 					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
@@ -335,7 +335,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 			if roleStr != "" {
 				repoPerm := repo.UserPermissions{
 					UserID:     createdUser.ID,
-					DatabaseID: perm.DatabaseID, // Updated to map DatabaseID
+					DatabaseID: repo.ULID(perm.DatabaseID), // Updated to map DatabaseID
 					Roles:      roleStr,
 				}
 
@@ -489,7 +489,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 			repoPerm := repo.UserPermissions{
 				UserID:     userID,
-				DatabaseID: perm.DatabaseID, // Updated to use DatabaseID
+				DatabaseID: repo.ULID(perm.DatabaseID), // Updated to use DatabaseID
 				Roles:      strings.Join(roles, ","),
 			}
 
@@ -506,7 +506,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			for _, rp := range rawPerms {
 				finalPermissions = append(finalPermissions, DatabasePermission{
-					DatabaseID: rp.DatabaseID,
+					DatabaseID: rp.DatabaseID.String(),
 					CanView:    strings.Contains(rp.Roles, "CanView"),
 					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
 					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
@@ -663,7 +663,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			for _, rp := range rawPerms {
 				finalPermissions = append(finalPermissions, DatabasePermission{
-					DatabaseID: rp.DatabaseID,
+					DatabaseID: rp.DatabaseID.String(),
 					CanView:    strings.Contains(rp.Roles, "CanView"),
 					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
 					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),

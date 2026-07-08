@@ -26,7 +26,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 
 	dbNameToID := make(map[string]string)
 	for _, db := range existingDBs {
-		dbNameToID[db.Name] = db.ID
+		dbNameToID[db.Name] = db.ID.String()
 	}
 
 	// 1. Initialize Databases
@@ -70,7 +70,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 			} else {
 				logger.Info("Created database from init config", "database", dbInit.Name)
 				// Add the newly generated ULID to our resolution map so user permissions can use it!
-				dbNameToID[createdDB.Name] = createdDB.ID
+				dbNameToID[createdDB.Name] = createdDB.ID.String()
 			}
 		} else {
 			logger.Debug("Database from init config already exists, skipping", "database", dbInit.Name)
@@ -128,7 +128,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 
 				err := repo.SetUserPermissions(ctx, repository.UserPermissions{
 					UserID:     createdUser.ID,
-					DatabaseID: dbID, // Use the resolved ULID here!
+					DatabaseID: repository.ULID(dbID), // Use the resolved ULID here!
 					Roles:      strings.Join(roles, ","),
 				})
 

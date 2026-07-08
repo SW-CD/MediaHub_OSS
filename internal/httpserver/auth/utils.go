@@ -80,7 +80,7 @@ func (am *AuthMiddleware) hasPerm(user *repository.User, dbID string, perm strin
 		return false
 	}
 
-	perms, err := am.Repo.GetUserPermissions(context.Background(), user.ID, dbID)
+	perms, err := am.Repo.GetUserPermissions(context.Background(), user.ID, repository.ULID(dbID))
 	if err != nil {
 		return false
 	}

@@ -203,11 +203,12 @@ func (r *SQLiteRepository) GetUserByUsername(ctx context.Context, username strin
 }
 
 // SetUserPermissions creates, updates, or deletes database-specific permissions for a user.
+// SetUserPermissions creates, updates, or deletes database-specific permissions for a user.
 func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions repo.UserPermissions) error {
 	// If Roles is empty, the intention is to delete the permission entry.
 	if permissions.Roles == "" {
 		query, args, err := r.Builder.Delete("database_permissions").
-			Where(squirrel.Eq{"user_id": permissions.UserID.String(), "database_id": permissions.DatabaseID}).
+			Where(squirrel.Eq{"user_id": permissions.UserID.String(), "database_id": permissions.DatabaseID.String()}).
 			ToSql()
 		if err != nil {
 			return fmt.Errorf("failed to build delete permissions query: %w", err)
@@ -225,7 +226,7 @@ func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions r
 
 	query, args, err := r.Builder.Insert("database_permissions").
 		Columns("user_id", "database_id", "can_view", "can_create", "can_edit", "can_delete").
-		Values(permissions.UserID.String(), permissions.DatabaseID, canView, canCreate, canEdit, canDelete).
+		Values(permissions.UserID.String(), permissions.DatabaseID.String(), canView, canCreate, canEdit, canDelete).
 		Suffix("ON CONFLICT (user_id, database_id) DO UPDATE SET can_view = excluded.can_view, can_create = excluded.can_create, can_edit = excluded.can_edit, can_delete = excluded.can_delete").
 		ToSql()
 	if err != nil {
@@ -241,10 +242,10 @@ func (r *SQLiteRepository) SetUserPermissions(ctx context.Context, permissions r
 }
 
 // GetUserPermissions retrieves the exact rights a user has for a specific database.
-func (r *SQLiteRepository) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID string) (repo.UserPermissions, error) {
+func (r *SQLiteRepository) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID repo.ULID) (repo.UserPermissions, error) {
 	query, args, err := r.Builder.Select("can_view", "can_create", "can_edit", "can_delete").
 		From("database_permissions").
-		Where(squirrel.Eq{"user_id": userID.String(), "database_id": dbID}).
+		Where(squirrel.Eq{"user_id": userID.String(), "database_id": dbID.String()}).
 		ToSql()
 	if err != nil {
 		return repo.UserPermissions{}, fmt.Errorf("failed to build get permissions query: %w", err)
@@ -284,16 +285,16 @@ func (r *SQLiteRepository) GetAllUserPermissions(ctx context.Context, userID rep
 
 	var permissions []repo.UserPermissions
 	for rows.Next() {
-		var dbID string
+		var dbIDStr string
 		var canView, canCreate, canEdit, canDelete bool
 
-		if err := rows.Scan(&dbID, &canView, &canCreate, &canEdit, &canDelete); err != nil {
+		if err := rows.Scan(&dbIDStr, &canView, &canCreate, &canEdit, &canDelete); err != nil {
 			return nil, fmt.Errorf("failed to scan permissions row: %w", err)
 		}
 
 		permissions = append(permissions, repo.UserPermissions{
 			UserID:     userID,
-			DatabaseID: dbID,
+			DatabaseID: repo.ULID(dbIDStr),
 			Roles:      buildRolesString(canView, canCreate, canEdit, canDelete),
 		})
 	}

@@ -33,7 +33,7 @@ func (r PostgresRepository) CreateDatabase(ctx context.Context, db repo.Database
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetDatabase(ctx context.Context, dbID string) (repo.Database, error) {
+func (r PostgresRepository) GetDatabase(ctx context.Context, dbID repo.ULID) (repo.Database, error) {
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
@@ -45,13 +45,13 @@ func (r PostgresRepository) UpdateDatabase(ctx context.Context, db repo.Database
 	return repo.Database{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteDatabase(ctx context.Context, dbID string) error {
+func (r PostgresRepository) DeleteDatabase(ctx context.Context, dbID repo.ULID) error {
 	// CONSIDERATION: Needs to DROP the dynamically created "entries_XYZ" table
 	// before or alongside deleting the row from the `databases` table.
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetDatabaseStats(ctx context.Context, dbID string) (repo.DatabaseStats, error) {
+func (r PostgresRepository) GetDatabaseStats(ctx context.Context, dbID repo.ULID) (repo.DatabaseStats, error) {
 	return repo.DatabaseStats{}, customerrors.ErrNotImplemented
 }
 
@@ -59,7 +59,7 @@ func (r PostgresRepository) HouseKeepingRequired(ctx context.Context) ([]repo.Da
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) {
+func (r PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbID repo.ULID) (time.Time, error) {
 	return time.Time{}, customerrors.ErrNotImplemented
 }
 
@@ -74,15 +74,15 @@ func (r PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, e
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntry(ctx context.Context, dbID string, id int64) (repo.Entry, error) {
+func (r PostgresRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.Entry, error) {
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntries(ctx context.Context, dbID string, opts repo.QueryOptions) ([]repo.Entry, error) {
+func (r PostgresRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts repo.QueryOptions) ([]repo.Entry, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateEntry(ctx context.Context, dbID string, entry repo.Entry) (repo.Entry, error) {
+func (r PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entry repo.Entry) (repo.Entry, error) {
 	// TRANSACTION REQUIRED:
 	// 1. Begin SQL Transaction.
 	// 2. Query the current size (filesize + previewsize) of the entry *before* updating.
@@ -95,12 +95,12 @@ func (r PostgresRepository) UpdateEntry(ctx context.Context, dbID string, entry 
 	return repo.Entry{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status repo.EntryStatus) error {
+func (r PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.ULID, entryIDs []int64, status repo.EntryStatus) error {
 	// CONSIDERATION: Use Postgres's `UPDATE ... WHERE id = ANY($1)` array binding for efficient bulk updates.
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteEntry(ctx context.Context, dbID string, id int64) (repo.DeletedEntryMeta, error) {
+func (r PostgresRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.DeletedEntryMeta, error) {
 	// TRANSACTION REQUIRED:
 	// 1. Begin SQL Transaction.
 	// 2. Delete the row from the dynamic "entries_[dbID]" table and retrieve its size (using RETURNING clause in Postgres).
@@ -110,13 +110,13 @@ func (r PostgresRepository) DeleteEntry(ctx context.Context, dbID string, id int
 	return repo.DeletedEntryMeta{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+func (r PostgresRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
 	// TRANSACTION REQUIRED:
 	// Similar to DeleteEntry, but sum the sizes of all deleted rows and decrement the database stats in one atomic operation to maintain performance.
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
+func (r PostgresRepository) SearchEntries(ctx context.Context, dbID repo.ULID, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
 	// CONSIDERATION: You must whitelist the 'field' and 'operator' strings to prevent SQL injection.
 	// Ensure you use a query builder (like Squirrel) and double-quote the dynamic table name.
 	return nil, customerrors.ErrNotImplemented
@@ -157,7 +157,7 @@ func (r PostgresRepository) SetUserPermissions(ctx context.Context, permissions 
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID string) (repo.UserPermissions, error) {
+func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID repo.ULID) (repo.UserPermissions, error) {
 	return repo.UserPermissions{}, customerrors.ErrNotImplemented
 }
 
@@ -231,30 +231,30 @@ func (r PostgresRepository) MigrateDown(ctx context.Context) error {
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error) {
+func (r PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID, entryID int64) (bool, error) {
 	return false, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID string, status repository.EntryStatus) ([]repository.Entry, error) {
+func (r PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULID, status repository.EntryStatus) ([]repository.Entry, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID string, status repository.EntryStatus) (int64, error) {
+func (r PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID repo.ULID, status repository.EntryStatus) (int64, error) {
 	return 0, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) AddCustomField(ctx context.Context, dbID string, field repository.CustomFieldDef) (repository.CustomFieldDef, error) {
+func (r PostgresRepository) AddCustomField(ctx context.Context, dbID repo.ULID, field repository.CustomFieldDef) (repository.CustomFieldDef, error) {
 	return repository.CustomFieldDef{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateCustomField(ctx context.Context, dbID string, fieldID int, name *string, isIndexed *bool) (repository.CustomFieldDef, error) {
+func (r PostgresRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID, fieldID int, name *string, isIndexed *bool) (repository.CustomFieldDef, error) {
 	return repository.CustomFieldDef{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteCustomField(ctx context.Context, dbID string, fieldID int) error {
+func (r PostgresRepository) DeleteCustomField(ctx context.Context, dbID repo.ULID, fieldID int) error {
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetCustomFields(ctx context.Context, dbID string) ([]repository.CustomFieldDef, error) {
+func (r PostgresRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) ([]repository.CustomFieldDef, error) {
 	return nil, customerrors.ErrNotImplemented
 }

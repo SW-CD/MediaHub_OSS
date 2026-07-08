@@ -28,7 +28,6 @@ func TestMigration03001(t *testing.T) {
 	goose.SetBaseFS(migrations.EmbedFS)
 
 	// 3. Migrate UP to version 3000 (pre-ULID)
-	// Note: We use "sqlite" as the migration directory in EmbedFS
 	if err := goose.UpTo(db, "sqlite", 3000); err != nil {
 		t.Fatalf("failed to migrate to version 3000: %v", err)
 	}
@@ -100,26 +99,28 @@ func TestMigration03001(t *testing.T) {
 		t.Errorf("expected permission flags to be true, got canView: %t, canCreate: %t", canView, canCreate)
 	}
 
-	// - Verify refresh_tokens is migrated and mapped to new ULIDs
-	var tokenUserID, tokenHash string
-	var tokenExpiry int64
-	err = db.QueryRowContext(ctx, "SELECT user_id, token_hash, expiry FROM refresh_tokens;").Scan(&tokenUserID, &tokenHash, &tokenExpiry)
+	// - Verify refresh_tokens is cleared
+	var tokenCount int
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM refresh_tokens;").Scan(&tokenCount)
 	if err != nil {
-		t.Fatalf("failed to query migrated refresh token: %v", err)
+		t.Fatalf("failed to query refresh token count: %v", err)
 	}
-	if tokenUserID != user1ID {
-		t.Errorf("expected token user_id to be %s, got %s", user1ID, tokenUserID)
-	}
-	if tokenHash != "tokenhash1" || tokenExpiry != 123456789 {
-		t.Errorf("expected token data to be preserved, got hash: %s, expiry: %d", tokenHash, tokenExpiry)
+	if tokenCount != 0 {
+		t.Errorf("expected refresh_tokens table to be cleared, got count: %d", tokenCount)
 	}
 
-	// 10. Run migration 3001 (Down)
+	// 10. Insert a token in version 3001 state (to test rollback clears it too)
+	_, err = db.ExecContext(ctx, `INSERT INTO refresh_tokens (user_id, token_hash, expiry) VALUES (?, 'newtokenhash1', 123456789);`, user1ID)
+	if err != nil {
+		t.Fatalf("failed to insert token in v3001 state: %v", err)
+	}
+
+	// 11. Run migration 3001 (Down)
 	if err := goose.DownTo(db, "sqlite", 3000); err != nil {
 		t.Fatalf("failed to migrate down to version 3000: %v", err)
 	}
 
-	// 11. Verify migration 3001 Down results
+	// 12. Verify migration 3001 Down results
 	// - Verify users table has integer IDs and no is_service_account column
 	var user1IDInt, user2IDInt int64
 	err = db.QueryRowContext(ctx, "SELECT id FROM users WHERE username = 'user1';").Scan(&user1IDInt)
@@ -131,7 +132,7 @@ func TestMigration03001(t *testing.T) {
 		t.Fatalf("failed to query rolled back user 2: %v", err)
 	}
 
-	// Verify is_service_account column is removed (querying it should return error)
+	// Verify is_service_account column is removed
 	err = db.QueryRowContext(ctx, "SELECT is_service_account FROM users;").Scan(&isServiceAccount1)
 	if err == nil {
 		t.Errorf("expected error querying is_service_account column after rollback, but column still exists")
@@ -147,13 +148,12 @@ func TestMigration03001(t *testing.T) {
 		t.Errorf("expected rolled back permission user_id to be %d, got %d", user1IDInt, permUserIDInt)
 	}
 
-	// - Verify refresh_tokens is rolled back and mapped to integer IDs
-	var tokenUserIDInt int64
-	err = db.QueryRowContext(ctx, "SELECT user_id FROM refresh_tokens;").Scan(&tokenUserIDInt)
+	// - Verify refresh_tokens is cleared after rollback
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM refresh_tokens;").Scan(&tokenCount)
 	if err != nil {
-		t.Fatalf("failed to query rolled back refresh token: %v", err)
+		t.Fatalf("failed to query rolled back refresh token count: %v", err)
 	}
-	if tokenUserIDInt != user1IDInt {
-		t.Errorf("expected rolled back token user_id to be %d, got %d", user1IDInt, tokenUserIDInt)
+	if tokenCount != 0 {
+		t.Errorf("expected refresh_tokens table to be cleared on rollback, got count: %d", tokenCount)
 	}
 }

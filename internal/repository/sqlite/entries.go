@@ -126,13 +126,13 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 }
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
-func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) (repo.Entry, error) {
+func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.Entry, error) {
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
 	if err != nil {
 		return repo.Entry{}, err
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"id": id}).ToSql()
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to build query: %w", err)
@@ -153,12 +153,12 @@ func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID string, id int64) 
 }
 
 // GetEntries retrieves a paginated list of entries, optionally filtered by a time range.
-func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, opts repo.QueryOptions) ([]repo.Entry, error) {
+func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts repo.QueryOptions) ([]repo.Entry, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	builder := r.Builder.Select("*").From(tableName)
 
 	// Apply time filters only if they differ from the absolute minimum/maximum
@@ -203,8 +203,8 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID string, opts rep
 }
 
 // UpdateEntry modifies an existing entry's metadata and safely adjusts the parent database's size statistics.
-func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry repo.Entry) (repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entry repo.Entry) (repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	var entryTime time.Time
 	if !entry.Timestamp.IsZero() {
@@ -286,7 +286,7 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 	if delta != 0 {
 		statsQuery, statsArgs, err := r.Builder.Update("databases").
 			Set("total_disk_space_bytes", squirrel.Expr("total_disk_space_bytes + ?", delta)).
-			Where(squirrel.Eq{"id": dbID}).
+			Where(squirrel.Eq{"id": dbID.String()}).
 			ToSql()
 		if err != nil {
 			return repo.Entry{}, fmt.Errorf("failed to build stats update query: %w", err)
@@ -308,12 +308,12 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID string, entry r
 }
 
 // UpdateEntriesStatus efficiently modifies the async processing status of multiple entries at once.
-func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status repo.EntryStatus) error {
+func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.ULID, entryIDs []int64, status repo.EntryStatus) error {
 	if len(entryIDs) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	now := time.Now().UnixMilli()
 
 	// squirrel.Eq with a slice automatically translates to an 'IN (?, ?, ...)' SQL clause
@@ -340,8 +340,8 @@ func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID string,
 }
 
 // DeleteEntry removes a single entry and atomically decrements the parent database's statistics.
-func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID string, id int64) (repo.DeletedEntryMeta, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.DeletedEntryMeta, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	// 1. Begin SQL Transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -373,7 +373,7 @@ func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID string, id int6
 	statsQuery, statsArgs, err := r.Builder.Update("databases").
 		Set("entry_count", squirrel.Expr("MAX(0, entry_count - 1)")).
 		Set("total_disk_space_bytes", squirrel.Expr("MAX(0, total_disk_space_bytes - ?)", totalDeletedSize)).
-		Where(squirrel.Eq{"id": dbID}).
+		Where(squirrel.Eq{"id": dbID.String()}).
 		ToSql()
 	if err != nil {
 		return repo.DeletedEntryMeta{}, fmt.Errorf("failed to build stats update query: %w", err)
@@ -392,12 +392,12 @@ func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID string, id int6
 }
 
 // DeleteEntries removes multiple entries in a single transaction and updates the database statistics once.
-func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
 	if len(entryIDs) == 0 {
 		return nil, customerrors.ErrNotFound
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	// 1. Begin SQL Transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -452,7 +452,7 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID string, entry
 	statsQuery, statsArgs, err := r.Builder.Update("databases").
 		Set("entry_count", squirrel.Expr("MAX(0, entry_count - ?)", deletedCount)).
 		Set("total_disk_space_bytes", squirrel.Expr("MAX(0, total_disk_space_bytes - ?)", totalDeletedSize)).
-		Where(squirrel.Eq{"id": dbID}).
+		Where(squirrel.Eq{"id": dbID.String()}).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build stats bulk update query: %w", err)
@@ -471,8 +471,8 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID string, entry
 }
 
 // SearchEntries retrieves entries matching complex nested filter criteria.
-func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID repo.ULID, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	builder := r.Builder.Select("*").From(tableName)
 
 	// 1. Build Filter Conditions securely
@@ -551,8 +551,8 @@ func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID string, req r
 }
 
 // ClaimQueuedEntry atomically claims a queued entry by changing its status to processing.
-func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID, entryID int64) (bool, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query := fmt.Sprintf(`UPDATE %s SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, tableName)
 	now := time.Now().UnixMilli()
 	res, err := r.DB.ExecContext(ctx, query, repo.EntryStatusProcessing, now, entryID, repo.EntryStatusQueued)
@@ -567,13 +567,13 @@ func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID string, en
 }
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
-func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, status repo.EntryStatus) ([]repo.Entry, error) {
+func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) ([]repo.Entry, error) {
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
 	if err != nil {
 		return nil, err
 	}
 
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Select("*").From(tableName).Where(squirrel.Eq{"status": status}).OrderBy("id ASC").ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build get-by-status query: %w", err)
@@ -594,8 +594,8 @@ func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID string, 
 }
 
 // CountEntriesByStatus counts the number of entries with the specified status.
-func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID string, status repo.EntryStatus) (int64, error) {
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) (int64, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Select("COUNT(*)").From(tableName).Where(squirrel.Eq{"status": status}).ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("failed to build count-by-status query: %w", err)

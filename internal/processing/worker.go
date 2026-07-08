@@ -23,7 +23,7 @@ func (p *Processor) StartQueueChecker(ctx context.Context) {
 	for _, db := range databases {
 		queuedEntries, err := p.Repo.GetEntriesByStatus(ctx, db.ID, repo.EntryStatusQueued)
 		if err != nil {
-			p.Logger.Error("QueueChecker: Failed to get queued entries", "database_id", db.ID, "error", err)
+			p.Logger.Error("QueueChecker: Failed to get queued entries", "database_id", db.ID.String(), "error", err)
 			continue
 		}
 
@@ -43,7 +43,7 @@ func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, en
 
 	claimed, err := p.Repo.ClaimQueuedEntry(ctx, db.ID, entry.ID)
 	if err != nil {
-		p.Logger.Error("Failed to claim queued entry", "database_id", db.ID, "entry_id", entry.ID, "error", err)
+		p.Logger.Error("Failed to claim queued entry", "database_id", db.ID.String(), "entry_id", entry.ID, "error", err)
 		p.releaseAsyncSlot()
 		return false
 	}
@@ -53,7 +53,7 @@ func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, en
 		return true // continue scanning
 	}
 
-	p.Logger.Debug("Worker: Spawned background queue worker for claimed entry", "database_id", db.ID, "entry_id", entry.ID)
+	p.Logger.Debug("Worker: Spawned background queue worker for claimed entry", "database_id", db.ID.String(), "entry_id", entry.ID)
 	go func() {
 		defer func() {
 			p.releaseAsyncSlot()
@@ -76,7 +76,7 @@ func (p *Processor) runWorkerForClaimedEntry(ctx context.Context, db repo.Databa
 	tempFilePath := tempFile.Name()
 	defer os.Remove(tempFilePath)
 
-	stream, err := p.Storage.Read(ctx, db.ID, entry.ID, 0, -1)
+	stream, err := p.Storage.Read(ctx, db.ID.String(), entry.ID, 0, -1)
 	if err != nil {
 		p.Logger.Error("Worker: Failed to read queued file from storage", "entry", entry.ID, "error", err)
 		tempFile.Close()
@@ -118,7 +118,7 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 
 		claimed, err := p.Repo.ClaimQueuedEntry(ctx, nextDB.ID, nextEntry.ID)
 		if err != nil {
-			p.Logger.Error("Worker: Failed to claim next queued entry", "database_id", nextDB.ID, "entry_id", nextEntry.ID, "error", err)
+			p.Logger.Error("Worker: Failed to claim next queued entry", "database_id", nextDB.ID.String(), "entry_id", nextEntry.ID, "error", err)
 			break
 		}
 		if !claimed {
@@ -126,7 +126,7 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 		}
 
 		db = nextDB
-		p.Logger.Debug("Worker: Claimed next queued entry from loop", "database_id", db.ID, "entry_id", nextEntry.ID, "filename", nextEntry.FileName)
+		p.Logger.Debug("Worker: Claimed next queued entry from loop", "database_id", db.ID.String(), "entry_id", nextEntry.ID, "filename", nextEntry.FileName)
 		tempFile, err := os.CreateTemp(os.TempDir(), "mh-worker-queued-*")
 		if err != nil {
 			p.Logger.Error("Worker: Failed to create temp file for claimed entry", "entry", nextEntry.ID, "error", err)
@@ -136,7 +136,7 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 		}
 		tempFilePath := tempFile.Name()
 
-		stream, err := p.Storage.Read(ctx, db.ID, nextEntry.ID, 0, -1)
+		stream, err := p.Storage.Read(ctx, db.ID.String(), nextEntry.ID, 0, -1)
 		if err != nil {
 			p.Logger.Error("Worker: Failed to read claimed file from storage", "entry", nextEntry.ID, "error", err)
 			tempFile.Close()
@@ -236,7 +236,7 @@ func (p *Processor) runConversionAndFinalize(
 			errChan <- err
 		}()
 
-		if previewSize, err := p.Storage.WritePreview(ctx, db.ID, entry.ID, pr); err != nil {
+		if previewSize, err := p.Storage.WritePreview(ctx, db.ID.String(), entry.ID, pr); err != nil {
 			p.Logger.Error("Worker: Failed to save preview to storage", "entry", entry.ID, "error", err)
 		} else if genErr := <-errChan; genErr != nil {
 			p.Logger.Error("Worker: Failed to generate preview", "entry", entry.ID, "error", genErr)
@@ -251,7 +251,7 @@ func (p *Processor) runConversionAndFinalize(
 		return
 	}
 
-	fileSize, err = p.Storage.Write(ctx, db.ID, entry.ID, finalFile)
+	fileSize, err = p.Storage.Write(ctx, db.ID.String(), entry.ID, finalFile)
 	finalFile.Close()
 
 	if err != nil {

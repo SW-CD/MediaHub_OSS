@@ -10,9 +10,8 @@ func (u ULID) String() string {
 	return string(u)
 }
 
-
 type Database struct {
-	ID           string // ULID
+	ID           ULID
 	Name         string
 	ContentType  string
 	NMaxQueued   int
@@ -73,7 +72,7 @@ type User struct {
 // defines a role that a user has in a specific database (CanView, CanCreate, CanEdit, CanDelete)
 type UserPermissions struct {
 	UserID     ULID
-	DatabaseID string
+	DatabaseID ULID
 	Roles      string // a comma separated list of roles, e.g., "CanView,CanEdit"
 }
 

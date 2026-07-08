@@ -43,7 +43,7 @@ func (p *Processor) queueLargeFile(
 	}
 	defer f.Close()
 
-	fileSize, err := p.Storage.Write(ctx, db.ID, createdEntry.ID, f)
+	fileSize, err := p.Storage.Write(ctx, db.ID.String(), createdEntry.ID, f)
 	if err != nil {
 		os.Remove(workerTempPath)
 		return repo.Entry{}, fmt.Errorf("failed to write file to storage: %w", err)
@@ -56,7 +56,7 @@ func (p *Processor) queueLargeFile(
 		return repo.Entry{}, fmt.Errorf("failed to update queued entry size: %w", err)
 	}
 
-	p.Logger.Debug("Successfully queued large file for async processing", "database_id", db.ID, "entry_id", finalEntry.ID, "filename", finalEntry.FileName)
+	p.Logger.Debug("Successfully queued large file for async processing", "database_id", db.ID.String(), "entry_id", finalEntry.ID, "filename", finalEntry.FileName)
 	return finalEntry, nil
 }
 
@@ -76,7 +76,7 @@ func (p *Processor) queueSmallFile(
 		return repo.Entry{}, fmt.Errorf("failed to seek file: %w", err)
 	}
 
-	fileSize, err := p.Storage.Write(ctx, db.ID, createdEntry.ID, file)
+	fileSize, err := p.Storage.Write(ctx, db.ID.String(), createdEntry.ID, file)
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to write file to storage: %w", err)
 	}
@@ -87,7 +87,7 @@ func (p *Processor) queueSmallFile(
 		return repo.Entry{}, fmt.Errorf("failed to update queued entry size: %w", err)
 	}
 
-	p.Logger.Debug("Successfully queued small file for processing", "database_id", db.ID, "entry_id", finalEntry.ID, "filename", finalEntry.FileName)
+	p.Logger.Debug("Successfully queued small file for processing", "database_id", db.ID.String(), "entry_id", finalEntry.ID, "filename", finalEntry.FileName)
 	return finalEntry, nil
 }
 

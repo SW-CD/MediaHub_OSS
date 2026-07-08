@@ -22,7 +22,7 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 
 		stats, err := s.repo.GetDatabaseStats(ctx, db.ID)
 		if err != nil {
-			s.logger.Error("Failed to get database stats", "database_id", db.ID, "database_name", db.Name, "error", err)
+			s.logger.Error("Failed to get database stats", "database_id", db.ID.String(), "database_name", db.Name, "error", err)
 			continue
 		}
 
@@ -65,7 +65,7 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 				fmt.Printf("\r- Step 1: Entry Status Corrections: %d%% (Scanning...)", percent)
 
 				if entry.Status == repository.EntryStatusProcessing {
-					_, err := s.storage.Stat(ctx, db.ID, entry.ID)
+					_, err := s.storage.Stat(ctx, db.ID.String(), entry.ID)
 					if errors.Is(err, customerrors.ErrNotFound) {
 						// File missing -> mark DB entry for deletion
 						deleteZombiesIDs = append(deleteZombiesIDs, entry.ID)
@@ -74,7 +74,7 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 						markReadyIDs = append(markReadyIDs, entry.ID)
 					} else {
 						fmt.Println() // Break the \r progress line so the log prints cleanly
-						s.logger.Error("Storage stat failed", "database_id", db.ID, "database_name", db.Name, "id", entry.ID, "error", err)
+						s.logger.Error("Storage stat failed", "database_id", db.ID.String(), "database_name", db.Name, "id", entry.ID, "error", err)
 					}
 				} else if entry.Status == repository.EntryStatusDeleting {
 					// Entry stuck deleting -> mark for full cleanup

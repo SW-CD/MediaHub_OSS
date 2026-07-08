@@ -128,7 +128,7 @@ func (s *HouseKeeper) runDBTasks(ctx context.Context) {
 // RunDBHousekeeping executes the cleanup logic for a single database.
 // This can be called by the scheduler or manually via the API.
 func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Database) (int, uint64, error) {
-	var lockName = "hk_" + db.ID
+	var lockName = "hk_" + db.ID.String()
 	var totalDeleted int = 0
 	var totalFreed uint64 = 0
 	var err error
@@ -241,7 +241,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 		s.Logger.Error("Housekeeper failed to update LastHkRun", "error", err, "database_id", db.ID, "database_name", db.Name)
 	}
 
-	s.Logger.Info("Housekeeping completed", "database_id", db.ID, "database_name", db.Name, "deleted", totalDeleted, "freed_bytes", totalFreed)
+	s.Logger.Info("Housekeeping completed", "database_id", db.ID.String(), "database_name", db.Name, "deleted", totalDeleted, "freed_bytes", totalFreed)
 	return totalDeleted, totalFreed, nil
 }
 
@@ -250,7 +250,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 // - number of files deleted
 // - disk space that was freed
 // - error if any
-func (s *HouseKeeper) deleteEntriesBatch(ctx context.Context, dbID string, entries []repository.Entry) (int, uint64, error) {
+func (s *HouseKeeper) deleteEntriesBatch(ctx context.Context, dbID repository.ULID, entries []repository.Entry) (int, uint64, error) {
 	if len(entries) == 0 {
 		return 0, 0, nil
 	}

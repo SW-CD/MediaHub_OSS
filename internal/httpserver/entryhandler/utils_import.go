@@ -211,7 +211,7 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	// 7. Write Main File to Storage
 	// Rewind the temp file so we can stream it to the final storage location
 	tempMediaFile.Seek(0, io.SeekStart)
-	_, err = h.Storage.Write(ctx, db.ID, savedEntry.ID, tempMediaFile)
+	_, err = h.Storage.Write(ctx, db.ID.String(), savedEntry.ID, tempMediaFile)
 	tempMediaFile.Close() // Close the handle now that storage has consumed it
 
 	if err != nil {
@@ -222,7 +222,7 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	// 8. Write Preview to Storage (if it exists in the archive)
 	if previewZipped, exists := zipFiles[previewZipPath]; exists {
 		pSrcFile, _ := previewZipped.Open()
-		_, err = h.Storage.WritePreview(ctx, db.ID, savedEntry.ID, pSrcFile)
+		_, err = h.Storage.WritePreview(ctx, db.ID.String(), savedEntry.ID, pSrcFile)
 		pSrcFile.Close()
 		if err != nil {
 			h.Logger.Warn("Import warning: Failed to write preview file to storage", "row", rowNum, "error", err)

@@ -13,10 +13,10 @@ import (
 )
 
 // GetCustomFields retrieves all custom fields for a specific database.
-func (r *SQLiteRepository) GetCustomFields(ctx context.Context, dbID string) ([]repo.CustomFieldDef, error) {
+func (r *SQLiteRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
 	// First check if database exists to return 404 if not found
 	var exists bool
-	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID).Scan(&exists)
+	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check database existence: %w", err)
 	}
@@ -27,15 +27,15 @@ func (r *SQLiteRepository) GetCustomFields(ctx context.Context, dbID string) ([]
 }
 
 // getCustomFields retrieves all custom fields for a specific database with cache backing.
-func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID string) ([]repo.CustomFieldDef, error) {
-	cacheKey := "cf:" + dbID
+func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
+	cacheKey := "cf:" + dbID.String()
 	if val, found := r.Cache.Get(cacheKey); found {
 		return val.([]repo.CustomFieldDef), nil
 	}
 
 	query, args, err := r.Builder.Select("field_id", "name", "type", "is_indexed").
 		From("database_custom_fields").
-		Where(squirrel.Eq{"database_id": dbID}).
+		Where(squirrel.Eq{"database_id": dbID.String()}).
 		OrderBy("field_id").
 		ToSql()
 	if err != nil {
@@ -70,10 +70,10 @@ func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID 
 }
 
 // AddCustomField adds a new custom field to an existing database.
-func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, field repo.CustomFieldDef) (repo.CustomFieldDef, error) {
+func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID repo.ULID, field repo.CustomFieldDef) (repo.CustomFieldDef, error) {
 	// Check if database exists
 	var exists bool
-	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID).Scan(&exists)
+	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
 	if err != nil {
 		return repo.CustomFieldDef{}, fmt.Errorf("failed to check database existence: %w", err)
 	}
@@ -132,7 +132,7 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, fiel
 	// 1. Insert into database_custom_fields
 	query, args, err := r.Builder.Insert("database_custom_fields").
 		Columns("database_id", "field_id", "name", "type", "is_indexed").
-		Values(dbID, field.ID, field.Name, datatype, field.IsIndexed).
+		Values(dbID.String(), field.ID, field.Name, datatype, field.IsIndexed).
 		ToSql()
 	if err != nil {
 		return repo.CustomFieldDef{}, err
@@ -146,7 +146,7 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, fiel
 	}
 
 	// 2. ALTER TABLE entries_ID ADD COLUMN cf_nextID Type
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	alterSQL := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN "%s%d" %s`, tableName, customFieldsPrefix, field.ID, datatype)
 	if _, err := tx.ExecContext(ctx, alterSQL); err != nil {
 		return repo.CustomFieldDef{}, fmt.Errorf("failed to add column to entries table: %w", err)
@@ -154,7 +154,7 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, fiel
 
 	// 3. Create index if is_indexed is true
 	if field.IsIndexed {
-		indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID, customFieldsPrefix, field.ID, tableName, customFieldsPrefix, field.ID)
+		indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID.String(), customFieldsPrefix, field.ID, tableName, customFieldsPrefix, field.ID)
 		if _, err := tx.ExecContext(ctx, indexSQL); err != nil {
 			return repo.CustomFieldDef{}, fmt.Errorf("failed to create index on custom field: %w", err)
 		}
@@ -165,16 +165,16 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID string, fiel
 	}
 
 	// Invalidate cache
-	r.Cache.Delete("cf:" + dbID)
+	r.Cache.Delete("cf:" + dbID.String())
 
 	return field, nil
 }
 
 // UpdateCustomField updates an existing custom field.
-func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, fieldID int, name *string, isIndexed *bool) (repo.CustomFieldDef, error) {
+func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID, fieldID int, name *string, isIndexed *bool) (repo.CustomFieldDef, error) {
 	// Check if database exists
 	var exists bool
-	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID).Scan(&exists)
+	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
 	if err != nil {
 		return repo.CustomFieldDef{}, fmt.Errorf("failed to check database existence: %w", err)
 	}
@@ -235,17 +235,17 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, f
 	defer tx.Rollback()
 
 	// Handle index changes
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	if newIsIndexed != targetField.IsIndexed {
 		if newIsIndexed {
 			// Create index
-			indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID, customFieldsPrefix, fieldID, tableName, customFieldsPrefix, fieldID)
+			indexSQL := fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_%s%d" ON %s("%s%d")`, dbID.String(), customFieldsPrefix, fieldID, tableName, customFieldsPrefix, fieldID)
 			if _, err := tx.ExecContext(ctx, indexSQL); err != nil {
 				return repo.CustomFieldDef{}, fmt.Errorf("failed to create index: %w", err)
 			}
 		} else {
 			// Drop index
-			dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID, customFieldsPrefix, fieldID)
+			dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID.String(), customFieldsPrefix, fieldID)
 			if _, err := tx.ExecContext(ctx, dropIndexSQL); err != nil {
 				return repo.CustomFieldDef{}, fmt.Errorf("failed to drop index: %w", err)
 			}
@@ -256,7 +256,7 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, f
 	query, args, err := r.Builder.Update("database_custom_fields").
 		Set("name", newName).
 		Set("is_indexed", newIsIndexed).
-		Where(squirrel.Eq{"database_id": dbID, "field_id": fieldID}).
+		Where(squirrel.Eq{"database_id": dbID.String(), "field_id": fieldID}).
 		ToSql()
 	if err != nil {
 		return repo.CustomFieldDef{}, err
@@ -274,7 +274,7 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, f
 	}
 
 	// Invalidate cache
-	r.Cache.Delete("cf:" + dbID)
+	r.Cache.Delete("cf:" + dbID.String())
 
 	updatedField := repo.CustomFieldDef{
 		ID:        fieldID,
@@ -286,10 +286,10 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID string, f
 }
 
 // DeleteCustomField deletes a custom field.
-func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID string, fieldID int) error {
+func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID repo.ULID, fieldID int) error {
 	// Check if database exists
 	var exists bool
-	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID).Scan(&exists)
+	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check database existence: %w", err)
 	}
@@ -322,13 +322,13 @@ func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID string, f
 	defer tx.Rollback()
 
 	// 1. Drop the index
-	dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID, customFieldsPrefix, fieldID)
+	dropIndexSQL := fmt.Sprintf(`DROP INDEX IF EXISTS "idx_entries_%s_%s%d"`, dbID.String(), customFieldsPrefix, fieldID)
 	if _, err := tx.ExecContext(ctx, dropIndexSQL); err != nil {
 		return fmt.Errorf("failed to drop index: %w", err)
 	}
 
 	// 2. Drop column from entries table
-	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	dropColSQL := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN "%s%d"`, tableName, customFieldsPrefix, fieldID)
 	if _, err := tx.ExecContext(ctx, dropColSQL); err != nil {
 		return fmt.Errorf("failed to drop column from entries table: %w", err)
@@ -336,7 +336,7 @@ func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID string, f
 
 	// 3. Delete from database_custom_fields
 	query, args, err := r.Builder.Delete("database_custom_fields").
-		Where(squirrel.Eq{"database_id": dbID, "field_id": fieldID}).
+		Where(squirrel.Eq{"database_id": dbID.String(), "field_id": fieldID}).
 		ToSql()
 	if err != nil {
 		return err
@@ -351,7 +351,7 @@ func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID string, f
 	}
 
 	// Invalidate cache
-	r.Cache.Delete("cf:" + dbID)
+	r.Cache.Delete("cf:" + dbID.String())
 
 	return nil
 }

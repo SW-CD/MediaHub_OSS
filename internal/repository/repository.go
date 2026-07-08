@@ -21,35 +21,35 @@ type Repository interface {
 
 	// Database
 	CreateDatabase(ctx context.Context, db Database) (Database, error)
-	GetDatabase(ctx context.Context, dbID string) (Database, error)
+	GetDatabase(ctx context.Context, dbID ULID) (Database, error)
 	GetDatabases(ctx context.Context) ([]Database, error)
 	UpdateDatabase(ctx context.Context, db Database) (Database, error)
-	DeleteDatabase(ctx context.Context, dbID string) error
-	GetDatabaseStats(ctx context.Context, dbID string) (DatabaseStats, error)
+	DeleteDatabase(ctx context.Context, dbID ULID) error
+	GetDatabaseStats(ctx context.Context, dbID ULID) (DatabaseStats, error)
 
 	// Custom Fields
-	AddCustomField(ctx context.Context, dbID string, field CustomFieldDef) (CustomFieldDef, error)
-	UpdateCustomField(ctx context.Context, dbID string, fieldID int, name *string, isIndexed *bool) (CustomFieldDef, error)
-	DeleteCustomField(ctx context.Context, dbID string, fieldID int) error
-	GetCustomFields(ctx context.Context, dbID string) ([]CustomFieldDef, error)
+	AddCustomField(ctx context.Context, dbID ULID, field CustomFieldDef) (CustomFieldDef, error)
+	UpdateCustomField(ctx context.Context, dbID ULID, fieldID int, name *string, isIndexed *bool) (CustomFieldDef, error)
+	DeleteCustomField(ctx context.Context, dbID ULID, fieldID int) error
+	GetCustomFields(ctx context.Context, dbID ULID) ([]CustomFieldDef, error)
 
 	// Housekeeping
 	HouseKeepingRequired(ctx context.Context) ([]Database, error)              // return all databases where the last housekeeping run was longer ago than the provided interval
-	HouseKeepingWasCalled(ctx context.Context, dbID string) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
+	HouseKeepingWasCalled(ctx context.Context, dbID ULID) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
 
 	// Entry
 	// Deleting or creating entries will also update the database statistics
 	CreateEntry(ctx context.Context, db Database, entry Entry) (Entry, error)
-	GetEntry(ctx context.Context, dbID string, id int64) (Entry, error)
-	GetEntries(ctx context.Context, dbID string, opts QueryOptions) ([]Entry, error)
-	UpdateEntry(ctx context.Context, dbID string, entry Entry) (Entry, error)
-	UpdateEntriesStatus(ctx context.Context, dbID string, entryIDs []int64, status EntryStatus) error
-	ClaimQueuedEntry(ctx context.Context, dbID string, entryID int64) (bool, error)
-	GetEntriesByStatus(ctx context.Context, dbID string, status EntryStatus) ([]Entry, error)
-	CountEntriesByStatus(ctx context.Context, dbID string, status EntryStatus) (int64, error)
-	DeleteEntry(ctx context.Context, dbID string, id int64) (DeletedEntryMeta, error)
-	DeleteEntries(ctx context.Context, dbID string, entryIDs []int64) ([]DeletedEntryMeta, error)
-	SearchEntries(ctx context.Context, dbID string, req SearchRequest, customFields []CustomFieldDef) ([]Entry, error)
+	GetEntry(ctx context.Context, dbID ULID, id int64) (Entry, error)
+	GetEntries(ctx context.Context, dbID ULID, opts QueryOptions) ([]Entry, error)
+	UpdateEntry(ctx context.Context, dbID ULID, entry Entry) (Entry, error)
+	UpdateEntriesStatus(ctx context.Context, dbID ULID, entryIDs []int64, status EntryStatus) error
+	ClaimQueuedEntry(ctx context.Context, dbID ULID, entryID int64) (bool, error)
+	GetEntriesByStatus(ctx context.Context, dbID ULID, status EntryStatus) ([]Entry, error)
+	CountEntriesByStatus(ctx context.Context, dbID ULID, status EntryStatus) (int64, error)
+	DeleteEntry(ctx context.Context, dbID ULID, id int64) (DeletedEntryMeta, error)
+	DeleteEntries(ctx context.Context, dbID ULID, entryIDs []int64) ([]DeletedEntryMeta, error)
+	SearchEntries(ctx context.Context, dbID ULID, req SearchRequest, customFields []CustomFieldDef) ([]Entry, error)
 
 	// User
 	CreateUser(ctx context.Context, user User) (User, error)
@@ -60,7 +60,7 @@ type Repository interface {
 	GetUserByID(ctx context.Context, id ULID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	SetUserPermissions(ctx context.Context, permissions UserPermissions) error // create or update or delete (in case of empty Roles)
-	GetUserPermissions(ctx context.Context, userID ULID, dbID string) (UserPermissions, error)
+	GetUserPermissions(ctx context.Context, userID ULID, dbID ULID) (UserPermissions, error)
 	GetAllUserPermissions(ctx context.Context, userID ULID) ([]UserPermissions, error)
 
 	// Token

@@ -65,7 +65,7 @@ func (p *Processor) handleSmallFileSync(
 		return repo.Entry{}, fmt.Errorf("failed to seek file stream before storage: %w", err)
 	}
 
-	fileSize, err := p.Storage.Write(ctx, db.ID, createdEntry.ID, streamToUpload)
+	fileSize, err := p.Storage.Write(ctx, db.ID.String(), createdEntry.ID, streamToUpload)
 	if err != nil {
 		cleanupOnError(err)
 		return repo.Entry{}, fmt.Errorf("failed to write to storage provider: %w", err)

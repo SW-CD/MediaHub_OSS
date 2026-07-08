@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"mediahub_oss/internal/httpserver/utils"
+	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
@@ -21,7 +22,7 @@ func (h *DatabaseHandler) GetFields(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fields, err := h.Repo.GetCustomFields(ctx, dbID)
+	fields, err := h.Repo.GetCustomFields(ctx, repository.ULID(dbID))
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
@@ -71,7 +72,7 @@ func (h *DatabaseHandler) AddField(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modelField := payload.toModel()
-	added, err := h.Repo.AddCustomField(ctx, dbID, modelField)
+	added, err := h.Repo.AddCustomField(ctx, repository.ULID(dbID), modelField)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
@@ -131,7 +132,7 @@ func (h *DatabaseHandler) UpdateField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.Repo.UpdateCustomField(ctx, dbID, fieldID, payload.Name, payload.IsIndexed)
+	updated, err := h.Repo.UpdateCustomField(ctx, repository.ULID(dbID), fieldID, payload.Name, payload.IsIndexed)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or field not found.")
@@ -174,7 +175,7 @@ func (h *DatabaseHandler) DeleteField(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch current fields to find the name for response message
-	fields, err := h.Repo.GetCustomFields(ctx, dbID)
+	fields, err := h.Repo.GetCustomFields(ctx, repository.ULID(dbID))
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
@@ -196,7 +197,7 @@ func (h *DatabaseHandler) DeleteField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.DeleteCustomField(ctx, dbID, fieldID)
+	err = h.Repo.DeleteCustomField(ctx, repository.ULID(dbID), fieldID)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "Database or field not found.")
@@ -206,7 +207,7 @@ func (h *DatabaseHandler) DeleteField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := h.Repo.GetDatabase(ctx, dbID)
+	db, err := h.Repo.GetDatabase(ctx, repository.ULID(dbID))
 	dbName := "Database"
 	if err == nil {
 		dbName = db.Name

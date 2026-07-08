@@ -90,7 +90,7 @@ func (p *Processor) ProcessEntry(
 		}
 
 		if int(queuedCount) < db.NMaxQueued {
-			p.Logger.Debug("Concurrency limit reached, queueing large file", "database_id", db.ID, "active_async", p.activeAsync, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
+			p.Logger.Debug("Concurrency limit reached, queueing large file", "database_id", db.ID.String(), "active_async", p.activeAsync, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
 			entry, err := p.queueLargeFile(ctx, diskFile, db, req, procPlan)
 			if err != nil {
 				return repo.Entry{}, false, err
@@ -99,7 +99,7 @@ func (p *Processor) ProcessEntry(
 			return entry, false, nil
 		}
 
-		p.Logger.Warn("Upload rejected: Concurrency limit reached and queue is full", "database_id", db.ID, "active_async", p.activeAsync, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
+		p.Logger.Warn("Upload rejected: Concurrency limit reached and queue is full", "database_id", db.ID.String(), "active_async", p.activeAsync, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
 		return repo.Entry{}, false, customerrors.ErrUnavailable
 	}
 
@@ -124,7 +124,7 @@ func (p *Processor) ProcessEntry(
 	}
 
 	if int(queuedCount) < db.NMaxQueued {
-		p.Logger.Debug("Concurrency limit reached, queueing small file", "database_id", db.ID, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
+		p.Logger.Debug("Concurrency limit reached, queueing small file", "database_id", db.ID.String(), "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
 		entry, err := p.queueSmallFile(ctx, file, db, req, procPlan)
 		if err != nil {
 			return repo.Entry{}, false, err
