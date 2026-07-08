@@ -131,7 +131,7 @@ func (r PostgresRepository) CountAdminUsers(ctx context.Context) (int64, error) 
 	return 0, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteUser(ctx context.Context, id int64) error {
+func (r PostgresRepository) DeleteUser(ctx context.Context, id repo.ULID) error {
 	return customerrors.ErrNotImplemented
 }
 
@@ -139,11 +139,11 @@ func (r PostgresRepository) UpdateUser(ctx context.Context, user repo.User) (rep
 	return repo.User{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetUsers(ctx context.Context) ([]repo.User, error) {
+func (r PostgresRepository) GetUsers(ctx context.Context, isServiceAccount *bool) ([]repo.User, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetUserByID(ctx context.Context, id int64) (repo.User, error) {
+func (r PostgresRepository) GetUserByID(ctx context.Context, id repo.ULID) (repo.User, error) {
 	return repo.User{}, customerrors.ErrNotImplemented
 }
 
@@ -157,21 +157,21 @@ func (r PostgresRepository) SetUserPermissions(ctx context.Context, permissions 
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID int64, dbID string) (repo.UserPermissions, error) {
+func (r PostgresRepository) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID string) (repo.UserPermissions, error) {
 	return repo.UserPermissions{}, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) GetAllUserPermissions(ctx context.Context, userID int64) ([]repo.UserPermissions, error) {
+func (r PostgresRepository) GetAllUserPermissions(ctx context.Context, userID repo.ULID) ([]repo.UserPermissions, error) {
 	return nil, customerrors.ErrNotImplemented
 }
 
 // Token
-func (r PostgresRepository) StoreRefreshToken(ctx context.Context, userID int64, tokenHash string, validDuration time.Duration) error {
+func (r PostgresRepository) StoreRefreshToken(ctx context.Context, userID repo.ULID, tokenHash string, validDuration time.Duration) error {
 	return customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) ValidateRefreshToken(ctx context.Context, tokenHash string) (int64, error) {
-	return 0, customerrors.ErrNotImplemented
+func (r PostgresRepository) ValidateRefreshToken(ctx context.Context, tokenHash string) (repo.ULID, error) {
+	return "", customerrors.ErrNotImplemented
 }
 
 func (r PostgresRepository) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
@@ -182,7 +182,7 @@ func (r PostgresRepository) DeleteExpiredRefreshTokens(ctx context.Context) (int
 	return 0, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) DeleteAllRefreshTokensForUser(ctx context.Context, userID int64) error {
+func (r PostgresRepository) DeleteAllRefreshTokensForUser(ctx context.Context, userID repo.ULID) error {
 	return customerrors.ErrNotImplemented
 }
 

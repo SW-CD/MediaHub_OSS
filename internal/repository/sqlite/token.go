@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	repo "mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared/customerrors"
 	"time"
 
@@ -12,14 +13,13 @@ import (
 )
 
 // StoreRefreshToken inserts a new hashed refresh token into the database along with its expiry time.
-func (r *SQLiteRepository) StoreRefreshToken(ctx context.Context, userID int64, tokenHash string, validDuration time.Duration) error {
-	// TODO expiry was replaced by validDuration, adapt
+func (r *SQLiteRepository) StoreRefreshToken(ctx context.Context, userID repo.ULID, tokenHash string, validDuration time.Duration) error {
 	expiry := time.Now().Add(validDuration).UnixMilli()
 
 	// Build the INSERT query using Squirrel
 	query, args, err := r.Builder.Insert("refresh_tokens").
 		Columns("user_id", "token_hash", "expiry").
-		Values(userID, tokenHash, expiry).
+		Values(userID.String(), tokenHash, expiry).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build insert token query: %w", err)
@@ -36,37 +36,35 @@ func (r *SQLiteRepository) StoreRefreshToken(ctx context.Context, userID int64, 
 
 // ValidateRefreshToken checks if a refresh token hash exists and is not expired.
 // Returns the associated user ID if the token is valid.
-func (r *SQLiteRepository) ValidateRefreshToken(ctx context.Context, tokenHash string) (int64, error) {
+func (r *SQLiteRepository) ValidateRefreshToken(ctx context.Context, tokenHash string) (repo.ULID, error) {
 	// Build the SELECT query to fetch the user ID and expiration time
 	query, args, err := r.Builder.Select("user_id", "expiry").
 		From("refresh_tokens").
 		Where(squirrel.Eq{"token_hash": tokenHash}).
 		ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("failed to build validate token query: %w", err)
+		return "", fmt.Errorf("failed to build validate token query: %w", err)
 	}
 
-	var userID int64
+	var userIDStr string
 	var expiry int64
 
 	// Execute the query and scan the results
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&userID, &expiry)
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&userIDStr, &expiry)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, customerrors.ErrNotFound
+			return "", customerrors.ErrNotFound
 		}
-		return 0, fmt.Errorf("failed to query refresh token: %w", err)
+		return "", fmt.Errorf("failed to query refresh token: %w", err)
 	}
 
-	// Check if the token has expired (here we can do it in the client code since we get the expiry as a timestamp,
-	// but for Postgres we would want to compare against CURRENT_TIMESTAMP in the SQL query itself to
-	// avoid time sync issues between app server and DB server)
+	// Check if the token has expired
 	if time.Now().After(time.UnixMilli(expiry)) {
-		return 0, customerrors.ErrNotFound
+		return "", customerrors.ErrNotFound
 	}
 
 	// Token is valid and active
-	return userID, nil
+	return repo.ULID(userIDStr), nil
 }
 
 // DeleteRefreshToken removes a specific refresh token from the database using its hash (e.g., upon logout).
@@ -125,10 +123,10 @@ func (r *SQLiteRepository) DeleteExpiredRefreshTokens(ctx context.Context) (int6
 }
 
 // DeleteAllRefreshTokensForUser removes all active sessions for a specific user.
-func (r *SQLiteRepository) DeleteAllRefreshTokensForUser(ctx context.Context, userID int64) error {
+func (r *SQLiteRepository) DeleteAllRefreshTokensForUser(ctx context.Context, userID repo.ULID) error {
 	// Build the DELETE query targeting the specific user_id
 	query, args, err := r.Builder.Delete("refresh_tokens").
-		Where(squirrel.Eq{"user_id": userID}).
+		Where(squirrel.Eq{"user_id": userID.String()}).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build delete all tokens query: %w", err)

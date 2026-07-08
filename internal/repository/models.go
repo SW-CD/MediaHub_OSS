@@ -4,6 +4,13 @@ import (
 	"time"
 )
 
+type ULID string
+
+func (u ULID) String() string {
+	return string(u)
+}
+
+
 type Database struct {
 	ID           string // ULID
 	Name         string
@@ -56,15 +63,16 @@ type Entry struct {
 }
 
 type User struct {
-	ID           int64
-	Username     string
-	IsAdmin      bool
-	PasswordHash string
+	ID               ULID
+	Username         string
+	IsAdmin          bool
+	PasswordHash     string
+	IsServiceAccount bool
 }
 
 // defines a role that a user has in a specific database (CanView, CanCreate, CanEdit, CanDelete)
 type UserPermissions struct {
-	UserID     int64
+	UserID     ULID
 	DatabaseID string
 	Roles      string // a comma separated list of roles, e.g., "CanView,CanEdit"
 }

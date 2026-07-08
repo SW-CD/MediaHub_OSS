@@ -34,15 +34,14 @@ func (am *AuthMiddleware) validateJWT(tokenString string) (repository.User, erro
 			}
 		}
 
-		// Extract User ID
-		// Note: JWT stores numbers as float64 by default
-		userIDFloat, ok := claims["sub"].(float64)
+		// Extract User ID (ULID string)
+		userIDStr, ok := claims["sub"].(string)
 		if !ok {
 			return repository.User{}, errors.New("invalid subject in token")
 		}
 
 		// Fetch fresh user data from DB to ensure they still exist / weren't banned
-		return am.Repo.GetUserByID(context.Background(), int64(userIDFloat))
+		return am.Repo.GetUserByID(context.Background(), repository.ULID(userIDStr))
 	}
 
 	return repository.User{}, errors.New("invalid token claims")

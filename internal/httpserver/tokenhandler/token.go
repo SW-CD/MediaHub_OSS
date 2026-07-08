@@ -155,7 +155,7 @@ func (h *TokenHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Auditor.Log(r.Context(), "auth.refresh", fmt.Sprintf("user_id:%d", userID), "token", nil)
+	h.Auditor.Log(r.Context(), "auth.refresh", fmt.Sprintf("user_id:%s", userID.String()), "token", nil)
 
 	utils.RespondWithJSON(w, http.StatusOK, TokenResponse{
 		AccessToken:  accessToken,

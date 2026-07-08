@@ -9,8 +9,8 @@ import (
 var EmbedFS embed.FS
 
 // RequiredVersion is the database schema version required by this version of MediaHub.
-// TODO: Update to 2002 for the next release when the new migration (02002) is active.
-const RequiredVersion = 2001
+// TODO: Update for the next release once all migrations files are done.
+const RequiredVersion = 3001
 
 // CheckVersion validates if the database schema version matches the expected RequiredVersion.
 // If the version does not match, it returns an error with the instructions on how to upgrade or downgrade the database.
@@ -25,4 +25,3 @@ func CheckVersion(currentVersion int) error {
 
 	return fmt.Errorf("database schema version (%d) is newer than the required version (%d). Please use the newer mediahub version you have been using, or use that newer version to run:\n    mediahub migrate down\nto downgrade your database schema", currentVersion, RequiredVersion)
 }
-

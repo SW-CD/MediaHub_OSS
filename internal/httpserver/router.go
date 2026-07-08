@@ -54,8 +54,9 @@ func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 	// User Management
 	mux.Handle("GET /api/users", ReqAdmin(h.UserHandler.GetUsers))
 	mux.Handle("POST /api/user", ReqAdmin(h.UserHandler.CreateUser))
-	mux.Handle("PATCH /api/user", ReqAdmin(h.UserHandler.UpdateUser))
-	mux.Handle("DELETE /api/user", ReqAdmin(h.UserHandler.DeleteUser))
+	mux.Handle("GET /api/user/{user_ulid}", ReqAdmin(h.UserHandler.GetUser))
+	mux.Handle("PATCH /api/user/{user_ulid}", ReqAdmin(h.UserHandler.UpdateUser))
+	mux.Handle("DELETE /api/user/{user_ulid}", ReqAdmin(h.UserHandler.DeleteUser))
 
 	// Global Database Creation (Restricted to Admin)
 	mux.Handle("POST /api/database", ReqAdmin(h.DatabaseHandler.CreateDatabase))

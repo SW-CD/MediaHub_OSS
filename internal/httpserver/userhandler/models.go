@@ -21,10 +21,11 @@ type UpdateMePayload struct {
 
 // CreateUserPayload defines the expected JSON body for POST /api/user.
 type CreateUserPayload struct {
-	Username    string               `json:"username"`
-	Password    string               `json:"password"`
-	IsAdmin     bool                 `json:"is_admin"`
-	Permissions []DatabasePermission `json:"permissions"`
+	Username         string               `json:"username"`
+	Password         string               `json:"password"`
+	IsAdmin          bool                 `json:"is_admin"`
+	IsServiceAccount bool                 `json:"is_service_account"`
+	Permissions      []DatabasePermission `json:"permissions"`
 }
 
 // UpdateUserPayload defines the expected JSON body for PATCH /api/user.
@@ -37,10 +38,11 @@ type UpdateUserPayload struct {
 
 // UserResponse is the JSON structure returned by the /api/me and /api/users endpoints.
 type UserResponse struct {
-	ID          int64                `json:"id"`
-	Username    string               `json:"username"`
-	IsAdmin     bool                 `json:"is_admin"`
-	Permissions []DatabasePermission `json:"permissions"`
+	ID               repository.ULID      `json:"id"`
+	Username         string               `json:"username"`
+	IsAdmin          bool                 `json:"is_admin"`
+	IsServiceAccount bool                 `json:"is_service_account"`
+	Permissions      []DatabasePermission `json:"permissions"`
 }
 
 // DatabasePermission defines the boolean flags for a user's rights on a specific database.

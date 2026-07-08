@@ -15,10 +15,10 @@ import (
 )
 
 // generateTokens creates a new JWT Access Token and a secure random Refresh Token.
-func (h *TokenHandler) generateTokens(r *http.Request, userID int64) (string, string, error) {
+func (h *TokenHandler) generateTokens(r *http.Request, userID repository.ULID) (string, string, error) {
 	// 1. Generate JWT Access Token
 	claims := jwt.MapClaims{
-		"sub": userID,
+		"sub": userID.String(),
 		"exp": time.Now().Add(h.AccessDuration).Unix(),
 		"iat": time.Now().Unix(),
 	}

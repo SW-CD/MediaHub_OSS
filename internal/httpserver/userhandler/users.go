@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mediahub_oss/internal/httpserver/utils"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 	"net/http"
 	"strconv"
@@ -36,10 +37,11 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Initialize the base response
 	response := UserResponse{
-		ID:          user.ID,
-		Username:    user.Username,
-		IsAdmin:     user.IsAdmin,
-		Permissions: []DatabasePermission{}, // Default to empty array
+		ID:               user.ID,
+		Username:         user.Username,
+		IsAdmin:          user.IsAdmin,
+		IsServiceAccount: user.IsServiceAccount,
+		Permissions:      []DatabasePermission{}, // Default to empty array
 	}
 
 	// 3. If the user is an admin, they bypass specific permission checks
@@ -158,25 +160,37 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// 1. Fetch all users from the database
-	dbUsers, err := h.Repo.GetUsers(ctx)
+	// 1. Parse optional is_service_account filter
+	isServiceAccountStr := r.URL.Query().Get("is_service_account")
+	var isServiceAccountFilter *bool
+	if isServiceAccountStr != "" {
+		val, err := strconv.ParseBool(isServiceAccountStr)
+		if err != nil {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid is_service_account query parameter: must be boolean")
+			return
+		}
+		isServiceAccountFilter = &val
+	}
+
+	// 2. Fetch all users from the database
+	dbUsers, err := h.Repo.GetUsers(ctx, isServiceAccountFilter)
 	if err != nil {
 		h.Logger.Error("Failed to retrieve users", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user list")
 		return
 	}
 
-	// 2. Initialize our response array
-	// We use make to ensure it serializes as an empty array [] instead of null in JSON if there are no users
+	// 3. Initialize our response array
 	var response = make([]UserResponse, len(dbUsers))
 
-	// 3. Iterate through each user to build their specific response object
+	// 4. Iterate through each user to build their specific response object
 	for i, u := range dbUsers {
 		userRes := UserResponse{
-			ID:          u.ID,
-			Username:    u.Username,
-			IsAdmin:     u.IsAdmin,
-			Permissions: []DatabasePermission{}, // Default to empty
+			ID:               u.ID,
+			Username:         u.Username,
+			IsAdmin:          u.IsAdmin,
+			IsServiceAccount: u.IsServiceAccount,
+			Permissions:      []DatabasePermission{}, // Default to empty
 		}
 
 		// 4. Admin users implicitly have all rights, so we leave their permissions array empty
@@ -242,8 +256,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Validate basic requirements
-	if payload.Username == "" || payload.Password == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Username and password are required")
+	if payload.Username == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Username is required")
+		return
+	}
+	if !payload.IsServiceAccount && payload.Password == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Password is required")
 		return
 	}
 
@@ -257,19 +275,26 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		seenDBs[p.DatabaseID] = true
 	}
 
-	// 3. Hash Password
-	hashBytes, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-	if err != nil {
-		h.Logger.Error("Failed to hash password", "error", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
-		return
+	// 3. Determine password hash
+	var passwordHash string
+	if payload.IsServiceAccount {
+		passwordHash = "SERVICE_ACCOUNT_NO_LOGIN"
+	} else {
+		hashBytes, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+		if err != nil {
+			h.Logger.Error("Failed to hash password", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+		passwordHash = string(hashBytes)
 	}
 
 	// 4. Create User in Repository
 	newUser := repo.User{
-		Username:     payload.Username,
-		PasswordHash: string(hashBytes),
-		IsAdmin:      payload.IsAdmin,
+		Username:         payload.Username,
+		PasswordHash:     passwordHash,
+		IsAdmin:          payload.IsAdmin,
+		IsServiceAccount: payload.IsServiceAccount,
 	}
 
 	createdUser, err := h.Repo.CreateUser(ctx, newUser)
@@ -326,10 +351,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// 6. Build the response
 	response := UserResponse{
-		ID:          createdUser.ID,
-		Username:    createdUser.Username,
-		IsAdmin:     createdUser.IsAdmin,
-		Permissions: appliedPermissions,
+		ID:               createdUser.ID,
+		Username:         createdUser.Username,
+		IsAdmin:          createdUser.IsAdmin,
+		IsServiceAccount: createdUser.IsServiceAccount,
+		Permissions:      appliedPermissions,
 	}
 
 	// 7. Log the action
@@ -366,16 +392,15 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Extract the user ID from the query parameters
-	idStr := r.URL.Query().Get("id")
-	if idStr == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: id")
+	// 1. Extract the user ID from the path parameters
+	userIDStr := r.PathValue("user_ulid")
+	if userIDStr == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: user_ulid")
 		return
 	}
-
-	userID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format")
+	userID := repo.ULID(userIDStr)
+	if !shared.IsValidULID(userIDStr) {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format: must be a valid ULID")
 		return
 	}
 
@@ -492,10 +517,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := UserResponse{
-		ID:          existingUser.ID,
-		Username:    existingUser.Username,
-		IsAdmin:     existingUser.IsAdmin,
-		Permissions: finalPermissions,
+		ID:               existingUser.ID,
+		Username:         existingUser.Username,
+		IsAdmin:          existingUser.IsAdmin,
+		IsServiceAccount: existingUser.IsServiceAccount,
+		Permissions:      finalPermissions,
 	}
 
 	// 7. Log the action
@@ -530,23 +556,21 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Extract the user ID from the query parameters
-	idStr := r.URL.Query().Get("id")
-	if idStr == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, "Missing required query parameter: id")
+	// 1. Extract the user ID from the path parameters
+	userIDStr := r.PathValue("user_ulid")
+	if userIDStr == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: user_ulid")
 		return
 	}
-
-	userID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format")
+	userID := repo.ULID(userIDStr)
+	if !shared.IsValidULID(userIDStr) {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format: must be a valid ULID")
 		return
 	}
 
 	// 2. Fetch the existing user to verify they exist and get their username/admin status
 	userToDelete, err := h.Repo.GetUserByID(ctx, userID)
 	if err != nil {
-		// Depending on your repo, you might check specifically for customerrors.ErrUserNotFound
 		utils.RespondWithError(w, http.StatusNotFound, "User not found")
 		return
 	}
@@ -579,11 +603,83 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// 5. Audit log the deletion
 	h.Auditor.Log(ctx, "user.delete", adminUser.Username, userToDelete.Username, map[string]any{
-		"deleted_id": userID,
+		"deleted_id": userID.String(),
 	})
 
 	// 6. Return success message matching the concept document
 	utils.RespondWithJSON(w, http.StatusOK, utils.MessageResponse{
-		Message: "User '" + userToDelete.Username + "' (ID: " + strconv.FormatInt(userID, 10) + ") was successfully deleted.",
+		Message: "User '" + userToDelete.Username + "' (ID: " + userID.String() + ") was successfully deleted.",
 	})
+}
+
+// GetUser godoc
+// @Summary      Retrieve a user
+// @Description  Retrieves a specific user account and their database permissions. Requires the global IsAdmin role.
+// @Tags         User
+// @Produce      json
+// @Security     BasicAuth
+// @Security     BearerAuth
+// @Param        user_ulid path string true "User ULID"
+// @Success      200 {object} userhandler.UserResponse "User record"
+// @Failure      400 {object} utils.ErrorResponse "Missing or invalid user ULID"
+// @Failure      401 {object} utils.ErrorResponse "Authentication failed"
+// @Failure      403 {object} utils.ErrorResponse "Forbidden: Admin user not retrieved"
+// @Failure      404 {object} utils.ErrorResponse "User not found"
+// @Router       /user/{user_ulid} [get]
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	adminUser := utils.GetUserFromContext(ctx)
+	if adminUser == nil {
+		utils.RespondWithError(w, http.StatusForbidden, "Admin user not retrieved.")
+		return
+	}
+
+	userIDStr := r.PathValue("user_ulid")
+	if userIDStr == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Missing required path parameter: user_ulid")
+		return
+	}
+	userID := repo.ULID(userIDStr)
+	if !shared.IsValidULID(userIDStr) {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format: must be a valid ULID")
+		return
+	}
+
+	user, err := h.Repo.GetUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, customerrors.ErrNotFound) {
+			utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		} else {
+			h.Logger.Error("Failed to retrieve user", "error", err, "user_id", userID)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+		}
+		return
+	}
+
+	finalPermissions := []DatabasePermission{}
+	if !user.IsAdmin {
+		rawPerms, err := h.Repo.GetAllUserPermissions(ctx, user.ID)
+		if err == nil {
+			for _, rp := range rawPerms {
+				finalPermissions = append(finalPermissions, DatabasePermission{
+					DatabaseID: rp.DatabaseID,
+					CanView:    strings.Contains(rp.Roles, "CanView"),
+					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
+					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
+					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
+				})
+			}
+		}
+	}
+
+	response := UserResponse{
+		ID:               user.ID,
+		Username:         user.Username,
+		IsAdmin:          user.IsAdmin,
+		IsServiceAccount: user.IsServiceAccount,
+		Permissions:      finalPermissions,
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, response)
 }

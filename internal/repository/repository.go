@@ -54,21 +54,21 @@ type Repository interface {
 	// User
 	CreateUser(ctx context.Context, user User) (User, error)
 	CountAdminUsers(ctx context.Context) (int64, error)
-	DeleteUser(ctx context.Context, id int64) error
+	DeleteUser(ctx context.Context, id ULID) error
 	UpdateUser(ctx context.Context, user User) (User, error)
-	GetUsers(ctx context.Context) ([]User, error)
-	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUsers(ctx context.Context, isServiceAccount *bool) ([]User, error)
+	GetUserByID(ctx context.Context, id ULID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	SetUserPermissions(ctx context.Context, permissions UserPermissions) error // create or update or delete (in case of empty Roles)
-	GetUserPermissions(ctx context.Context, userID int64, dbID string) (UserPermissions, error)
-	GetAllUserPermissions(ctx context.Context, userID int64) ([]UserPermissions, error)
+	GetUserPermissions(ctx context.Context, userID ULID, dbID string) (UserPermissions, error)
+	GetAllUserPermissions(ctx context.Context, userID ULID) ([]UserPermissions, error)
 
 	// Token
-	StoreRefreshToken(ctx context.Context, userID int64, tokenHash string, validDuration time.Duration) error // TODO adapt implementations
-	ValidateRefreshToken(ctx context.Context, tokenHash string) (int64, error)
+	StoreRefreshToken(ctx context.Context, userID ULID, tokenHash string, validDuration time.Duration) error // TODO adapt implementations
+	ValidateRefreshToken(ctx context.Context, tokenHash string) (ULID, error)
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
-	DeleteAllRefreshTokensForUser(ctx context.Context, userID int64) error
+	DeleteAllRefreshTokensForUser(ctx context.Context, userID ULID) error
 
 	// Logging
 	LogAudit(ctx context.Context, log AuditLog) error
