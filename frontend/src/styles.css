@@ -583,6 +583,10 @@ input:focus-visible + .toggle-slider {
   z-index: 10;
 }
 
+.sticky-header h2 {
+  margin: 0;
+}
+
 .scroll-content {
   flex-grow: 1;
   overflow-y: auto;

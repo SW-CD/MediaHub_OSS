@@ -9,9 +9,10 @@ export interface Permission {
 
 // Update the User interface to perfectly match the backend JSON
 export interface User {
-  id: number;          
+  id: string; // Changed from number to string for ULID
   username: string;
   is_admin: boolean;
+  is_service_account: boolean;
   permissions: Permission[]; 
   
   // Optional tracking fields (if your backend still returns them)

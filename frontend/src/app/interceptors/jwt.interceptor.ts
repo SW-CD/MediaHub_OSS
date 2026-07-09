@@ -37,6 +37,10 @@ export class JwtInterceptor implements HttpInterceptor {
     return next.handle(authReq).pipe(
       catchError((error) => {
         if (error instanceof HttpErrorResponse && error.status === 401) {
+          // Skip token refresh for password update requests to avoid logouts on incorrect credentials
+          if (request.url.includes('api/me') && request.method === 'PATCH') {
+            return throwError(() => error);
+          }
           // If 401, try to refresh the token
           return this.handle401Error(authReq, next);
         }

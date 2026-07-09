@@ -200,6 +200,15 @@
   white-space: nowrap;
 }
 
+.user-info.cursor-pointer {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.user-info.cursor-pointer:hover {
+  background-color: var(--item-bg-hover);
+}
+
 .user-avatar {
   width: 2.25rem;
   height: 2.25rem;

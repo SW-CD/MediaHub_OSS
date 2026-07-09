@@ -26,7 +26,6 @@ import { EditEntryModalComponent } from './components/edit-entry-modal/edit-entr
 import { ConfirmationModalComponent } from './components/confirmation-modal/confirmation-modal.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
 import { ChangePasswordModalComponent } from './components/change-password-modal/change-password-modal.component';
-import { UserFormComponent } from './components/user-form/user-form.component';
 import { IntervalPickerComponent } from './components/interval-picker/interval-picker.component';
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
@@ -37,6 +36,9 @@ import { FullscreenSettingsModalComponent } from './components/fullscreen-settin
 import { FullscreenPlayerComponent } from './components/fullscreen-player/fullscreen-player.component';
 import { ImportPageComponent } from './pages/import-page/import-page.component';
 import { OverviewPageComponent } from './pages/overview-page/overview-page.component';
+import { ProfilePageComponent } from './pages/profile-page/profile-page.component';
+import { AdminGlobalKeysComponent } from './components/admin-global-keys/admin-global-keys.component';
+import { ApiKeyModalComponent } from './components/api-key-modal/api-key-modal.component';
 
 // Pipes & Directives
 import { FormatBytesPipe } from './pipes/format-bytes.pipe';
@@ -64,13 +66,15 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     ConfirmationModalComponent,
     AdminUserListComponent,
     ChangePasswordModalComponent,
-    UserFormComponent,
     EntryFilterComponent,
     AdminAuditLogComponent,
     FullscreenSettingsModalComponent,
     FullscreenPlayerComponent,
     ImportPageComponent,
     OverviewPageComponent,
+    ProfilePageComponent,
+    AdminGlobalKeysComponent,
+    ApiKeyModalComponent,
   ],
   imports: [
     BrowserModule,

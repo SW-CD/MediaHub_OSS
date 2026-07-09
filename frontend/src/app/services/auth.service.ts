@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
-import { User, TokenResponse } from '../models';
+import { User, TokenResponse, ApiKey } from '../models';
 import { Router } from '@angular/router';
 
 /**
@@ -189,19 +189,49 @@ export class AuthService {
     return this.http.patch(`${this.apiUrl}/me`, payload);
   }
 
-  getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.apiUrl}/users`);
+  getUsers(isServiceAccount?: boolean): Observable<User[]> {
+    let url = `${this.apiUrl}/users`;
+    if (isServiceAccount !== undefined) {
+      url += `?is_service_account=${isServiceAccount}`;
+    }
+    return this.http.get<User[]>(url);
+  }
+
+  getUser(userId: string): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/user/${userId}`);
   }
 
   createUser(userData: any): Observable<User> {
     return this.http.post<User>(`${this.apiUrl}/user`, userData);
   }
 
-  updateUser(userId: number, updates: any): Observable<User> {
-    return this.http.patch<User>(`${this.apiUrl}/user?id=${userId}`, updates);
+  updateUser(userId: string, updates: any): Observable<User> {
+    return this.http.patch<User>(`${this.apiUrl}/user/${userId}`, updates);
   }
 
-  deleteUser(userId: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/user?id=${userId}`);
+  deleteUser(userId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/user/${userId}`);
+  }
+
+  // --- API Key Management Methods ---
+
+  getGlobalKeys(): Observable<ApiKey[]> {
+    return this.http.get<ApiKey[]>(`${this.apiUrl}/users/keys`);
+  }
+
+  getUserKeys(userId: string): Observable<ApiKey[]> {
+    return this.http.get<ApiKey[]>(`${this.apiUrl}/user/${userId}/keys`);
+  }
+
+  createUserKey(userId: string, data: any): Observable<ApiKey> {
+    return this.http.post<ApiKey>(`${this.apiUrl}/user/${userId}/keys`, data);
+  }
+
+  updateUserKey(userId: string, keyId: string, data: any): Observable<ApiKey> {
+    return this.http.patch<ApiKey>(`${this.apiUrl}/user/${userId}/keys/${keyId}`, data);
+  }
+
+  deleteUserKey(userId: string, keyId: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/user/${userId}/keys/${keyId}`);
   }
 }

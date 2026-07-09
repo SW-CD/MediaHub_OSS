@@ -5,5 +5,6 @@ export * from './database.model';
 export * from './entry.model';
 export * from './audit.models';
 export * from './auth.model';
+export * from './api-key.model';
 export * from './app.models';
 export * from './enums';

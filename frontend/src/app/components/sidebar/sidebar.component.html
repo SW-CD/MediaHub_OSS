@@ -28,6 +28,14 @@
         <img src="assets/icons/admin-icon.svg" class="nav-link-icon" alt="admin-icon" />
         <span *ngIf="!isCollapsed">Admin Panel</span>
       </a>
+
+      <a routerLink="/dashboard/admin/keys" 
+         routerLinkActive="active" 
+         class="nav-link"
+         [title]="isCollapsed ? 'Global API Keys' : ''">
+        <img src="assets/icons/api-icon.svg" class="nav-link-icon" alt="keys-icon" />
+        <span *ngIf="!isCollapsed">Global Keys</span>
+      </a>
       
       <a routerLink="/dashboard/admin/audit" 
          routerLinkActive="active" 
@@ -41,7 +49,7 @@
 
   <footer class="sidebar-footer">
     
-    <div class="user-info" *ngIf="!isCollapsed">
+    <div class="user-info cursor-pointer" *ngIf="!isCollapsed" [routerLink]="['/dashboard/profile']" title="View Profile & Settings">
       <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
       <div class="user-details">
         <div class="username" title="{{user.username}}">{{ user.username }}</div>
@@ -50,9 +58,9 @@
     </div>
 
     <nav class="nav-links" *ngIf="!isCollapsed">
-        <a (click)="openChangePasswordModal()" class="nav-link cursor-pointer">
-            <img src="assets/icons/password-icon.svg" class="nav-link-icon" alt="password-icon" />
-            Change Password
+        <a [routerLink]="['/dashboard/profile']" routerLinkActive="active" class="nav-link">
+            <img src="assets/icons/password-icon.svg" class="nav-link-icon" alt="profile-icon" />
+            Profile & Settings
         </a>
         
         <a href="swagger/index.html" target="_blank" class="nav-link">

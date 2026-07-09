@@ -1,13 +1,16 @@
+// frontend/src/app/components/admin-user-list/admin-user-list.component.ts
+
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { Subject, combineLatest } from 'rxjs';
 import { takeUntil, finalize, filter, take } from 'rxjs/operators';
-import { User, Permission, Database } from '../../models';
+import { User, Permission, Database, ApiKey } from '../../models';
 import { AuthService } from '../../services/auth.service';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
 import { NotificationService } from '../../services/notification.service';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
+import { ApiKeyModalComponent } from '../api-key-modal/api-key-modal.component';
 
 @Component({
   selector: 'app-admin-user-list',
@@ -26,6 +29,14 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
   public detailForm: FormGroup;
   public isSaving = false;
 
+  // Sidebar List Tab (Standard Users vs Service Accounts)
+  public activeListTab: 'standard' | 'service' = 'standard';
+  
+  // Detail Pane Tabs (Settings vs API Keys)
+  public activeDetailTab: 'settings' | 'keys' = 'settings';
+  public userKeys: ApiKey[] = [];
+  public isKeysLoading = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -40,8 +51,9 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.detailForm = this.fb.group({
       id: [null],
       username: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_]+$/)]],
-      password: [''], // Will be required dynamically for new users
+      password: [''], // Will be required dynamically for new standard users
       is_admin: [false],
+      is_service_account: [false],
       permissions: this.fb.array([])
     });
   }
@@ -62,18 +74,39 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Sets the active sidebar user list tab and reloads.
+   */
+  setListTab(tab: 'standard' | 'service'): void {
+    this.activeListTab = tab;
+    this.clearSelection();
+    this.loadData();
+  }
+
+  /**
+   * Sets the active detail pane tab.
+   */
+  setDetailTab(tab: 'settings' | 'keys'): void {
+    this.activeDetailTab = tab;
+    if (tab === 'keys') {
+      this.loadUserKeys();
+    }
+  }
+
+  /**
    * Fetches both users and databases simultaneously.
    */
   loadData(): void {
     this.isLoading = true;
-    this.cdr.markForCheck(); // Ensure the UI knows we are loading
+    this.cdr.markForCheck();
     
+    const filterServiceAccount = this.activeListTab === 'service';
+
     combineLatest([
-      this.authService.getUsers(),
+      this.authService.getUsers(filterServiceAccount),
       this.databaseService.databases$ 
     ])
     .pipe(
-      take(1), // Forces the stream to complete after 1 emission
+      take(1),
       takeUntil(this.destroy$),
       finalize(() => {
         this.isLoading = false;
@@ -83,7 +116,6 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     .subscribe({
       next: ([users, databases]) => {
         this.users = users;
-        // Store both id and name for form generation
         this.availableDatabases = databases.map(db => ({ id: db.id, name: db.name }));
         
         // If we reloaded data and a user is selected, refresh their form data
@@ -91,6 +123,9 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
           const refreshedUser = this.users.find(u => u.id === this.selectedUser!.id);
           if (refreshedUser) {
             this.selectUser(refreshedUser);
+            if (this.activeDetailTab === 'keys') {
+              this.loadUserKeys();
+            }
           } else {
             this.clearSelection();
           }
@@ -98,6 +133,7 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Failed to load admin user data:', err);
+        this.notificationService.showError('Could not load user data.');
       }
     });
   }
@@ -109,37 +145,48 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
 
   // --- Master Pane Actions ---
 
-  trackById(index: number, user: User): number {
+  trackById(index: number, user: User): string {
     return user.id;
   }
 
   selectUser(user: User): void {
     this.isNewUser = false;
     this.selectedUser = user;
+    this.activeDetailTab = 'settings';
     this.buildForm(user);
   }
 
   createNewUser(): void {
     this.isNewUser = true;
-    this.selectedUser = null; // Clears the selection highlight in the list
+    this.selectedUser = null; 
+    this.activeDetailTab = 'settings';
     
+    const isService = this.activeListTab === 'service';
     const emptyUser: Partial<User> = {
       username: '',
       is_admin: false,
+      is_service_account: isService,
       permissions: []
     };
     
     this.buildForm(emptyUser as User);
-    // Password is required for a new user
-    this.detailForm.get('password')?.setValidators([Validators.required, Validators.minLength(8)]);
+    
+    if (isService) {
+      // Password field is hidden and bypassed for service accounts
+      this.detailForm.get('password')?.clearValidators();
+    } else {
+      this.detailForm.get('password')?.setValidators([Validators.required, Validators.minLength(8)]);
+    }
     this.detailForm.get('password')?.updateValueAndValidity();
   }
 
   clearSelection(): void {
     this.selectedUser = null;
     this.isNewUser = false;
+    this.activeDetailTab = 'settings';
     this.detailForm.reset();
     this.permissions.clear();
+    this.userKeys = [];
   }
 
   // --- Detail Pane Logic ---
@@ -153,8 +200,8 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       const existingPerm = user.permissions?.find(p => p.database_id === db.id);
       
       this.permissions.push(this.fb.group({
-        database_id: [db.id], // Core identifier for the backend
-        database_name: [db.name], // Kept strictly for display in the HTML template
+        database_id: [db.id],
+        database_name: [db.name],
         can_view: [existingPerm?.can_view || false],
         can_create: [existingPerm?.can_create || false],
         can_edit: [existingPerm?.can_edit || false],
@@ -166,25 +213,26 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       id: user.id || null,
       username: user.username || '',
       is_admin: user.is_admin || false,
-      password: '' // Never populate the password field
+      is_service_account: user.is_service_account || false,
+      password: ''
     });
 
-    // Make password optional for editing existing users
+    // Handle password field validation on edit
     if (!this.isNewUser) {
-      this.detailForm.get('password')?.setValidators([Validators.minLength(8)]);
+      if (user.is_service_account) {
+        this.detailForm.get('password')?.clearValidators();
+      } else {
+        this.detailForm.get('password')?.setValidators([Validators.minLength(8)]);
+      }
       this.detailForm.get('password')?.updateValueAndValidity();
     }
   }
 
-  /**
-   * Toggles a specific permission flag for ALL databases in the form.
-   */
   toggleColumnAll(permissionType: 'can_view' | 'can_create' | 'can_edit' | 'can_delete'): void {
-    if (this.detailForm.get('is_admin')?.value) return; // Prevent toggling if disabled
+    if (this.detailForm.get('is_admin')?.value) return;
 
-    // Check if they are all currently true
     const allTrue = this.permissions.controls.every(ctrl => ctrl.get(permissionType)?.value === true);
-    const newValue = !allTrue; // If all are true, turn them all off. Otherwise, turn them all on.
+    const newValue = !allTrue;
 
     this.permissions.controls.forEach(ctrl => {
       ctrl.get(permissionType)?.setValue(newValue);
@@ -201,15 +249,13 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
 
     this.isSaving = true;
     
-    // Deep copy the form data so we can safely strip the display-only properties
     const formData = JSON.parse(JSON.stringify(this.detailForm.getRawValue()));
 
-    // Remove empty password field so backend doesn't try to set it to blank
-    if (!formData.password) {
+    // Bypasses password for service accounts or if password wasn't provided for edit
+    if (formData.is_service_account || !formData.password) {
       delete formData.password;
     }
 
-    // Strip out the display-only database_name before sending to the API
     if (formData.permissions) {
       formData.permissions = formData.permissions.map((p: any) => {
         const { database_name, ...rest } = p;
@@ -217,7 +263,6 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Prepare API call
     const apiCall$ = this.isNewUser
       ? this.authService.createUser(formData)
       : this.authService.updateUser(formData.id, formData);
@@ -226,7 +271,10 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       next: (savedUser) => {
         const action = this.isNewUser ? 'created' : 'updated';
         this.notificationService.showSuccess(`User ${savedUser.username} ${action} successfully!`);
-        this.loadData(); // Refresh the list
+        this.loadData();
+      },
+      error: (err) => {
+        console.error('Failed to save user:', err);
       }
     });
   }
@@ -248,6 +296,79 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
             this.notificationService.showSuccess(`User deleted successfully.`);
             this.clearSelection();
             this.loadData();
+          },
+          error: (err) => {
+            console.error('Failed to delete user', err);
+          }
+        });
+      });
+  }
+
+  // --- API Key Management (Delegated) ---
+
+  loadUserKeys(): void {
+    if (!this.selectedUser) return;
+    this.isKeysLoading = true;
+    this.authService.getUserKeys(this.selectedUser.id)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isKeysLoading = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe({
+        next: (keys) => {
+          this.userKeys = keys || [];
+        },
+        error: (err) => {
+          console.error('Failed to load user keys', err);
+          this.notificationService.showError('Could not load user API keys.');
+        }
+      });
+  }
+
+  openCreateKeyModal(): void {
+    if (!this.selectedUser) return;
+    this.modalService.open(ApiKeyModalComponent.MODAL_ID, { userId: this.selectedUser.id })
+      .pipe(take(1))
+      .subscribe(created => {
+        if (created) {
+          this.loadUserKeys();
+        }
+      });
+  }
+
+  openEditKeyModal(key: ApiKey): void {
+    if (!this.selectedUser) return;
+    this.modalService.open(ApiKeyModalComponent.MODAL_ID, { userId: this.selectedUser.id, apiKey: key })
+      .pipe(take(1))
+      .subscribe(updated => {
+        if (updated) {
+          this.loadUserKeys();
+        }
+      });
+  }
+
+  openRevokeKeyConfirm(key: ApiKey): void {
+    if (!this.selectedUser) return;
+
+    const modalData: ConfirmationModalData = {
+      title: 'Revoke User API Key',
+      message: `Are you sure you want to revoke/delete the API key "${key.name}" on behalf of this user?`
+    };
+
+    this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
+      .pipe(take(1), filter(isConfirmed => isConfirmed === true))
+      .subscribe(() => {
+        this.authService.deleteUserKey(this.selectedUser!.id, key.id).subscribe({
+          next: () => {
+            this.notificationService.showSuccess('API key revoked successfully.');
+            this.loadUserKeys();
+          },
+          error: (err) => {
+            console.error('Failed to revoke key', err);
+            this.notificationService.showError('Could not revoke key.');
           }
         });
       });

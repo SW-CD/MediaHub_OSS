@@ -1,0 +1,155 @@
+/* frontend/src/app/components/api-key-modal/api-key-modal.component.css */
+
+.reveal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Warning alert styling */
+.warning-alert {
+  background-color: rgba(221, 107, 32, 0.1); /* warning orange/yellow background */
+  border: 1px solid rgba(221, 107, 32, 0.3);
+  color: #fbd38d; /* warning color text */
+  padding: 1rem;
+  border-radius: 0.375rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  color: #dd6b20; /* warning orange icon */
+}
+
+.alert-text {
+  font-size: 0.875rem;
+}
+
+.alert-text strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+
+.alert-text p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Token Box Display */
+.token-box {
+  display: flex;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color-light);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  align-items: center;
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+}
+
+.token-text {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 1rem;
+  color: var(--text-primary);
+  word-break: break-all;
+  flex: 1;
+  user-select: all;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-width: 80px;
+}
+
+.confirmation-section {
+  padding: 0.5rem 0;
+}
+
+/* Form Styling Additions */
+.description-subtext {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.scopes-section {
+  background-color: rgba(26, 32, 44, 0.5);
+  border: 1px solid var(--border-color);
+  padding: 1rem;
+  border-radius: 0.375rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.section-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Scopes Grid layout */
+.scopes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 1rem;
+}
+
+/* Tooltip */
+.info-tooltip {
+  position: relative;
+  display: inline-flex;
+  cursor: help;
+  color: var(--text-muted);
+}
+
+.info-icon {
+  color: var(--text-accent);
+}
+
+.info-tooltip .tooltip-text {
+  visibility: hidden;
+  width: 250px;
+  background-color: var(--modal-bg);
+  color: var(--text-primary);
+  text-align: left;
+  border: 1px solid var(--border-color-light);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+  font-size: 0.75rem;
+  font-weight: normal;
+  line-height: 1.4;
+}
+
+.info-tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+.form-actions {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}

@@ -12,6 +12,8 @@ import { DatabaseSettingsComponent } from './components/database-settings/databa
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
 import { ImportPageComponent } from './pages/import-page/import-page.component';
 import { OverviewPageComponent } from './pages/overview-page/overview-page.component';
+import { ProfilePageComponent } from './pages/profile-page/profile-page.component';
+import { AdminGlobalKeysComponent } from './components/admin-global-keys/admin-global-keys.component';
 
 /**
  * Defines the application's routes.
@@ -48,6 +50,15 @@ const routes: Routes = [
         path: 'admin/users',
         component: AdminUserListComponent,
         canActivate: [AdminGuard], // Enforce global admin permission
+      },
+      {
+        path: 'admin/keys',
+        component: AdminGlobalKeysComponent,
+        canActivate: [AdminGuard],
+      },
+      {
+        path: 'profile',
+        component: ProfilePageComponent,
       },
       {
         path: '',
