@@ -63,6 +63,19 @@ func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 
 	// Audit Logs (Restricted to Admin)
 	mux.Handle("GET /api/audit", ReqAdmin(h.AuditHandler.GetLogs))
+
+	// API Keys Management (Admin only)
+	mux.Handle("GET /api/users/keys", ReqAdmin(h.UserHandler.GetAllAPIKeys))
+
+	// API Keys Management (Self or Admin)
+	ReqSelfOrAdmin := func(hf http.HandlerFunc) http.Handler {
+		return Chain(hf, am.AuthMiddleware, am.RequireSelfOrAdmin())
+	}
+	mux.Handle("POST /api/user/{user_ulid}/keys", ReqSelfOrAdmin(h.UserHandler.CreateAPIKey))
+	mux.Handle("GET /api/user/{user_ulid}/keys", ReqSelfOrAdmin(h.UserHandler.GetAPIKeys))
+	mux.Handle("GET /api/user/{user_ulid}/keys/{key_ulid}", ReqSelfOrAdmin(h.UserHandler.GetAPIKey))
+	mux.Handle("PATCH /api/user/{user_ulid}/keys/{key_ulid}", ReqSelfOrAdmin(h.UserHandler.UpdateAPIKey))
+	mux.Handle("DELETE /api/user/{user_ulid}/keys/{key_ulid}", ReqSelfOrAdmin(h.UserHandler.DeleteAPIKey))
 }
 
 // addDatabaseRoutes configures database routes AND nested entry routes.

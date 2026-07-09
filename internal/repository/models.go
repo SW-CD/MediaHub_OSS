@@ -69,6 +69,22 @@ type User struct {
 	IsServiceAccount bool
 }
 
+type APIKey struct {
+	ID          ULID
+	UserID      ULID
+	Name        string
+	KeyHash     string
+	KeyHint     string
+	ScopeView   bool
+	ScopeCreate bool
+	ScopeEdit   bool
+	ScopeDelete bool
+	ScopeAdmin  bool
+	CreatedAt   time.Time
+	ExpiresAt   time.Time // Uses time.Time{} for infinity / no expiry
+	LastUsedAt  time.Time // Uses time.Time{} for never used
+}
+
 // defines a role that a user has in a specific database (CanView, CanCreate, CanEdit, CanDelete)
 type UserPermissions struct {
 	UserID     ULID

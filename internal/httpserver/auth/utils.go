@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"mediahub_oss/internal/httpserver/utils"
 	"mediahub_oss/internal/repository"
 	"strings"
 	"time"
@@ -74,20 +77,82 @@ func (am *AuthMiddleware) validateBasicAuth(encodedValue string) (repository.Use
 	return user, nil
 }
 
-// hasPerm checks if the user has the requested permission for the given database ID.
-func (am *AuthMiddleware) hasPerm(user *repository.User, dbID string, perm string) bool {
-	if user == nil {
-		return false
+// validateAPIKey hashes the secret part of the token, queries the API key joined with the owner, and checks for expiry.
+func (am *AuthMiddleware) validateAPIKey(token string) (repository.User, repository.APIKey, error) {
+	if len(token) <= 4 {
+		return repository.User{}, repository.APIKey{}, errors.New("invalid token length")
 	}
 
-	perms, err := am.Repo.GetUserPermissions(context.Background(), user.ID, repository.ULID(dbID))
+	secret := token[4:]
+	hashBytes := sha256.Sum256([]byte(secret))
+	keyHash := hex.EncodeToString(hashBytes[:])
+
+	key, user, err := am.Repo.GetAPIKeyWithOwnerByHash(context.Background(), keyHash)
 	if err != nil {
+		return repository.User{}, repository.APIKey{}, err
+	}
+
+	// Validate expiry
+	if !key.ExpiresAt.IsZero() && time.Now().After(key.ExpiresAt) {
+		return repository.User{}, repository.APIKey{}, errors.New("token expired")
+	}
+
+	return user, key, nil
+}
+
+// hasPerm checks if the user has the requested permission for the given database ID using cached permissions in the context.
+func (am *AuthMiddleware) hasPerm(ctx context.Context, dbID string, perm string) bool {
+	permsMap := utils.GetPermissionsFromContext(ctx)
+	if permsMap == nil {
 		return false
 	}
 
-	if strings.Contains(perms.Roles, perm) {
+	p, ok := permsMap[repository.ULID(dbID)]
+	if !ok {
+		return false
+	}
+
+	if strings.Contains(p.Roles, perm) {
 		return true
 	}
 
 	return false
+}
+
+// HasPermission validates if the authenticated user has access to a specific database action,
+// taking into account API key restriction scopes (intersection logic).
+func (am *AuthMiddleware) HasPermission(ctx context.Context, perm string, dbID string) bool {
+	user := utils.GetUserFromContext(ctx)
+	if user == nil {
+		return false
+	}
+
+	// 1. API Key Scope checks (Intersection logic)
+	apiKey := utils.GetAPIKeyFromContext(ctx)
+	if apiKey != nil {
+		var scopeAllowed bool
+		switch perm {
+		case "CanView":
+			scopeAllowed = apiKey.ScopeView
+		case "CanCreate":
+			scopeAllowed = apiKey.ScopeCreate
+		case "CanEdit":
+			scopeAllowed = apiKey.ScopeEdit
+		case "CanDelete":
+			scopeAllowed = apiKey.ScopeDelete
+		default:
+			scopeAllowed = false
+		}
+		if !scopeAllowed {
+			return false
+		}
+	}
+
+	// 2. Global Admins bypass all database permission checks
+	if utils.IsAdminFromContext(ctx) {
+		return true
+	}
+
+	// 3. Check database-specific permissions from context
+	return am.hasPerm(ctx, dbID, perm)
 }

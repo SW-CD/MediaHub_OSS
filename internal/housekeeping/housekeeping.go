@@ -94,6 +94,14 @@ func (s *HouseKeeper) runGlobalTasks(ctx context.Context) {
 		s.Logger.Info("Cleaned up expired refresh tokens", "deleted_count", deletedCount)
 	}
 
+	// 1b. Clean up expired API keys
+	deletedKeysCount, err := s.Repo.DeleteExpiredAPIKeys(ctx)
+	if err != nil {
+		s.Logger.Error("Failed to clean up expired API keys", "error", err)
+	} else if deletedKeysCount > 0 {
+		s.Logger.Info("Cleaned up expired API keys", "deleted_count", deletedKeysCount)
+	}
+
 	// 2. Clean up old audit logs
 	if err := s.Repo.DeleteLogs(ctx, s.AuditRetention); err != nil {
 		s.Logger.Error("Failed to clean up old audit logs", "error", err)

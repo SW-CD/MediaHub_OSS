@@ -67,6 +67,13 @@ func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If authenticated via API Key, ensure it has ScopeView
+	apiKey := utils.GetAPIKeyFromContext(ctx)
+	if apiKey != nil && !apiKey.ScopeView {
+		utils.RespondWithJSON(w, http.StatusOK, []DatabaseResponse{})
+		return
+	}
+
 	// 1. Fetch all databases from the repository
 	dbs, err := h.Repo.GetDatabases(ctx)
 	if err != nil {
@@ -76,20 +83,15 @@ func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Filter for non-admin users based on database-level permissions
-	if !user.IsAdmin {
-		permissions, err := h.Repo.GetAllUserPermissions(ctx, user.ID)
-		if err != nil {
-			h.Logger.Error("Failed to retrieve user permissions.", "error", err)
-			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions.")
-			return
-		}
+	if !utils.IsAdminFromContext(ctx) {
+		permsMap := utils.GetPermissionsFromContext(ctx)
 
 		// Build an O(1) lookup map of databases the user is allowed to see using the ULID
 		allowedDBs := make(map[string]bool)
-		for _, perm := range permissions {
+		for dbID, perm := range permsMap {
 			// Check if the user has a non-empty Roles string
 			if len(perm.Roles) > 0 {
-				allowedDBs[perm.DatabaseID.String()] = true
+				allowedDBs[dbID.String()] = true
 			}
 		}
 

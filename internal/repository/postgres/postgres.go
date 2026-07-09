@@ -258,3 +258,44 @@ func (r PostgresRepository) DeleteCustomField(ctx context.Context, dbID repo.ULI
 func (r PostgresRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) ([]repository.CustomFieldDef, error) {
 	return nil, customerrors.ErrNotImplemented
 }
+
+// API Key stubs
+func (r PostgresRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKey) (repo.APIKey, error) {
+	return repo.APIKey{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetAPIKeyByID(ctx context.Context, id repo.ULID) (repo.APIKey, error) {
+	return repo.APIKey{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) (repo.APIKey, error) {
+	return repo.APIKey{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash string) (repo.APIKey, repo.User, error) {
+	return repo.APIKey{}, repo.User{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetAPIKeysByUserID(ctx context.Context, userID repo.ULID) ([]repo.APIKey, error) {
+	return nil, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) GetAllAPIKeys(ctx context.Context) ([]repo.APIKey, error) {
+	return nil, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) UpdateAPIKey(ctx context.Context, apiKey repo.APIKey) (repo.APIKey, error) {
+	return repo.APIKey{}, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) DeleteAPIKey(ctx context.Context, id repo.ULID) error {
+	return customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) DeleteExpiredAPIKeys(ctx context.Context) (int64, error) {
+	return 0, customerrors.ErrNotImplemented
+}
+
+func (r PostgresRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Time) error {
+	return customerrors.ErrNotImplemented
+}

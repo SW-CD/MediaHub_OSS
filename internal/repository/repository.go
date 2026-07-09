@@ -70,6 +70,18 @@ type Repository interface {
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	DeleteAllRefreshTokensForUser(ctx context.Context, userID ULID) error
 
+	// API Key
+	CreateAPIKey(ctx context.Context, apiKey APIKey) (APIKey, error)
+	GetAPIKeyByID(ctx context.Context, id ULID) (APIKey, error)
+	GetAPIKeyByHash(ctx context.Context, keyHash string) (APIKey, error)
+	GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash string) (APIKey, User, error)
+	GetAPIKeysByUserID(ctx context.Context, userID ULID) ([]APIKey, error)
+	GetAllAPIKeys(ctx context.Context) ([]APIKey, error)
+	UpdateAPIKey(ctx context.Context, apiKey APIKey) (APIKey, error)
+	DeleteAPIKey(ctx context.Context, id ULID) error
+	DeleteExpiredAPIKeys(ctx context.Context) (int64, error)
+	UpdateAPIKeyLastUsed(ctx context.Context, id ULID, lastUsed time.Time) error
+
 	// Logging
 	LogAudit(ctx context.Context, log AuditLog) error
 	GetLogs(ctx context.Context, opts QueryOptions) ([]AuditLog, error)

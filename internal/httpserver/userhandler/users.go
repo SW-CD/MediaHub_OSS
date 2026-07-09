@@ -35,37 +35,39 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isAdmin := utils.IsAdminFromContext(ctx)
+
 	// 2. Initialize the base response
 	response := UserResponse{
 		ID:               user.ID,
 		Username:         user.Username,
-		IsAdmin:          user.IsAdmin,
+		IsAdmin:          isAdmin,
 		IsServiceAccount: user.IsServiceAccount,
 		Permissions:      []DatabasePermission{}, // Default to empty array
 	}
 
 	// 3. If the user is an admin, they bypass specific permission checks
-	if user.IsAdmin {
+	if isAdmin {
 		utils.RespondWithJSON(w, http.StatusOK, response)
 		return
 	}
 
-	// 4. For non-admins, retrieve their specific database permissions
-	rawPerms, err := h.Repo.GetAllUserPermissions(ctx, user.ID)
-	if err != nil {
-		h.Logger.Error("Failed to fetch user permissions", "error", err, "user_id", user.ID)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
-		return
-	}
+	// 4. Retrieve permissions from request context cache
+	permsMap := utils.GetPermissionsFromContext(ctx)
 
-	// 5. Parse the comma-separated roles string into boolean flags
-	for _, rp := range rawPerms {
+	// 5. Parse the roles
+	for _, rp := range permsMap {
+		canView := strings.Contains(rp.Roles, "CanView")
+		canCreate := strings.Contains(rp.Roles, "CanCreate")
+		canEdit := strings.Contains(rp.Roles, "CanEdit")
+		canDelete := strings.Contains(rp.Roles, "CanDelete")
+
 		response.Permissions = append(response.Permissions, DatabasePermission{
-			DatabaseID: rp.DatabaseID.String(), // Updated to DatabaseID
-			CanView:    strings.Contains(rp.Roles, "CanView"),
-			CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
-			CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
-			CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
+			DatabaseID: rp.DatabaseID.String(),
+			CanView:    canView,
+			CanCreate:  canCreate,
+			CanEdit:    canEdit,
+			CanDelete:  canDelete,
 		})
 	}
 
