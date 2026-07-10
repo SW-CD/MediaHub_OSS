@@ -168,15 +168,22 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		userIDStr = r.PathValue("user_id")
 	}
 
-	user, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr))
-	if err != nil {
-		if errors.Is(err, customerrors.ErrNotFound) {
-			utils.RespondWithError(w, http.StatusNotFound, "User not found")
-		} else {
-			h.Logger.Error("Failed to retrieve user", "error", err)
-			utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+	var userID repo.ULID
+	ctxUser := utils.GetUserFromContext(ctx)
+	if ctxUser != nil && string(ctxUser.ID) == userIDStr {
+		userID = ctxUser.ID
+	} else {
+		user, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr))
+		if err != nil {
+			if errors.Is(err, customerrors.ErrNotFound) {
+				utils.RespondWithError(w, http.StatusNotFound, "User not found")
+			} else {
+				h.Logger.Error("Failed to retrieve user", "error", err)
+				utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+			}
+			return
 		}
-		return
+		userID = user.ID
 	}
 
 	var payload CreateAPIKeyPayload
@@ -212,7 +219,7 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	keyModel := repo.APIKey{
 		ID:          repo.ULID(shared.GenerateULID()),
-		UserID:      user.ID,
+		UserID:      userID,
 		Name:        payload.Name,
 		KeyHash:     keyHash,
 		KeyHint:     keyHint,
@@ -259,15 +266,18 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 		userIDStr = r.PathValue("user_id")
 	}
 
-	u, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr))
-	if err != nil {
-		if errors.Is(err, customerrors.ErrNotFound) {
-			utils.RespondWithError(w, http.StatusNotFound, "User not found")
-		} else {
-			h.Logger.Error("Failed to retrieve user", "error", err)
-			utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+	// Check if context user matches the target ULID to avoid a DB query
+	ctxUser := utils.GetUserFromContext(ctx)
+	if ctxUser == nil || string(ctxUser.ID) != userIDStr {
+		if _, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr)); err != nil {
+			if errors.Is(err, customerrors.ErrNotFound) {
+				utils.RespondWithError(w, http.StatusNotFound, "User not found")
+			} else {
+				h.Logger.Error("Failed to retrieve user", "error", err)
+				utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+			}
+			return
 		}
-		return
 	}
 
 	keys, err := h.Repo.GetAPIKeysByUserID(ctx, repo.ULID(userIDStr))
@@ -279,14 +289,7 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]APIKeyResponse, len(keys))
 	for i, key := range keys {
-		apiKeyResp := mapToAPIKeyResponse(key)
-		apiKeyResp.User = &UserSubResponse{
-			ID:               string(u.ID),
-			Username:         u.Username,
-			IsAdmin:          u.IsAdmin,
-			IsServiceAccount: u.IsServiceAccount,
-		}
-		resp[i] = apiKeyResp
+		resp[i] = mapToAPIKeyResponse(key)
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, resp)
