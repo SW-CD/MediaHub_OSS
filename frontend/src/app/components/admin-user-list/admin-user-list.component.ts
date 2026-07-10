@@ -154,12 +154,14 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.selectedUser = user;
     this.activeDetailTab = 'settings';
     this.buildForm(user);
+    this.loadUserKeys();
   }
 
   createNewUser(): void {
     this.isNewUser = true;
     this.selectedUser = null; 
     this.activeDetailTab = 'settings';
+    this.userKeys = [];
     
     const isService = this.activeListTab === 'service';
     const emptyUser: Partial<User> = {

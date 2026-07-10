@@ -153,3 +153,18 @@
   gap: 1rem;
   margin-top: 1.5rem;
 }
+
+/* Light mode overrides */
+:host-context(body.light-theme) .warning-alert {
+  background-color: rgba(221, 107, 32, 0.08);
+  border: 1px solid rgba(221, 107, 32, 0.3);
+  color: #9c4221; /* readable dark orange-brown on light bg */
+}
+
+:host-context(body.light-theme) .alert-text strong {
+  color: #7b341e; /* darker highlight color for headers */
+}
+
+:host-context(body.light-theme) .scopes-section {
+  background-color: var(--item-bg);
+}
