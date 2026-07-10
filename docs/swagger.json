@@ -12,7 +12,7 @@
             "url": "https://www.swcd.lu",
             "email": "denglerchr@gmail.com"
         },
-        "version": "2.2.0-beta"
+        "version": "3.0.0"
     },
     "basePath": "/api",
     "paths": {
@@ -1830,6 +1830,381 @@
                 }
             }
         },
+        "/user/{user_ulid}": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a specific user account and their database permissions. Requires the global IsAdmin role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Retrieve a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User record",
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid user ULID",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden: Admin user not retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{user_ulid}/keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the complete list of keys associated with the specified user. Hint only, actual key is hashed. Requires admin or self ownership.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Retrieve API keys for a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/userhandler.APIKeyResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates a new API key for the specified user and returns the plaintext token. Plentext token is returned only once. Requires admin or self ownership.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Create a new API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "API Key details",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.CreateAPIKeyPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.APIKeyCreatedResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{user_ulid}/keys/{key_ulid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the metadata of a specific API key. Requires admin or self ownership.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Retrieve a specific API key details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Key ULID",
+                        "name": "key_ulid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.APIKeyResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Key not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes/revokes an existing API key. Requires admin or self ownership.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Delete/revoke an API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Key ULID",
+                        "name": "key_ulid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.MessageResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Key not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates an existing API key's name, expiry timestamp, or scopes. Requires admin or self ownership.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Update an API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ULID",
+                        "name": "user_ulid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Key ULID",
+                        "name": "key_ulid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.UpdateAPIKeyPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/userhandler.APIKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Key not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [
@@ -1866,6 +2241,46 @@
                     },
                     "403": {
                         "description": "Forbidden: User lacks IsAdmin role",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves all active API keys in the system with associated user details. Requires global admin role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Retrieve all API keys",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/userhandler.APIKeyWithUserResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -2220,6 +2635,14 @@
                 }
             }
         },
+        "infohandler.FeaturesConfig": {
+            "type": "object",
+            "properties": {
+                "audit_logs": {
+                    "type": "boolean"
+                }
+            }
+        },
         "infohandler.InfoResponse": {
             "type": "object",
             "properties": {
@@ -2231,6 +2654,9 @@
                             "type": "string"
                         }
                     }
+                },
+                "features": {
+                    "$ref": "#/definitions/infohandler.FeaturesConfig"
                 },
                 "oidc": {
                     "$ref": "#/definitions/infohandler.OIDCConfig"
@@ -2362,10 +2788,174 @@
                 }
             }
         },
+        "userhandler.APIKeyCreatedResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key_hint": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_admin": {
+                    "type": "boolean"
+                },
+                "scope_create": {
+                    "type": "boolean"
+                },
+                "scope_delete": {
+                    "type": "boolean"
+                },
+                "scope_edit": {
+                    "type": "boolean"
+                },
+                "scope_view": {
+                    "type": "boolean"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.APIKeyResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key_hint": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_admin": {
+                    "type": "boolean"
+                },
+                "scope_create": {
+                    "type": "boolean"
+                },
+                "scope_delete": {
+                    "type": "boolean"
+                },
+                "scope_edit": {
+                    "type": "boolean"
+                },
+                "scope_view": {
+                    "type": "boolean"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.APIKeyWithUserResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key_hint": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "description": "nullable",
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_admin": {
+                    "type": "boolean"
+                },
+                "scope_create": {
+                    "type": "boolean"
+                },
+                "scope_delete": {
+                    "type": "boolean"
+                },
+                "scope_edit": {
+                    "type": "boolean"
+                },
+                "scope_view": {
+                    "type": "boolean"
+                },
+                "user": {
+                    "$ref": "#/definitions/userhandler.UserSubResponse"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.CreateAPIKeyPayload": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_admin": {
+                    "type": "boolean"
+                },
+                "scope_create": {
+                    "type": "boolean"
+                },
+                "scope_delete": {
+                    "type": "boolean"
+                },
+                "scope_edit": {
+                    "type": "boolean"
+                },
+                "scope_view": {
+                    "type": "boolean"
+                }
+            }
+        },
         "userhandler.CreateUserPayload": {
             "type": "object",
             "properties": {
                 "is_admin": {
+                    "type": "boolean"
+                },
+                "is_service_account": {
                     "type": "boolean"
                 },
                 "password": {
@@ -2399,6 +2989,32 @@
                 },
                 "database_id": {
                     "type": "string"
+                }
+            }
+        },
+        "userhandler.UpdateAPIKeyPayload": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_admin": {
+                    "type": "boolean"
+                },
+                "scope_create": {
+                    "type": "boolean"
+                },
+                "scope_delete": {
+                    "type": "boolean"
+                },
+                "scope_edit": {
+                    "type": "boolean"
+                },
+                "scope_view": {
+                    "type": "boolean"
                 }
             }
         },
@@ -2437,9 +3053,12 @@
             "type": "object",
             "properties": {
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "is_admin": {
+                    "type": "boolean"
+                },
+                "is_service_account": {
                     "type": "boolean"
                 },
                 "permissions": {
@@ -2447,6 +3066,23 @@
                     "items": {
                         "$ref": "#/definitions/userhandler.DatabasePermission"
                     }
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "userhandler.UserSubResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "is_service_account": {
+                    "type": "boolean"
                 },
                 "username": {
                     "type": "string"

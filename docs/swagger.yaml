@@ -227,6 +227,11 @@ definitions:
       timestamp:
         type: integer
     type: object
+  infohandler.FeaturesConfig:
+    properties:
+      audit_logs:
+        type: boolean
+    type: object
   infohandler.InfoResponse:
     properties:
       conversion_to:
@@ -235,6 +240,8 @@ definitions:
             type: string
           type: array
         type: object
+      features:
+        $ref: '#/definitions/infohandler.FeaturesConfig'
       oidc:
         $ref: '#/definitions/infohandler.OIDCConfig'
       service_name:
@@ -320,9 +327,119 @@ definitions:
       refresh_token:
         type: string
     type: object
+  userhandler.APIKeyCreatedResponse:
+    properties:
+      created_at:
+        type: integer
+      expires_at:
+        description: nullable
+        type: integer
+      id:
+        type: string
+      key_hint:
+        type: string
+      last_used_at:
+        description: nullable
+        type: integer
+      name:
+        type: string
+      scope_admin:
+        type: boolean
+      scope_create:
+        type: boolean
+      scope_delete:
+        type: boolean
+      scope_edit:
+        type: boolean
+      scope_view:
+        type: boolean
+      token:
+        type: string
+      user_id:
+        type: string
+    type: object
+  userhandler.APIKeyResponse:
+    properties:
+      created_at:
+        type: integer
+      expires_at:
+        description: nullable
+        type: integer
+      id:
+        type: string
+      key_hint:
+        type: string
+      last_used_at:
+        description: nullable
+        type: integer
+      name:
+        type: string
+      scope_admin:
+        type: boolean
+      scope_create:
+        type: boolean
+      scope_delete:
+        type: boolean
+      scope_edit:
+        type: boolean
+      scope_view:
+        type: boolean
+      user_id:
+        type: string
+    type: object
+  userhandler.APIKeyWithUserResponse:
+    properties:
+      created_at:
+        type: integer
+      expires_at:
+        description: nullable
+        type: integer
+      id:
+        type: string
+      key_hint:
+        type: string
+      last_used_at:
+        description: nullable
+        type: integer
+      name:
+        type: string
+      scope_admin:
+        type: boolean
+      scope_create:
+        type: boolean
+      scope_delete:
+        type: boolean
+      scope_edit:
+        type: boolean
+      scope_view:
+        type: boolean
+      user:
+        $ref: '#/definitions/userhandler.UserSubResponse'
+      user_id:
+        type: string
+    type: object
+  userhandler.CreateAPIKeyPayload:
+    properties:
+      expires_at:
+        type: integer
+      name:
+        type: string
+      scope_admin:
+        type: boolean
+      scope_create:
+        type: boolean
+      scope_delete:
+        type: boolean
+      scope_edit:
+        type: boolean
+      scope_view:
+        type: boolean
+    type: object
   userhandler.CreateUserPayload:
     properties:
       is_admin:
+        type: boolean
+      is_service_account:
         type: boolean
       password:
         type: string
@@ -345,6 +462,23 @@ definitions:
         type: boolean
       database_id:
         type: string
+    type: object
+  userhandler.UpdateAPIKeyPayload:
+    properties:
+      expires_at:
+        type: integer
+      name:
+        type: string
+      scope_admin:
+        type: boolean
+      scope_create:
+        type: boolean
+      scope_delete:
+        type: boolean
+      scope_edit:
+        type: boolean
+      scope_view:
+        type: boolean
     type: object
   userhandler.UpdateMePayload:
     properties:
@@ -369,13 +503,26 @@ definitions:
   userhandler.UserResponse:
     properties:
       id:
-        type: integer
+        type: string
       is_admin:
+        type: boolean
+      is_service_account:
         type: boolean
       permissions:
         items:
           $ref: '#/definitions/userhandler.DatabasePermission'
         type: array
+      username:
+        type: string
+    type: object
+  userhandler.UserSubResponse:
+    properties:
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      is_service_account:
+        type: boolean
       username:
         type: string
     type: object
@@ -397,7 +544,7 @@ info:
   description: This is a server for a image, audio and file storage with integrated
     web-ui.
   title: SWCD MediaHub-API
-  version: 2.2.0-beta
+  version: 3.0.0
 paths:
   /api/logout:
     post:
@@ -1602,6 +1749,253 @@ paths:
       summary: Create a new user
       tags:
       - User
+  /user/{user_ulid}:
+    get:
+      description: Retrieves a specific user account and their database permissions.
+        Requires the global IsAdmin role.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User record
+          schema:
+            $ref: '#/definitions/userhandler.UserResponse'
+        "400":
+          description: Missing or invalid user ULID
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: 'Forbidden: Admin user not retrieved'
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      - BearerAuth: []
+      summary: Retrieve a user
+      tags:
+      - User
+  /user/{user_ulid}/keys:
+    get:
+      description: Retrieves the complete list of keys associated with the specified
+        user. Hint only, actual key is hashed. Requires admin or self ownership.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/userhandler.APIKeyResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Retrieve API keys for a user
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: Generates a new API key for the specified user and returns the
+        plaintext token. Plentext token is returned only once. Requires admin or self
+        ownership.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      - description: API Key details
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.CreateAPIKeyPayload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/userhandler.APIKeyCreatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new API key
+      tags:
+      - User
+  /user/{user_ulid}/keys/{key_ulid}:
+    delete:
+      description: Deletes/revokes an existing API key. Requires admin or self ownership.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      - description: Key ULID
+        in: path
+        name: key_ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Key not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete/revoke an API key
+      tags:
+      - User
+    get:
+      description: Retrieves the metadata of a specific API key. Requires admin or
+        self ownership.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      - description: Key ULID
+        in: path
+        name: key_ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.APIKeyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Key not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Retrieve a specific API key details
+      tags:
+      - User
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing API key's name, expiry timestamp, or scopes.
+        Requires admin or self ownership.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      - description: Key ULID
+        in: path
+        name: key_ulid
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.UpdateAPIKeyPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.APIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Key not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an API key
+      tags:
+      - User
   /users:
     get:
       description: Retrieves a list of all user accounts and their assigned database
@@ -1627,6 +2021,32 @@ paths:
       - BasicAuth: []
       - BearerAuth: []
       summary: Retrieve all users
+      tags:
+      - User
+  /users/keys:
+    get:
+      description: Retrieves all active API keys in the system with associated user
+        details. Requires global admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/userhandler.APIKeyWithUserResponse'
+            type: array
+        "401":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Retrieve all API keys
       tags:
       - User
 schemes:
