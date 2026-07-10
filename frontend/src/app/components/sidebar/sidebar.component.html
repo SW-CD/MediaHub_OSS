@@ -37,7 +37,8 @@
         <span *ngIf="!isCollapsed">Global Keys</span>
       </a>
       
-      <a routerLink="/dashboard/admin/audit" 
+      <a *ngIf="(appInfo$ | async)?.features?.audit_logs"
+         routerLink="/dashboard/admin/audit" 
          routerLinkActive="active" 
          class="nav-link"
          [title]="isCollapsed ? 'Audit Logs' : ''">

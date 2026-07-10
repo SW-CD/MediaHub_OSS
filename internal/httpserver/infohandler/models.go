@@ -16,6 +16,11 @@ type OIDCConfig struct {
 	RedirectURL       string `json:"oidc_redirect_url"`
 }
 
+// FeaturesConfig represents the nested features settings in the InfoResponse.
+type FeaturesConfig struct {
+	AuditLogs bool `json:"audit_logs"`
+}
+
 type InfoHandler struct {
 	Logger       *slog.Logger
 	Auditor      audit.AuditLogger
@@ -23,6 +28,7 @@ type InfoHandler struct {
 	StartTime    time.Time
 	ConversionTo map[string][]string
 	OIDC         OIDCConfig
+	Features     FeaturesConfig
 }
 
 // InfoResponse defines the JSON structure for the /api/info endpoint.
@@ -32,4 +38,5 @@ type InfoResponse struct {
 	Uptime       string              `json:"uptime"` // Changed to reflect elapsed duration
 	ConversionTo map[string][]string `json:"conversion_to"`
 	OIDC         OIDCConfig          `json:"oidc"`
+	Features     FeaturesConfig      `json:"features"`
 }

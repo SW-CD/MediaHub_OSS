@@ -21,6 +21,7 @@ func NewInfoHandler(
 	oidcIssuerURL string,
 	oidcClientID string,
 	oidcRedirectURL string,
+	auditLogsStored bool,
 ) *InfoHandler {
 
 	convertTo := make(map[string][]string)
@@ -40,6 +41,9 @@ func NewInfoHandler(
 			IssuerURL:         oidcIssuerURL,
 			ClientID:          oidcClientID,
 			RedirectURL:       oidcRedirectURL,
+		},
+		Features: FeaturesConfig{
+			AuditLogs: auditLogsStored,
 		},
 	}
 	return handler
@@ -67,6 +71,7 @@ func (h *InfoHandler) GetInfo(w http.ResponseWriter, r *http.Request) {
 		Uptime:       elapsed.String(), // Returns format like "1h5m30s"
 		ConversionTo: h.ConversionTo,
 		OIDC:         h.OIDC,
+		Features:     h.Features,
 	}
 
 	// h.Auditor.Log(r.Context(), "system.info", "anonymous", "server", nil) // this is public, not audit logging

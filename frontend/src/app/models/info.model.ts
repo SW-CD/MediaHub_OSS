@@ -13,5 +13,8 @@ export interface AppInfo {
     issuer_url: string;
     client_id: string;
     redirect_url: string;
-  }
+  };
+  features?: {
+    audit_logs: boolean;
+  };
 }

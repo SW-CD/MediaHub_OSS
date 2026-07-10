@@ -252,6 +252,7 @@ func buildHandlers(cfg *config.Config, repo repository.Repository, storageProvid
 		cfg.Auth.OIDC.IssuerURL,
 		cfg.Auth.OIDC.ClientID,
 		cfg.Auth.OIDC.RedirectURL,
+		cfg.Logging.Audit.Enabled && cfg.Logging.Audit.Type == "database",
 	)
 	infoH.StartTime = startTime
 
