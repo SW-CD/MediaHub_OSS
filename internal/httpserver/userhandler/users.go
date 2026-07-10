@@ -361,7 +361,10 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 7. Log the action
-	h.Auditor.Log(ctx, "user.create", adminUser.Username, createdUser.Username, map[string]any{"is_admin": createdUser.IsAdmin})
+	h.Auditor.Log(ctx, "user.create", adminUser.Username, createdUser.Username, map[string]any{
+		"is_admin":           createdUser.IsAdmin,
+		"is_service_account": createdUser.IsServiceAccount,
+	})
 
 	// 8. Return Success
 	utils.RespondWithJSON(w, http.StatusCreated, response)
@@ -682,6 +685,12 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		IsServiceAccount: user.IsServiceAccount,
 		Permissions:      finalPermissions,
 	}
+
+	h.Auditor.Log(ctx, "user.get", adminUser.Username, user.Username, map[string]any{
+		"user_id":            string(user.ID),
+		"is_admin":           user.IsAdmin,
+		"is_service_account": user.IsServiceAccount,
+	})
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }
