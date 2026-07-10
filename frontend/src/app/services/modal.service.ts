@@ -32,6 +32,15 @@ export class ModalService {
   }
 
   /**
+   * Emits a result to the result subject without closing the modal.
+   */
+  emitResult(result: boolean): void {
+    if (this.resultSubject) {
+      this.resultSubject.next(result);
+    }
+  }
+
+  /**
    * Closes the currently active modal and emits the result.
    * @param result The result to emit (true for confirm, false for cancel).
    */

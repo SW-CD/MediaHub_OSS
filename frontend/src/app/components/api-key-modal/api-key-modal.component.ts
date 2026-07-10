@@ -160,6 +160,9 @@ export class ApiKeyModalComponent implements OnInit, OnDestroy {
             if (!this.plaintextToken) {
               // fallback if backend didn't return a plaintext token
               this.modalService.close(true);
+            } else {
+              // Notify parent immediately that key has been created to refresh key lists in the background
+              this.modalService.emitResult(true);
             }
           },
           error: (err) => {

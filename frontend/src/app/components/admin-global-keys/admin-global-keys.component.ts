@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { ModalService } from '../../services/modal.service';
 import { NotificationService } from '../../services/notification.service';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
+import { ApiKeyModalComponent } from '../api-key-modal/api-key-modal.component';
 
 @Component({
   selector: 'app-admin-global-keys',
@@ -87,6 +88,22 @@ export class AdminGlobalKeysComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           }
         });
+      });
+  }
+
+  public openEditKeyModal(key: ApiKey): void {
+    const ownerId = key.user?.id;
+    if (!ownerId) {
+      this.notificationService.showError('Could not identify key owner.');
+      return;
+    }
+
+    this.modalService.open(ApiKeyModalComponent.MODAL_ID, { userId: ownerId, apiKey: key })
+      .pipe(take(1))
+      .subscribe(updated => {
+        if (updated) {
+          this.loadGlobalKeys();
+        }
       });
   }
 
