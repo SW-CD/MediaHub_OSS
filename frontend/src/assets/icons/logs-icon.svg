@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="techGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+  
+  <path d="M 30 15 H 55 L 75 35 V 80 A 5 5 0 0 1 70 85 H 30 A 5 5 0 0 1 25 80 V 20 A 5 5 0 0 1 30 15 Z" fill="url(#techGradient)" />
+  
+  <path d="M 55 15 V 29 A 6 6 0 0 0 61 35 H 75 L 55 15 Z" fill="#4F46E5" opacity="0.4" />
+  
+  <path d="M 38 45 H 52 M 38 58 H 62 M 38 71 H 55" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.75" />
+  
+  <g transform="translate(68, 55) rotate(45)">
+    <path d="M 0 18 L -6 5 V -29 A 6 6 0 0 1 6 -29 V 5 Z" fill="url(#techGradient)" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" />
+    <line x1="-5.5" y1="5" x2="5.5" y2="5" stroke="#ffffff" stroke-width="2" />
+    <line x1="0" y1="5" x2="0" y2="-15" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+    <circle cx="0" cy="-23" r="2.5" fill="#ffffff" />
+  </g>
+</svg>

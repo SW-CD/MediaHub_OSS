@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="techGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="30" r="18" fill="url(#techGradient)" />
+  <path d="M 20 85 C 20 65, 32 54, 50 54 C 68 54, 80 65, 80 85 A 5 5 0 0 1 75 90 H 25 A 5 5 0 0 1 20 85 Z" fill="url(#techGradient)" />
+</svg>
