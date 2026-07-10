@@ -628,4 +628,45 @@ input:focus-visible + .toggle-slider {
   .shortened-title {
     max-width: 120px; /* Shortens e.g. "MyVeryLongTitle" to "MyVe..." */
   }
+}
+
+/* Light theme overrides */
+body.light-theme {
+  --app-bg: #f3f4f6;
+  --sidebar-bg: #ffffff;
+  --header-bg: #ffffff;
+  --footer-bg: #ffffff;
+  --modal-bg: #ffffff;
+  --item-bg: #f3f4f6;
+  --item-bg-hover: #e5e7eb;
+  --item-bg-active: #3182ce;
+  --content-bg: #ffffff;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-accent: #3182ce;
+  --border-color: #e5e7eb;
+  --border-color-light: #d1d5db;
+  --button-primary-bg: #bee3f8;
+  --button-primary-bg-hover: #90cdf4;
+  --button-secondary-bg: #e5e7eb;
+  --button-secondary-bg-hover: #d1d5db;
+  --button-danger-bg: #fed7d7;
+  --button-danger-bg-hover: #feb2b2;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --input-focus-border: #3182ce;
+}
+
+body.light-theme .db-card-badge {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.light-theme .back-btn {
+  color: var(--text-secondary);
+}
+body.light-theme .back-btn:hover {
+  color: var(--text-primary);
 }

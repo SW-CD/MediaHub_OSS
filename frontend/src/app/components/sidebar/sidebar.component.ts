@@ -1,8 +1,10 @@
 import { Component, OnDestroy, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { User, AppInfo } from '../../models';
 import { AuthService } from '../../services/auth.service';
 import { AppInfoService } from '../../services/app-info.service'; 
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -16,15 +18,24 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   public currentUser$: Observable<User | null>;
   public appInfo$: Observable<AppInfo | null>; 
+  public isLightTheme$: Observable<boolean>;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
-    private appInfoService: AppInfoService 
+    private appInfoService: AppInfoService,
+    private themeService: ThemeService
   ) {
     this.currentUser$ = this.authService.currentUser$;
     this.appInfo$ = this.appInfoService.info$; 
+    this.isLightTheme$ = this.themeService.theme$.pipe(
+      map(theme => theme === 'light')
+    );
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   ngOnInit(): void {

@@ -269,7 +269,7 @@
   flex-shrink: 0;
 }
 
-.logout-button, .sidebar-toggle-btn {
+.theme-toggle-button, .logout-button, .sidebar-toggle-btn {
   width: 100%;
   display: flex;
   align-items: center;
@@ -283,6 +283,20 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+}
+
+.theme-toggle-button {
+  color: var(--text-primary);
+  background-color: var(--item-bg);
+  border: 1px solid var(--border-color) !important;
+}
+.theme-toggle-button:hover {
+  background-color: var(--item-bg-hover);
+}
+.theme-toggle-button .theme-toggle-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
 }
 
 .logout-button {
@@ -354,6 +368,7 @@
 }
 
 .sidebar-container.collapsed .nav-link,
+.sidebar-container.collapsed .theme-toggle-button,
 .sidebar-container.collapsed .logout-button,
 .sidebar-container.collapsed .sidebar-toggle-btn {
   width: 2.75rem;
