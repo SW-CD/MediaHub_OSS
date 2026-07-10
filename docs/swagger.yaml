@@ -355,8 +355,8 @@ definitions:
         type: boolean
       token:
         type: string
-      user_id:
-        type: string
+      user:
+        $ref: '#/definitions/userhandler.UserSubResponse'
     type: object
   userhandler.APIKeyResponse:
     properties:
@@ -384,39 +384,8 @@ definitions:
         type: boolean
       scope_view:
         type: boolean
-      user_id:
-        type: string
-    type: object
-  userhandler.APIKeyWithUserResponse:
-    properties:
-      created_at:
-        type: integer
-      expires_at:
-        description: nullable
-        type: integer
-      id:
-        type: string
-      key_hint:
-        type: string
-      last_used_at:
-        description: nullable
-        type: integer
-      name:
-        type: string
-      scope_admin:
-        type: boolean
-      scope_create:
-        type: boolean
-      scope_delete:
-        type: boolean
-      scope_edit:
-        type: boolean
-      scope_view:
-        type: boolean
       user:
         $ref: '#/definitions/userhandler.UserSubResponse'
-      user_id:
-        type: string
     type: object
   userhandler.CreateAPIKeyPayload:
     properties:
@@ -2034,7 +2003,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/userhandler.APIKeyWithUserResponse'
+              $ref: '#/definitions/userhandler.APIKeyResponse'
             type: array
         "401":
           description: Authentication failed

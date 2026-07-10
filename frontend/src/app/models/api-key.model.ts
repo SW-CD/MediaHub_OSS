@@ -4,7 +4,6 @@ import { User } from './user.model';
 
 export interface ApiKey {
   id: string; // ULID
-  user_id: string; // ULID
   name: string;
   key_hint: string;
   token?: string; // Plaintext token secret, returned ONLY ONCE upon creation

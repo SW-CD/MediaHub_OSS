@@ -58,7 +58,7 @@ export class AdminGlobalKeysComponent implements OnInit, OnDestroy {
   }
 
   public openRevokeConfirm(key: ApiKey): void {
-    const ownerId = key.user_id;
+    const ownerId = key.user?.id;
     if (!ownerId) {
       this.notificationService.showError('Could not identify key owner.');
       return;

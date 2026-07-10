@@ -2272,7 +2272,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/userhandler.APIKeyWithUserResponse"
+                                "$ref": "#/definitions/userhandler.APIKeyResponse"
                             }
                         }
                     },
@@ -2832,8 +2832,8 @@ const docTemplate = `{
                 "token": {
                     "type": "string"
                 },
-                "user_id": {
-                    "type": "string"
+                "user": {
+                    "$ref": "#/definitions/userhandler.UserSubResponse"
                 }
             }
         },
@@ -2875,54 +2875,8 @@ const docTemplate = `{
                 "scope_view": {
                     "type": "boolean"
                 },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "userhandler.APIKeyWithUserResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "integer"
-                },
-                "expires_at": {
-                    "description": "nullable",
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "key_hint": {
-                    "type": "string"
-                },
-                "last_used_at": {
-                    "description": "nullable",
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "scope_admin": {
-                    "type": "boolean"
-                },
-                "scope_create": {
-                    "type": "boolean"
-                },
-                "scope_delete": {
-                    "type": "boolean"
-                },
-                "scope_edit": {
-                    "type": "boolean"
-                },
-                "scope_view": {
-                    "type": "boolean"
-                },
                 "user": {
                     "$ref": "#/definitions/userhandler.UserSubResponse"
-                },
-                "user_id": {
-                    "type": "string"
                 }
             }
         },

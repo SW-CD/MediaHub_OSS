@@ -18,30 +18,24 @@ import (
 
 // APIKeyResponse is the standard metadata response.
 type APIKeyResponse struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id"`
-	Name        string `json:"name"`
-	KeyHint     string `json:"key_hint"`
-	ScopeView   bool   `json:"scope_view"`
-	ScopeCreate bool   `json:"scope_create"`
-	ScopeEdit   bool   `json:"scope_edit"`
-	ScopeDelete bool   `json:"scope_delete"`
-	ScopeAdmin  bool   `json:"scope_admin"`
-	CreatedAt   int64  `json:"created_at"`
-	ExpiresAt   *int64 `json:"expires_at"`   // nullable
-	LastUsedAt  *int64 `json:"last_used_at"`  // nullable
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	KeyHint     string           `json:"key_hint"`
+	ScopeView   bool             `json:"scope_view"`
+	ScopeCreate bool             `json:"scope_create"`
+	ScopeEdit   bool             `json:"scope_edit"`
+	ScopeDelete bool             `json:"scope_delete"`
+	ScopeAdmin  bool             `json:"scope_admin"`
+	CreatedAt   int64            `json:"created_at"`
+	ExpiresAt   *int64           `json:"expires_at"`   // nullable
+	LastUsedAt  *int64           `json:"last_used_at"`  // nullable
+	User        *UserSubResponse `json:"user,omitempty"`
 }
 
 // APIKeyCreatedResponse includes the generated plaintext token.
 type APIKeyCreatedResponse struct {
 	APIKeyResponse
 	Token string `json:"token"`
-}
-
-// APIKeyWithUserResponse is returned by the global admin keys endpoint.
-type APIKeyWithUserResponse struct {
-	APIKeyResponse
-	User UserSubResponse `json:"user"`
 }
 
 type UserSubResponse struct {
@@ -86,7 +80,6 @@ func mapToAPIKeyResponse(key repo.APIKey) APIKeyResponse {
 
 	return APIKeyResponse{
 		ID:          string(key.ID),
-		UserID:      string(key.UserID),
 		Name:        key.Name,
 		KeyHint:     key.KeyHint,
 		ScopeView:   key.ScopeView,
@@ -106,7 +99,7 @@ func mapToAPIKeyResponse(key repo.APIKey) APIKeyResponse {
 // @Tags         User
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {array}   APIKeyWithUserResponse
+// @Success      200  {array}   APIKeyResponse
 // @Failure      401  {object}  utils.ErrorResponse "Authentication failed"
 // @Failure      403  {object}  utils.ErrorResponse "Forbidden"
 // @Router       /users/keys [get]
@@ -131,7 +124,7 @@ func (h *UserHandler) GetAllAPIKeys(w http.ResponseWriter, r *http.Request) {
 		userMap[u.ID] = u
 	}
 
-	resp := make([]APIKeyWithUserResponse, 0, len(keys))
+	resp := make([]APIKeyResponse, 0, len(keys))
 	for _, key := range keys {
 		u, ok := userMap[key.UserID]
 		if !ok {
@@ -140,15 +133,14 @@ func (h *UserHandler) GetAllAPIKeys(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
-		resp = append(resp, APIKeyWithUserResponse{
-			APIKeyResponse: mapToAPIKeyResponse(key),
-			User: UserSubResponse{
-				ID:               string(u.ID),
-				Username:         u.Username,
-				IsAdmin:          u.IsAdmin,
-				IsServiceAccount: u.IsServiceAccount,
-			},
-		})
+		apiKeyResp := mapToAPIKeyResponse(key)
+		apiKeyResp.User = &UserSubResponse{
+			ID:               string(u.ID),
+			Username:         u.Username,
+			IsAdmin:          u.IsAdmin,
+			IsServiceAccount: u.IsServiceAccount,
+		}
+		resp = append(resp, apiKeyResp)
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, resp)
@@ -267,7 +259,8 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 		userIDStr = r.PathValue("user_id")
 	}
 
-	if _, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr)); err != nil {
+	u, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr))
+	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "User not found")
 		} else {
@@ -286,7 +279,14 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]APIKeyResponse, len(keys))
 	for i, key := range keys {
-		resp[i] = mapToAPIKeyResponse(key)
+		apiKeyResp := mapToAPIKeyResponse(key)
+		apiKeyResp.User = &UserSubResponse{
+			ID:               string(u.ID),
+			Username:         u.Username,
+			IsAdmin:          u.IsAdmin,
+			IsServiceAccount: u.IsServiceAccount,
+		}
+		resp[i] = apiKeyResp
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, resp)
