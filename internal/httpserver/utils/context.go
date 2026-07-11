@@ -9,10 +9,9 @@ import (
 type ContextKey string
 
 const (
-	UserKey        ContextKey = "user"
-	APIKeyKey      ContextKey = "apikey"
-	PermissionsKey ContextKey = "permissions"
-	IsAdminKey     ContextKey = "isadmin"
+	UserKey             ContextKey = "user"
+	APIKeyKey           ContextKey = "apikey"
+	PermissionHolderKey ContextKey = "permholder"
 )
 
 // GetUserFromContext is a helper to safely retrieve the strongly-typed User object.
@@ -34,19 +33,10 @@ func GetAPIKeyFromContext(ctx context.Context) *repository.APIKey {
 }
 
 // GetPermissionsFromContext is a helper to safely retrieve the user permissions map from the context.
-func GetPermissionsFromContext(ctx context.Context) map[repository.ULID]repository.UserPermissions {
-	val := ctx.Value(PermissionsKey)
+func GetPermissionHolderFromContext(ctx context.Context) PermissionHolder {
+	val := ctx.Value(PermissionHolderKey)
 	if val == nil {
 		return nil
 	}
-	return val.(map[repository.ULID]repository.UserPermissions)
-}
-
-// IsAdminFromContext retrieves the effective admin status from the context.
-func IsAdminFromContext(ctx context.Context) bool {
-	val := ctx.Value(IsAdminKey)
-	if val == nil {
-		return false
-	}
-	return val.(bool)
+	return val.(PermissionHolder)
 }

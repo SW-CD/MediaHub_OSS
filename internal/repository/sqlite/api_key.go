@@ -32,6 +32,12 @@ func (r *SQLiteRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKey)
 		lastUsedAtVal = apiKey.LastUsedAt.UnixMilli()
 	}
 
+	var scopeView = apiKey.Scope.HasAccess(repo.AccessView)
+	var scopeCreate = apiKey.Scope.HasAccess(repo.AccessView)
+	var scopeEdit = apiKey.Scope.HasAccess(repo.AccessView)
+	var scopeDelete = apiKey.Scope.HasAccess(repo.AccessView)
+	var scopeAdmin = apiKey.Scope.HasAccess(repo.AccessView)
+
 	query, args, err := r.Builder.Insert("api_keys").
 		Columns(
 			"id", "user_id", "name", "key_hash", "key_hint",
@@ -40,7 +46,7 @@ func (r *SQLiteRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKey)
 		).
 		Values(
 			apiKey.ID.String(), apiKey.UserID.String(), apiKey.Name, apiKey.KeyHash, apiKey.KeyHint,
-			apiKey.ScopeView, apiKey.ScopeCreate, apiKey.ScopeEdit, apiKey.ScopeDelete, apiKey.ScopeAdmin,
+			scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin,
 			apiKey.CreatedAt.UnixMilli(), expiresAtVal, lastUsedAtVal,
 		).
 		ToSql()
@@ -74,10 +80,11 @@ func (r *SQLiteRepository) GetAPIKeyByID(ctx context.Context, id repo.ULID) (rep
 	var idStr, userIDStr string
 	var createdAtVal int64
 	var expiresAtNull, lastUsedAtNull sql.NullInt64
+	var scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin bool
 
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
 		&idStr, &userIDStr, &key.Name, &key.KeyHash, &key.KeyHint,
-		&key.ScopeView, &key.ScopeCreate, &key.ScopeEdit, &key.ScopeDelete, &key.ScopeAdmin,
+		&scopeView, &scopeCreate, &scopeEdit, &scopeDelete, &scopeAdmin,
 		&createdAtVal, &expiresAtNull, &lastUsedAtNull,
 	)
 	if err != nil {
@@ -89,6 +96,7 @@ func (r *SQLiteRepository) GetAPIKeyByID(ctx context.Context, id repo.ULID) (rep
 
 	key.ID = repo.ULID(idStr)
 	key.UserID = repo.ULID(userIDStr)
+	key.Scope = repo.NewAccessGrant(scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin)
 	key.CreatedAt = time.UnixMilli(createdAtVal)
 
 	if expiresAtNull.Valid {
@@ -102,6 +110,7 @@ func (r *SQLiteRepository) GetAPIKeyByID(ctx context.Context, id repo.ULID) (rep
 }
 
 // GetAPIKeyByHash retrieves an API key by its hash.
+// TODO update
 func (r *SQLiteRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) (repo.APIKey, error) {
 	query, args, err := r.Builder.Select(
 		"id", "user_id", "name", "key_hash", "key_hint",
@@ -163,6 +172,7 @@ func (r *SQLiteRepository) GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash
 	}
 
 	var key repo.APIKey
+	var scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin bool
 	var user repo.User
 	var keyIDStr, userIDStr, uIDStr string
 	var createdAtVal int64
@@ -170,7 +180,7 @@ func (r *SQLiteRepository) GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash
 
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
 		&keyIDStr, &userIDStr, &key.Name, &key.KeyHash, &key.KeyHint,
-		&key.ScopeView, &key.ScopeCreate, &key.ScopeEdit, &key.ScopeDelete, &key.ScopeAdmin,
+		&scopeView, &scopeCreate, &scopeEdit, &scopeDelete, &scopeAdmin,
 		&createdAtVal, &expiresAtNull, &lastUsedAtNull,
 		&uIDStr, &user.Username, &user.PasswordHash, &user.IsAdmin, &user.IsServiceAccount,
 	)
@@ -183,6 +193,7 @@ func (r *SQLiteRepository) GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash
 
 	key.ID = repo.ULID(keyIDStr)
 	key.UserID = repo.ULID(userIDStr)
+	key.Scope = repo.NewAccessGrant(scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin)
 	key.CreatedAt = time.UnixMilli(createdAtVal)
 	if expiresAtNull.Valid {
 		key.ExpiresAt = time.UnixMilli(expiresAtNull.Int64)
@@ -197,6 +208,7 @@ func (r *SQLiteRepository) GetAPIKeyWithOwnerByHash(ctx context.Context, keyHash
 }
 
 // GetAPIKeysByUserID retrieves all API keys linked to a specific user ID.
+// TODO update
 func (r *SQLiteRepository) GetAPIKeysByUserID(ctx context.Context, userID repo.ULID) ([]repo.APIKey, error) {
 	query, args, err := r.Builder.Select(
 		"id", "user_id", "name", "key_hash", "key_hint",
@@ -253,6 +265,7 @@ func (r *SQLiteRepository) GetAPIKeysByUserID(ctx context.Context, userID repo.U
 }
 
 // GetAllAPIKeys retrieves all API keys in the system.
+// TODO update
 func (r *SQLiteRepository) GetAllAPIKeys(ctx context.Context) ([]repo.APIKey, error) {
 	query, args, err := r.Builder.Select(
 		"id", "user_id", "name", "key_hash", "key_hint",
@@ -308,6 +321,7 @@ func (r *SQLiteRepository) GetAllAPIKeys(ctx context.Context) ([]repo.APIKey, er
 }
 
 // UpdateAPIKey updates an existing API key's name, scopes, and expiration in SQLite.
+// TODO update
 func (r *SQLiteRepository) UpdateAPIKey(ctx context.Context, apiKey repo.APIKey) (repo.APIKey, error) {
 	var expiresAtVal any = nil
 	if !apiKey.ExpiresAt.IsZero() {
@@ -400,9 +414,10 @@ func (r *SQLiteRepository) DeleteExpiredAPIKeys(ctx context.Context) (int64, err
 }
 
 // UpdateAPIKeyLastUsed updates only the last_used_at field for the API Key.
-func (r *SQLiteRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Time) error {
+// TODO update to use Duration instead of time
+func (r *SQLiteRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Duration) error {
 	query, args, err := r.Builder.Update("api_keys").
-		Set("last_used_at", lastUsed.UnixMilli()).
+		Set("last_used_at", lastUsed.UnixMilli()). // TODO
 		Where(squirrel.Eq{"id": id.String()}).
 		ToSql()
 	if err != nil {
