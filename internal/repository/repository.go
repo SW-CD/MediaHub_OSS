@@ -34,7 +34,7 @@ type Repository interface {
 	GetCustomFields(ctx context.Context, dbID ULID) ([]CustomFieldDef, error)
 
 	// Housekeeping
-	HouseKeepingRequired(ctx context.Context) ([]Database, error)              // return all databases where the last housekeeping run was longer ago than the provided interval
+	HouseKeepingRequired(ctx context.Context) ([]Database, error)            // return all databases where the last housekeeping run was longer ago than the provided interval
 	HouseKeepingWasCalled(ctx context.Context, dbID ULID) (time.Time, error) // set the LastHkRun to now (server timestamp), used by housekeeping to track when the last run was
 
 	// Entry
@@ -80,7 +80,7 @@ type Repository interface {
 	UpdateAPIKey(ctx context.Context, apiKey APIKey) (APIKey, error)
 	DeleteAPIKey(ctx context.Context, id ULID) error
 	DeleteExpiredAPIKeys(ctx context.Context) (int64, error)
-	UpdateAPIKeyLastUsed(ctx context.Context, id ULID, lastUsed time.Time) error
+	UpdateAPIKeyLastUsed(ctx context.Context, id ULID, lastUsed time.Duration) error // duration is elapsed time since usage. TIme is calculated on the server side to avoid client time sync issues.
 
 	// Logging
 	LogAudit(ctx context.Context, log AuditLog) error
