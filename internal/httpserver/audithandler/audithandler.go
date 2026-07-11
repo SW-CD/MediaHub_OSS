@@ -31,11 +31,7 @@ func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// 1. Extract and validate user
-	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
-		return
-	}
+	_ = utils.GetUserFromContext(ctx)
 
 	// 2. Parse query parameters safely
 	limit := parseQueryInt(r, "limit", 30)

@@ -1,6 +1,6 @@
 // Migration: Migrate Queue System & Custom Fields Table
 // Description: Upgrades the database schema from v2.0 to v2.1.
-// 
+//
 // Up changes:
 //   - Adds the 'n_max_queued' integer column to the 'databases' table.
 //   - Creates the 'database_custom_fields' dedicated metadata table.

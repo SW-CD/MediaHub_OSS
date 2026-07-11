@@ -10,33 +10,25 @@ type ContextKey string
 
 const (
 	UserKey             ContextKey = "user"
-	APIKeyKey           ContextKey = "apikey"
 	PermissionHolderKey ContextKey = "permholder"
 )
 
 // GetUserFromContext is a helper to safely retrieve the strongly-typed User object.
+// Panics if the user is missing, enforcing the guarantee that this is only used on authorized routes.
 func GetUserFromContext(ctx context.Context) *repository.User {
 	val := ctx.Value(UserKey)
 	if val == nil {
-		return nil
+		panic("user missing from context")
 	}
 	return val.(*repository.User)
 }
 
-// GetAPIKeyFromContext is a helper to safely retrieve the strongly-typed APIKey object.
-func GetAPIKeyFromContext(ctx context.Context) *repository.APIKey {
-	val := ctx.Value(APIKeyKey)
-	if val == nil {
-		return nil
-	}
-	return val.(*repository.APIKey)
-}
-
-// GetPermissionsFromContext is a helper to safely retrieve the user permissions map from the context.
+// GetPermissionHolderFromContext is a helper to safely retrieve the user permissions map from the context.
+// Panics if the permission holder is missing, enforcing the guarantee that this is only used on authorized routes.
 func GetPermissionHolderFromContext(ctx context.Context) PermissionHolder {
 	val := ctx.Value(PermissionHolderKey)
 	if val == nil {
-		return nil
+		panic("permission holder missing from context")
 	}
 	return val.(PermissionHolder)
 }

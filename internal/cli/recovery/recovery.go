@@ -83,4 +83,3 @@ func (s *RecoveryService) GetMigrationVersion(ctx context.Context) (int, error) 
 	}
 	return s.repo.GetMigrationVersion(ctx)
 }
-

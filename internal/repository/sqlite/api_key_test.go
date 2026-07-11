@@ -61,12 +61,12 @@ func TestAPIKeysRepository(t *testing.T) {
 
 	// 5. Test CreateAPIKey
 	key1 := repo.APIKey{
-		UserID:      createdUser.ID,
-		Name:        "key_active",
-		KeyHash:     hash1,
-		KeyHint:     hint1,
-		Scope:       repo.NewAccessGrant(true, true, false, false, false),
-		ExpiresAt:   time.Now().Add(1 * time.Hour),
+		UserID:    createdUser.ID,
+		Name:      "key_active",
+		KeyHash:   hash1,
+		KeyHint:   hint1,
+		Scope:     repo.NewAccessGrant(true, true, false, false, false),
+		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 
 	createdKey1, err := r.CreateAPIKey(ctx, key1)
@@ -217,11 +217,11 @@ func TestAPIKeysRepository(t *testing.T) {
 	// 15. Test Cascade Deletion when User is Deleted
 	// First, create a new key linked to our user
 	key3 := repo.APIKey{
-		UserID:    createdUser.ID,
-		Name:      "key_to_cascade",
-		KeyHash:   hash2,
-		KeyHint:   hint2,
-		Scope:     repo.NewAccessGrant(true, false, false, false, false),
+		UserID:  createdUser.ID,
+		Name:    "key_to_cascade",
+		KeyHash: hash2,
+		KeyHint: hint2,
+		Scope:   repo.NewAccessGrant(true, false, false, false, false),
 	}
 	createdKey3, err := r.CreateAPIKey(ctx, key3)
 	if err != nil {

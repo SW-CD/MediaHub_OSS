@@ -27,10 +27,6 @@ func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
 	var ctx = r.Context()
 
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
-		return
-	}
 
 	id := r.PathValue("database_id")
 	if id == "" {
@@ -60,19 +56,7 @@ func (h *DatabaseHandler) GetDatabase(w http.ResponseWriter, r *http.Request) {
 // @Router /databases [get]
 func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
-		return
-	}
-
-	// If authenticated via API Key, ensure it has ScopeView
-	apiKey := utils.GetAPIKeyFromContext(ctx)
-	if apiKey != nil && !apiKey.Scope.HasAccess(repository.AccessView) {
-		utils.RespondWithJSON(w, http.StatusOK, []DatabaseResponse{})
-		return
-	}
 
 	// 1. Fetch all databases from the repository
 	dbs, err := h.Repo.GetDatabases(ctx)
@@ -84,13 +68,18 @@ func (h *DatabaseHandler) GetDatabases(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Filter for non-admin users based on database-level permissions
 	holder := utils.GetPermissionHolderFromContext(ctx)
-	if holder != nil && !holder.IsGlobalAdmin() {
-		permsMap := holder.GetAllPermissions()
+	if !holder.IsGlobalAdmin() {
+		permsMap, err := holder.GetAllPermissions(ctx)
+		if err != nil {
+			h.Logger.Error("Failed to retrieve user permissions.", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
+			return
+		}
 
 		// Build an O(1) lookup map of databases the user is allowed to see using the ULID
 		allowedDBs := make(map[string]bool)
 		for dbID, perm := range permsMap {
-			if perm.HasAccess(repository.AccessView) {
+			if perm != 0 {
 				allowedDBs[dbID.String()] = true
 			}
 		}
@@ -154,10 +143,6 @@ func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not get user from context")
-		return
-	}
 
 	// Create the database
 	var database = payload.toModel()
@@ -220,10 +205,6 @@ func (h *DatabaseHandler) UpdateDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not find user in context")
-		return
-	}
 
 	var updates DatabaseUpdatePayload
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -277,10 +258,6 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 	}
 
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "could not find user in context")
-		return
-	}
 
 	if err := h.Repo.DeleteDatabase(ctx, repository.ULID(id)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -322,10 +299,6 @@ func (h *DatabaseHandler) TriggerHousekeeping(w http.ResponseWriter, r *http.Req
 
 	// 1. Extract and validate user
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Could not get user from context")
-		return
-	}
 
 	// 2. Extract database ID from path
 	id := r.PathValue("database_id")

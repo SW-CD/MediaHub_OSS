@@ -28,11 +28,6 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Extract the authenticated user from the request context
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		// As per the concept doc, return 401 if authentication fails
-		utils.RespondWithError(w, http.StatusUnauthorized, "Authentication failed")
-		return
-	}
 
 	holder := utils.GetPermissionHolderFromContext(ctx)
 	isAdmin := holder != nil && holder.IsGlobalAdmin()
@@ -54,8 +49,13 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Retrieve permissions from request context cache
 	permsMap := map[repo.ULID]repo.AccessGrant{}
+	var err error
 	if holder != nil {
-		permsMap = holder.GetAllPermissions()
+		permsMap, err = holder.GetAllPermissions(r.Context())
+		if err != nil {
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
+			return
+		}
 	}
 
 	// 5. Parse the roles
@@ -98,10 +98,6 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Extract the authenticated user from the request context
 	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		utils.RespondWithError(w, http.StatusUnauthorized, "Authentication failed")
-		return
-	}
 
 	// 2. Parse the request payload
 	var payload UpdateMePayload
@@ -250,10 +246,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	adminUser := utils.GetUserFromContext(ctx)
-	if adminUser == nil {
-		utils.RespondWithError(w, http.StatusForbidden, "Admin user not retrieved.")
-		return
-	}
 
 	// 1. Decode Payload
 	var payload CreateUserPayload
@@ -383,10 +375,6 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	adminUser := utils.GetUserFromContext(ctx)
-	if adminUser == nil {
-		utils.RespondWithError(w, http.StatusForbidden, "Admin user not retrieved.")
-		return
-	}
 
 	// 1. Extract the user ID from the path parameters
 	userIDStr := r.PathValue("user_ulid")
@@ -535,10 +523,6 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Extract the admin user performing the action for the audit log
 	adminUser := utils.GetUserFromContext(ctx)
-	if adminUser == nil {
-		utils.RespondWithError(w, http.StatusForbidden, "Admin user not retrieved.")
-		return
-	}
 
 	// 1. Extract the user ID from the path parameters
 	userIDStr := r.PathValue("user_ulid")
@@ -614,10 +598,6 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	adminUser := utils.GetUserFromContext(ctx)
-	if adminUser == nil {
-		utils.RespondWithError(w, http.StatusForbidden, "Admin user not retrieved.")
-		return
-	}
 
 	userIDStr := r.PathValue("user_ulid")
 	if userIDStr == "" {

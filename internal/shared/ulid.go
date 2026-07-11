@@ -16,4 +16,3 @@ func IsValidULID(s string) bool {
 	_, err := ulid.ParseStrict(s)
 	return err == nil
 }
-

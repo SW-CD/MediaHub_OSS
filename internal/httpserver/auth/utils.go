@@ -98,5 +98,3 @@ func (am *AuthMiddleware) validateAPIKey(token string) (repository.User, reposit
 
 	return user, key, nil
 }
-
-

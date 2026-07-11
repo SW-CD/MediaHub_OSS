@@ -53,10 +53,7 @@ func (h *EntryHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
 
 	// Get user and db
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
+
 	db, err := h.Repo.GetDatabase(r.Context(), repo.ULID(dbID))
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {
@@ -175,10 +172,6 @@ func (h *EntryHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	// 2. Delete using the Safe 2-Phase Approach
 	_, err = shared.DeleteSafe(r.Context(), h.Repo, h.Storage, repo.ULID(dbID), id)
@@ -226,10 +219,6 @@ func (h *EntryHandler) GetEntryFile(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 	idStr := r.PathValue("id")
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	// 1. Validate Input
 	if dbID == "" {
@@ -370,10 +359,6 @@ func (h *EntryHandler) GetEntryMeta(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 	idStr := r.PathValue("id")
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	// 1. Validate Input
 	if dbID == "" {
@@ -518,10 +503,6 @@ func (h *EntryHandler) PatchEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	// 2. Decode the PATCH Request Body
 	var req = PostPatchEntryRequest{
@@ -627,11 +608,6 @@ func (h *EntryHandler) DeleteEntries(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	dbID := r.PathValue("database_id")
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		h.Logger.Error("User not found in context")
-		utils.RespondWithError(w, http.StatusInternalServerError, "user not found in context")
-		return
-	}
 
 	var req BulkDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
@@ -705,11 +681,6 @@ func (h *EntryHandler) QueryEntries(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		h.Logger.Error("User not found in context")
-		utils.RespondWithError(w, http.StatusInternalServerError, "user not found in context")
-		return
-	}
 
 	limit := parseQueryInt(r, "limit", 30)
 	offset := parseQueryInt(r, "offset", 0)
@@ -779,11 +750,6 @@ func (h *EntryHandler) SearchEntries(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		h.Logger.Error("User not found in context")
-		utils.RespondWithError(w, http.StatusInternalServerError, "user not found in context")
-		return
-	}
 
 	var searchPayload SearchRequestPayload
 	if err := json.NewDecoder(r.Body).Decode(&searchPayload); err != nil {
@@ -835,11 +801,6 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		h.Logger.Error("User not found in context")
-		utils.RespondWithError(w, http.StatusInternalServerError, "user not found in context")
-		return
-	}
 
 	var req ExportRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
@@ -1003,10 +964,6 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 func (h *EntryHandler) ImportEntries(w http.ResponseWriter, r *http.Request) {
 	dbID := r.PathValue("database_id")
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	// 1. Validate Database
 	if dbID == "" {

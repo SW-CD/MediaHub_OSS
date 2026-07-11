@@ -177,10 +177,6 @@ func (h *TokenHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 func (h *TokenHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "User not found")
-		return
-	}
 
 	var req TokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {

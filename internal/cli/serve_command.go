@@ -391,4 +391,3 @@ func processInitConfig(ctx context.Context, repo repository.Repository, logger *
 
 	return nil
 }
-

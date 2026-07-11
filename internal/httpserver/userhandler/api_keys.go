@@ -28,7 +28,7 @@ type APIKeyResponse struct {
 	ScopeAdmin  bool             `json:"scope_admin"`
 	CreatedAt   int64            `json:"created_at"`
 	ExpiresAt   *int64           `json:"expires_at"`   // nullable
-	LastUsedAt  *int64           `json:"last_used_at"`  // nullable
+	LastUsedAt  *int64           `json:"last_used_at"` // nullable
 	User        *UserSubResponse `json:"user,omitempty"`
 }
 
@@ -144,12 +144,8 @@ func (h *UserHandler) GetAllAPIKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	adminUser := utils.GetUserFromContext(ctx)
-	actor := "unknown"
-	if adminUser != nil {
-		actor = adminUser.Username
-	}
 
-	h.Auditor.Log(ctx, "user.get_all_keys", actor, "system", map[string]any{
+	h.Auditor.Log(ctx, "user.get_all_keys", adminUser.Username, "system", map[string]any{
 		"keys_count": len(resp),
 	})
 
@@ -181,7 +177,7 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	var userID repo.ULID
 	var targetUsername string
 	ctxUser := utils.GetUserFromContext(ctx)
-	if ctxUser != nil && string(ctxUser.ID) == userIDStr {
+	if string(ctxUser.ID) == userIDStr {
 		userID = ctxUser.ID
 		targetUsername = ctxUser.Username
 	} else {
@@ -231,14 +227,14 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	keyModel := repo.APIKey{
-		ID:          repo.ULID(shared.GenerateULID()),
-		UserID:      userID,
-		Name:        payload.Name,
-		KeyHash:     keyHash,
-		KeyHint:     keyHint,
-		Scope:       repo.NewAccessGrant(payload.ScopeView, payload.ScopeCreate, payload.ScopeEdit, payload.ScopeDelete, payload.ScopeAdmin),
-		CreatedAt:   time.Now(),
-		ExpiresAt:   expiresAt,
+		ID:        repo.ULID(shared.GenerateULID()),
+		UserID:    userID,
+		Name:      payload.Name,
+		KeyHash:   keyHash,
+		KeyHint:   keyHint,
+		Scope:     repo.NewAccessGrant(payload.ScopeView, payload.ScopeCreate, payload.ScopeEdit, payload.ScopeDelete, payload.ScopeAdmin),
+		CreatedAt: time.Now(),
+		ExpiresAt: expiresAt,
 	}
 
 	createdKey, err := h.Repo.CreateAPIKey(ctx, keyModel)
@@ -253,12 +249,7 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Token:          token,
 	}
 
-	actor := "unknown"
-	if ctxUser != nil {
-		actor = ctxUser.Username
-	}
-
-	h.Auditor.Log(ctx, "user.create_key", actor, targetUsername, map[string]any{
+	h.Auditor.Log(ctx, "user.create_key", ctxUser.Username, targetUsername, map[string]any{
 		"key_id":       string(createdKey.ID),
 		"key_name":     createdKey.Name,
 		"key_hint":     createdKey.KeyHint,
@@ -295,7 +286,7 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 	// Check if context user matches the target ULID to avoid a DB query
 	ctxUser := utils.GetUserFromContext(ctx)
 	var targetUsername string
-	if ctxUser == nil || string(ctxUser.ID) != userIDStr {
+	if string(ctxUser.ID) != userIDStr {
 		user, err := h.Repo.GetUserByID(ctx, repo.ULID(userIDStr))
 		if err != nil {
 			if errors.Is(err, customerrors.ErrNotFound) {
@@ -323,12 +314,7 @@ func (h *UserHandler) GetAPIKeys(w http.ResponseWriter, r *http.Request) {
 		resp[i] = mapToAPIKeyResponse(key)
 	}
 
-	actor := "unknown"
-	if ctxUser != nil {
-		actor = ctxUser.Username
-	}
-
-	h.Auditor.Log(ctx, "user.get_keys", actor, targetUsername, map[string]any{
+	h.Auditor.Log(ctx, "user.get_keys", ctxUser.Username, targetUsername, map[string]any{
 		"keys_count": len(resp),
 	})
 
@@ -375,13 +361,9 @@ func (h *UserHandler) GetAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := "unknown"
 	ctxUser := utils.GetUserFromContext(ctx)
-	if ctxUser != nil {
-		actor = ctxUser.Username
-	}
 
-	h.Auditor.Log(ctx, "user.get_key", actor, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
+	h.Auditor.Log(ctx, "user.get_key", ctxUser.Username, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
 		"key_id":   string(key.ID),
 		"key_name": key.Name,
 	})
@@ -489,13 +471,9 @@ func (h *UserHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := "unknown"
 	ctxUser := utils.GetUserFromContext(ctx)
-	if ctxUser != nil {
-		actor = ctxUser.Username
-	}
 
-	h.Auditor.Log(ctx, "user.update_key", actor, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
+	h.Auditor.Log(ctx, "user.update_key", ctxUser.Username, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
 		"key_id":       string(updatedKey.ID),
 		"key_name":     updatedKey.Name,
 		"key_hint":     updatedKey.KeyHint,
@@ -556,13 +534,9 @@ func (h *UserHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := "unknown"
 	ctxUser := utils.GetUserFromContext(ctx)
-	if ctxUser != nil {
-		actor = ctxUser.Username
-	}
 
-	h.Auditor.Log(ctx, "user.delete_key", actor, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
+	h.Auditor.Log(ctx, "user.delete_key", ctxUser.Username, fmt.Sprintf("%s/key/%s", userIDStr, key.ID), map[string]any{
 		"key_id":   string(key.ID),
 		"key_name": key.Name,
 	})

@@ -32,5 +32,6 @@ type Queryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
+
 var _ Queryer = (*sql.DB)(nil)
 var _ Queryer = (*sql.Tx)(nil)

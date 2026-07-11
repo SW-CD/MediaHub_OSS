@@ -8,6 +8,7 @@ import (
 	"mediahub_oss/internal/repository"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // ---------------------------------------------------------------------
@@ -18,7 +19,13 @@ import (
 type AuthMiddleware struct {
 	Repo             repository.Repository
 	JWTSecret        []byte
-	apiKeyUpdateChan chan repository.ULID // Buffered channel for Point 2 optimization
+	apiKeyUpdateChan chan APIKeyUpdateRequest // Buffered channel for debouncing and precision timing
+}
+
+// APIKeyUpdateRequest holds the exact timestamp the key was used for precise tracking.
+type APIKeyUpdateRequest struct {
+	KeyID  repository.ULID
+	UsedAt time.Time
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware service and starts background workers.
@@ -26,7 +33,7 @@ func NewAuthMiddleware(repo repository.Repository, secret string) *AuthMiddlewar
 	am := &AuthMiddleware{
 		Repo:             repo,
 		JWTSecret:        []byte(secret),
-		apiKeyUpdateChan: make(chan repository.ULID, 5000), // Generous buffer
+		apiKeyUpdateChan: make(chan APIKeyUpdateRequest, 5000), // Generous buffer
 	}
 
 	// Start the background worker for API key debouncing
@@ -54,25 +61,14 @@ func (am *AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		isEffectiveAdmin := user.IsAdmin
-		isAPIKey := !apiKey.CreatedAt.IsZero()
-		if isAPIKey {
-			isEffectiveAdmin = isEffectiveAdmin && apiKey.Scope.HasAccess(repository.AccessAdmin)
-		}
-
 		ctx := context.WithValue(r.Context(), utils.UserKey, &user)
 
+		isAPIKey := !apiKey.CreatedAt.IsZero()
 		if isAPIKey {
-			ctx = context.WithValue(ctx, utils.APIKeyKey, &apiKey)
 			am.asyncUpdateAPIKeyLastUsed(apiKey.ID) // Now uses the worker channel
 		}
 
-		ctx, err = am.cacheUserPermissions(ctx, user, apiKey, isEffectiveAdmin, isAPIKey)
-		if err != nil {
-			log.Printf("Failed to cache user permissions: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+		ctx = am.cacheUserPermissions(ctx, user, apiKey, isAPIKey)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -113,14 +109,10 @@ func (am *AuthMiddleware) authenticateRequest(schema, value string) (repository.
 	}
 }
 
-// ---------------------------------------------------------------------
-// Optimization 2: Worker Pool & Debouncing
-// ---------------------------------------------------------------------
-
-// asyncUpdateAPIKeyLastUsed sends the update to a non-blocking channel.
+// asyncUpdateAPIKeyLastUsed sends the update to a non-blocking channel with a precise timestamp.
 func (am *AuthMiddleware) asyncUpdateAPIKeyLastUsed(keyID repository.ULID) {
 	select {
-	case am.apiKeyUpdateChan <- keyID:
+	case am.apiKeyUpdateChan <- APIKeyUpdateRequest{KeyID: keyID, UsedAt: time.Now()}:
 		// Queued successfully
 	default:
 		// Channel is full (extreme load), drop this specific timestamp update
@@ -129,75 +121,52 @@ func (am *AuthMiddleware) asyncUpdateAPIKeyLastUsed(keyID repository.ULID) {
 	}
 }
 
-// ---------------------------------------------------------------------
-// Optimization 3: Bitmask Implementations
-// ---------------------------------------------------------------------
-
-// cacheUserPermissions pre-loads bitmasked permissions into the context.
-func (am *AuthMiddleware) cacheUserPermissions(ctx context.Context, user repository.User, apiKey repository.APIKey, isEffectiveAdmin bool, isAPIKey bool) (context.Context, error) {
+// cacheUserPermissions lazily loads bitmasked permissions into the context.
+func (am *AuthMiddleware) cacheUserPermissions(ctx context.Context, user repository.User, apiKey repository.APIKey, isAPIKey bool) context.Context {
 	var holder utils.PermissionHolder
 
+	isEffectiveAdmin := user.IsAdmin
+	if isAPIKey {
+		isEffectiveAdmin = isEffectiveAdmin && apiKey.Scope.HasAccess(repository.AccessAdmin)
+	}
+
 	if isEffectiveAdmin {
-		holder = &utils.GlobalAdmin{UserULID: user.ID}
-		return context.WithValue(ctx, utils.PermissionHolderKey, holder), nil
+		holder = &utils.GlobalAdmin{
+			UserULID: user.ID,
+			Repo:     am.Repo,
+		}
+		return context.WithValue(ctx, utils.PermissionHolderKey, holder)
 	}
 
 	if isAPIKey {
 		if user.IsAdmin {
-			dbs, err := am.Repo.GetDatabases(ctx)
-			if err != nil {
-				return ctx, err
-			}
-			dbIDs := make([]repository.ULID, len(dbs))
-			for i, db := range dbs {
-				dbIDs[i] = db.ID
-			}
 			holder = &utils.APIKeyOfAdmin{
-				UserULID:  user.ID,
-				Scope:     apiKey.Scope,
-				Databases: dbIDs,
+				UserULID: user.ID,
+				Scope:    apiKey.Scope,
+				Repo:     am.Repo,
 			}
 		} else {
-			perms, err := am.Repo.GetAllUserPermissions(ctx, user.ID)
-			if err != nil {
-				return ctx, err
-			}
-			permsMap := make(map[repository.ULID]repository.AccessGrant, len(perms))
-			for _, p := range perms {
-				permsMap[p.DatabaseID] = p.Roles
-			}
 			holder = &utils.UserPermissions{
-				UserULID:    user.ID,
-				Scope:       apiKey.Scope,
-				Permissions: permsMap,
+				UserULID: user.ID,
+				Scope:    apiKey.Scope,
+				Repo:     am.Repo,
 			}
 		}
 	} else {
-		perms, err := am.Repo.GetAllUserPermissions(ctx, user.ID)
-		if err != nil {
-			return ctx, err
-		}
-		permsMap := make(map[repository.ULID]repository.AccessGrant, len(perms))
-		for _, p := range perms {
-			permsMap[p.DatabaseID] = p.Roles
-		}
 		// Full scope for normal session
 		holder = &utils.UserPermissions{
-			UserULID:    user.ID,
-			Scope:       repository.NewAccessGrant(true, true, true, true, true),
-			Permissions: permsMap,
+			UserULID: user.ID,
+			Scope:    repository.NewAccessGrant(true, true, true, true, true),
+			Repo:     am.Repo,
 		}
 	}
 
-	return context.WithValue(ctx, utils.PermissionHolderKey, holder), nil
+	return context.WithValue(ctx, utils.PermissionHolderKey, holder)
 }
 
 // HasPermission performs a check against the cached PermissionHolder.
 func (am *AuthMiddleware) HasPermission(ctx context.Context, requiredPerm string, dbID string) bool {
 	holder := utils.GetPermissionHolderFromContext(ctx)
-	if holder == nil {
-		return false
-	}
 
 	// 1. Global Admins bypass all database permission checks
 	if holder.IsGlobalAdmin() {
@@ -229,7 +198,7 @@ func (am *AuthMiddleware) RequireGlobalRole(role string) func(http.Handler) http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if role == "IsAdmin" {
 				holder := utils.GetPermissionHolderFromContext(r.Context())
-				if holder == nil || !holder.IsGlobalAdmin() {
+				if !holder.IsGlobalAdmin() {
 					http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
 					return
 				}
@@ -242,11 +211,7 @@ func (am *AuthMiddleware) RequireGlobalRole(role string) func(http.Handler) http
 func (am *AuthMiddleware) RequireDatabasePermission(perm string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user := utils.GetUserFromContext(r.Context())
-			if user == nil {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
+			_ = utils.GetUserFromContext(r.Context()) // Ensure user is authenticated
 
 			dbID := r.PathValue("database_id")
 			if dbID == "" {
@@ -268,13 +233,9 @@ func (am *AuthMiddleware) RequireSelfOrAdmin() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user := utils.GetUserFromContext(r.Context())
-			if user == nil {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
 			holder := utils.GetPermissionHolderFromContext(r.Context())
-			if holder != nil && holder.IsGlobalAdmin() {
+
+			if holder.IsGlobalAdmin() {
 				next.ServeHTTP(w, r)
 				return
 			}

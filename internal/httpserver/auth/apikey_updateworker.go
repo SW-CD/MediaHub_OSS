@@ -12,20 +12,22 @@ func (am *AuthMiddleware) apiKeyUpdateWorker() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	// Map to deduplicate updates (debouncing)
-	pendingUpdates := make(map[repository.ULID]struct{})
+	// Map to deduplicate updates (debouncing), storing the oldest unused timestamp
+	pendingUpdates := make(map[repository.ULID]time.Time)
 
 	for {
 		select {
-		case keyID := <-am.apiKeyUpdateChan:
-			pendingUpdates[keyID] = struct{}{} // Deduplicate
+		case req := <-am.apiKeyUpdateChan:
+			pendingUpdates[req.KeyID] = req.UsedAt // Store the latest timestamp
+
 		case <-ticker.C:
 			if len(pendingUpdates) == 0 {
 				continue
 			}
 
-			for keyID := range pendingUpdates {
-				if err := am.Repo.UpdateAPIKeyLastUsed(context.Background(), keyID, 0); err != nil {
+			for keyID, usedAt := range pendingUpdates {
+				duration := time.Since(usedAt)
+				if err := am.Repo.UpdateAPIKeyLastUsed(context.Background(), keyID, duration); err != nil {
 					log.Printf("Failed to update last_used_at for api_key %s: %v", keyID, err)
 				}
 			}

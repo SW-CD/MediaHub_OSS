@@ -10,9 +10,9 @@ import (
 type QueryOptions struct {
 	Limit     int
 	Offset    int
-	Order     string    // "asc" or "desc"
-	SortBy    string    // e.g., "timestamp", "created_at", "updated_at", "id"
-	TimeField string    // e.g., "timestamp", "created_at", "updated_at"
+	Order     string // "asc" or "desc"
+	SortBy    string // e.g., "timestamp", "created_at", "updated_at", "id"
+	TimeField string // e.g., "timestamp", "created_at", "updated_at"
 	TStart    time.Time
 	TEnd      time.Time
 }
