@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/bcrypt"
@@ -112,24 +111,10 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 					continue
 				}
 
-				var roles []string
-				if permInit.CanView {
-					roles = append(roles, "CanView")
-				}
-				if permInit.CanCreate {
-					roles = append(roles, "CanCreate")
-				}
-				if permInit.CanEdit {
-					roles = append(roles, "CanEdit")
-				}
-				if permInit.CanDelete {
-					roles = append(roles, "CanDelete")
-				}
-
 				err := repo.SetUserPermissions(ctx, repository.UserPermissions{
 					UserID:     createdUser.ID,
 					DatabaseID: repository.ULID(dbID), // Use the resolved ULID here!
-					Roles:      strings.Join(roles, ","),
+					Roles:      repository.NewAccessGrant(permInit.CanView, permInit.CanCreate, permInit.CanEdit, permInit.CanDelete, permInit.CanAdmin),
 				})
 
 				if err != nil {

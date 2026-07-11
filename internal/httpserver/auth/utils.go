@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"mediahub_oss/internal/httpserver/utils"
 	"mediahub_oss/internal/repository"
 	"strings"
 	"time"
@@ -100,59 +99,4 @@ func (am *AuthMiddleware) validateAPIKey(token string) (repository.User, reposit
 	return user, key, nil
 }
 
-// hasPerm checks if the user has the requested permission for the given database ID using cached permissions in the context.
-func (am *AuthMiddleware) hasPerm(ctx context.Context, dbID string, perm string) bool {
-	permsMap := utils.GetPermissionsFromContext(ctx)
-	if permsMap == nil {
-		return false
-	}
 
-	p, ok := permsMap[repository.ULID(dbID)]
-	if !ok {
-		return false
-	}
-
-	if strings.Contains(p.Roles, perm) {
-		return true
-	}
-
-	return false
-}
-
-// HasPermission validates if the authenticated user has access to a specific database action,
-// taking into account API key restriction scopes (intersection logic).
-func (am *AuthMiddleware) HasPermission(ctx context.Context, perm string, dbID string) bool {
-	user := utils.GetUserFromContext(ctx)
-	if user == nil {
-		return false
-	}
-
-	// 1. API Key Scope checks (Intersection logic)
-	apiKey := utils.GetAPIKeyFromContext(ctx)
-	if apiKey != nil {
-		var scopeAllowed bool
-		switch perm {
-		case "CanView":
-			scopeAllowed = apiKey.ScopeView
-		case "CanCreate":
-			scopeAllowed = apiKey.ScopeCreate
-		case "CanEdit":
-			scopeAllowed = apiKey.ScopeEdit
-		case "CanDelete":
-			scopeAllowed = apiKey.ScopeDelete
-		default:
-			scopeAllowed = false
-		}
-		if !scopeAllowed {
-			return false
-		}
-	}
-
-	// 2. Global Admins bypass all database permission checks
-	if utils.IsAdminFromContext(ctx) {
-		return true
-	}
-
-	// 3. Check database-specific permissions from context
-	return am.hasPerm(ctx, dbID, perm)
-}

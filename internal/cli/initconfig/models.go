@@ -26,6 +26,7 @@ type InitUserPermission struct {
 	CanCreate    bool   `toml:"can_create"`
 	CanEdit      bool   `toml:"can_edit"`
 	CanDelete    bool   `toml:"can_delete"`
+	CanAdmin     bool   `toml:"can_admin"`
 }
 
 type InitCustomField struct {

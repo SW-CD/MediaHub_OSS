@@ -9,7 +9,6 @@ import (
 	"mediahub_oss/internal/shared/customerrors"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,7 +34,8 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAdmin := utils.IsAdminFromContext(ctx)
+	holder := utils.GetPermissionHolderFromContext(ctx)
+	isAdmin := holder != nil && holder.IsGlobalAdmin()
 
 	// 2. Initialize the base response
 	response := UserResponse{
@@ -53,21 +53,26 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Retrieve permissions from request context cache
-	permsMap := utils.GetPermissionsFromContext(ctx)
+	permsMap := map[repo.ULID]repo.AccessGrant{}
+	if holder != nil {
+		permsMap = holder.GetAllPermissions()
+	}
 
 	// 5. Parse the roles
-	for _, rp := range permsMap {
-		canView := strings.Contains(rp.Roles, "CanView")
-		canCreate := strings.Contains(rp.Roles, "CanCreate")
-		canEdit := strings.Contains(rp.Roles, "CanEdit")
-		canDelete := strings.Contains(rp.Roles, "CanDelete")
+	for dbID, rp := range permsMap {
+		canView := rp.HasAccess(repo.AccessView)
+		canCreate := rp.HasAccess(repo.AccessCreate)
+		canEdit := rp.HasAccess(repo.AccessEdit)
+		canDelete := rp.HasAccess(repo.AccessDelete)
+		canAdmin := rp.HasAccess(repo.AccessAdmin)
 
 		response.Permissions = append(response.Permissions, DatabasePermission{
-			DatabaseID: rp.DatabaseID.String(),
+			DatabaseID: dbID.String(),
 			CanView:    canView,
 			CanCreate:  canCreate,
 			CanEdit:    canEdit,
 			CanDelete:  canDelete,
+			CanAdmin:   canAdmin,
 		})
 	}
 
@@ -208,10 +213,11 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 			for _, rp := range rawPerms {
 				userRes.Permissions = append(userRes.Permissions, DatabasePermission{
 					DatabaseID: rp.DatabaseID.String(), // Updated to DatabaseID
-					CanView:    strings.Contains(rp.Roles, "CanView"),
-					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
-					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
-					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
+					CanView:    rp.Roles.HasAccess(repo.AccessView),
+					CanCreate:  rp.Roles.HasAccess(repo.AccessCreate),
+					CanEdit:    rp.Roles.HasAccess(repo.AccessEdit),
+					CanDelete:  rp.Roles.HasAccess(repo.AccessDelete),
+					CanAdmin:   rp.Roles.HasAccess(repo.AccessAdmin),
 				})
 			}
 		}
@@ -316,29 +322,14 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if len(payload.Permissions) > 0 {
 		for _, perm := range payload.Permissions {
-			// Convert boolean flags to comma-separated string
-			var roles []string
-			if perm.CanView {
-				roles = append(roles, "CanView")
-			}
-			if perm.CanCreate {
-				roles = append(roles, "CanCreate")
-			}
-			if perm.CanEdit {
-				roles = append(roles, "CanEdit")
-			}
-			if perm.CanDelete {
-				roles = append(roles, "CanDelete")
-			}
-
-			roleStr := strings.Join(roles, ",")
+			access := repo.NewAccessGrant(perm.CanView, perm.CanCreate, perm.CanEdit, perm.CanDelete, perm.CanAdmin)
 
 			// Only save if at least one role is assigned
-			if roleStr != "" {
+			if access != 0 {
 				repoPerm := repo.UserPermissions{
 					UserID:     createdUser.ID,
 					DatabaseID: repo.ULID(perm.DatabaseID), // Updated to map DatabaseID
-					Roles:      roleStr,
+					Roles:      access,
 				}
 
 				if err := h.Repo.SetUserPermissions(ctx, repoPerm); err != nil {
@@ -477,25 +468,12 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if len(payload.Permissions) > 0 {
 		for _, perm := range payload.Permissions {
 
-			// Construct the comma-separated roles string
-			var roles []string
-			if perm.CanView {
-				roles = append(roles, "CanView")
-			}
-			if perm.CanCreate {
-				roles = append(roles, "CanCreate")
-			}
-			if perm.CanEdit {
-				roles = append(roles, "CanEdit")
-			}
-			if perm.CanDelete {
-				roles = append(roles, "CanDelete")
-			}
+			access := repo.NewAccessGrant(perm.CanView, perm.CanCreate, perm.CanEdit, perm.CanDelete, perm.CanAdmin)
 
 			repoPerm := repo.UserPermissions{
 				UserID:     userID,
 				DatabaseID: repo.ULID(perm.DatabaseID), // Updated to use DatabaseID
-				Roles:      strings.Join(roles, ","),
+				Roles:      access,
 			}
 
 			if err := h.Repo.SetUserPermissions(ctx, repoPerm); err != nil {
@@ -512,10 +490,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			for _, rp := range rawPerms {
 				finalPermissions = append(finalPermissions, DatabasePermission{
 					DatabaseID: rp.DatabaseID.String(),
-					CanView:    strings.Contains(rp.Roles, "CanView"),
-					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
-					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
-					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
+					CanView:    rp.Roles.HasAccess(repo.AccessView),
+					CanCreate:  rp.Roles.HasAccess(repo.AccessCreate),
+					CanEdit:    rp.Roles.HasAccess(repo.AccessEdit),
+					CanDelete:  rp.Roles.HasAccess(repo.AccessDelete),
+					CanAdmin:   rp.Roles.HasAccess(repo.AccessAdmin),
 				})
 			}
 		}
@@ -669,10 +648,11 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 			for _, rp := range rawPerms {
 				finalPermissions = append(finalPermissions, DatabasePermission{
 					DatabaseID: rp.DatabaseID.String(),
-					CanView:    strings.Contains(rp.Roles, "CanView"),
-					CanCreate:  strings.Contains(rp.Roles, "CanCreate"),
-					CanEdit:    strings.Contains(rp.Roles, "CanEdit"),
-					CanDelete:  strings.Contains(rp.Roles, "CanDelete"),
+					CanView:    rp.Roles.HasAccess(repo.AccessView),
+					CanCreate:  rp.Roles.HasAccess(repo.AccessCreate),
+					CanEdit:    rp.Roles.HasAccess(repo.AccessEdit),
+					CanDelete:  rp.Roles.HasAccess(repo.AccessDelete),
+					CanAdmin:   rp.Roles.HasAccess(repo.AccessAdmin),
 				})
 			}
 		}

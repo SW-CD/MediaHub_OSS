@@ -52,4 +52,5 @@ type DatabasePermission struct {
 	CanCreate  bool   `json:"can_create"`
 	CanEdit    bool   `json:"can_edit"`
 	CanDelete  bool   `json:"can_delete"`
+	CanAdmin   bool   `json:"can_admin"`
 }

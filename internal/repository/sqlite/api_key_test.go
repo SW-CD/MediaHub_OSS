@@ -65,8 +65,7 @@ func TestAPIKeysRepository(t *testing.T) {
 		Name:        "key_active",
 		KeyHash:     hash1,
 		KeyHint:     hint1,
-		ScopeView:   true,
-		ScopeCreate: true,
+		Scope:       repo.NewAccessGrant(true, true, false, false, false),
 		ExpiresAt:   time.Now().Add(1 * time.Hour),
 	}
 
@@ -84,7 +83,7 @@ func TestAPIKeysRepository(t *testing.T) {
 		Name:      "key_expired",
 		KeyHash:   hash2,
 		KeyHint:   hint2,
-		ScopeView: true,
+		Scope:     repo.NewAccessGrant(true, false, false, false, false),
 		ExpiresAt: time.Now().Add(-1 * time.Hour), // Expired
 	}
 	createdKey2, err := r.CreateAPIKey(ctx, key2)
@@ -100,7 +99,7 @@ func TestAPIKeysRepository(t *testing.T) {
 	if retrievedKey1.Name != key1.Name {
 		t.Errorf("expected name %s, got %s", key1.Name, retrievedKey1.Name)
 	}
-	if !retrievedKey1.ScopeCreate {
+	if !retrievedKey1.Scope.HasAccess(repo.AccessCreate) {
 		t.Errorf("expected ScopeCreate true, got false")
 	}
 
@@ -148,7 +147,7 @@ func TestAPIKeysRepository(t *testing.T) {
 
 	// 11. Test UpdateAPIKey
 	createdKey1.Name = "updated_name"
-	createdKey1.ScopeCreate = false
+	createdKey1.Scope = repo.NewAccessGrant(true, false, false, false, false)
 	updatedKey, err := r.UpdateAPIKey(ctx, createdKey1)
 	if err != nil {
 		t.Fatalf("failed to update api key: %v", err)
@@ -156,7 +155,7 @@ func TestAPIKeysRepository(t *testing.T) {
 	if updatedKey.Name != "updated_name" {
 		t.Errorf("expected updated name updated_name, got %s", updatedKey.Name)
 	}
-	if updatedKey.ScopeCreate {
+	if updatedKey.Scope.HasAccess(repo.AccessCreate) {
 		t.Errorf("expected scope_create false, got true")
 	}
 
@@ -171,7 +170,7 @@ func TestAPIKeysRepository(t *testing.T) {
 
 	// 12. Test UpdateAPIKeyLastUsed
 	now := time.Now()
-	err = r.UpdateAPIKeyLastUsed(ctx, createdKey1.ID, now)
+	err = r.UpdateAPIKeyLastUsed(ctx, createdKey1.ID, 0)
 	if err != nil {
 		t.Fatalf("failed to update last used: %v", err)
 	}
@@ -222,7 +221,7 @@ func TestAPIKeysRepository(t *testing.T) {
 		Name:      "key_to_cascade",
 		KeyHash:   hash2,
 		KeyHint:   hint2,
-		ScopeView: true,
+		Scope:     repo.NewAccessGrant(true, false, false, false, false),
 	}
 	createdKey3, err := r.CreateAPIKey(ctx, key3)
 	if err != nil {

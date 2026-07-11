@@ -296,6 +296,6 @@ func (r PostgresRepository) DeleteExpiredAPIKeys(ctx context.Context) (int64, er
 	return 0, customerrors.ErrNotImplemented
 }
 
-func (r PostgresRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Time) error {
+func (r PostgresRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Duration) error {
 	return customerrors.ErrNotImplemented
 }

@@ -82,11 +82,11 @@ func mapToAPIKeyResponse(key repo.APIKey) APIKeyResponse {
 		ID:          string(key.ID),
 		Name:        key.Name,
 		KeyHint:     key.KeyHint,
-		ScopeView:   key.ScopeView,
-		ScopeCreate: key.ScopeCreate,
-		ScopeEdit:   key.ScopeEdit,
-		ScopeDelete: key.ScopeDelete,
-		ScopeAdmin:  key.ScopeAdmin,
+		ScopeView:   key.Scope.HasAccess(repo.AccessView),
+		ScopeCreate: key.Scope.HasAccess(repo.AccessCreate),
+		ScopeEdit:   key.Scope.HasAccess(repo.AccessEdit),
+		ScopeDelete: key.Scope.HasAccess(repo.AccessDelete),
+		ScopeAdmin:  key.Scope.HasAccess(repo.AccessAdmin),
 		CreatedAt:   key.CreatedAt.UnixMilli(),
 		ExpiresAt:   expiresAt,
 		LastUsedAt:  lastUsedAt,
@@ -236,11 +236,7 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Name:        payload.Name,
 		KeyHash:     keyHash,
 		KeyHint:     keyHint,
-		ScopeView:   payload.ScopeView,
-		ScopeCreate: payload.ScopeCreate,
-		ScopeEdit:   payload.ScopeEdit,
-		ScopeDelete: payload.ScopeDelete,
-		ScopeAdmin:  payload.ScopeAdmin,
+		Scope:       repo.NewAccessGrant(payload.ScopeView, payload.ScopeCreate, payload.ScopeEdit, payload.ScopeDelete, payload.ScopeAdmin),
 		CreatedAt:   time.Now(),
 		ExpiresAt:   expiresAt,
 	}
@@ -266,11 +262,11 @@ func (h *UserHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		"key_id":       string(createdKey.ID),
 		"key_name":     createdKey.Name,
 		"key_hint":     createdKey.KeyHint,
-		"scope_view":   createdKey.ScopeView,
-		"scope_create": createdKey.ScopeCreate,
-		"scope_edit":   createdKey.ScopeEdit,
-		"scope_delete": createdKey.ScopeDelete,
-		"scope_admin":  createdKey.ScopeAdmin,
+		"scope_view":   createdKey.Scope.HasAccess(repo.AccessView),
+		"scope_create": createdKey.Scope.HasAccess(repo.AccessCreate),
+		"scope_edit":   createdKey.Scope.HasAccess(repo.AccessEdit),
+		"scope_delete": createdKey.Scope.HasAccess(repo.AccessDelete),
+		"scope_admin":  createdKey.Scope.HasAccess(repo.AccessAdmin),
 		"expires_at":   payload.ExpiresAt,
 	})
 
@@ -451,21 +447,28 @@ func (h *UserHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 	if payload.Name != nil {
 		key.Name = *payload.Name
 	}
+	canView := key.Scope.HasAccess(repo.AccessView)
+	canCreate := key.Scope.HasAccess(repo.AccessCreate)
+	canEdit := key.Scope.HasAccess(repo.AccessEdit)
+	canDelete := key.Scope.HasAccess(repo.AccessDelete)
+	canAdmin := key.Scope.HasAccess(repo.AccessAdmin)
+
 	if payload.ScopeView != nil {
-		key.ScopeView = *payload.ScopeView
+		canView = *payload.ScopeView
 	}
 	if payload.ScopeCreate != nil {
-		key.ScopeCreate = *payload.ScopeCreate
+		canCreate = *payload.ScopeCreate
 	}
 	if payload.ScopeEdit != nil {
-		key.ScopeEdit = *payload.ScopeEdit
+		canEdit = *payload.ScopeEdit
 	}
 	if payload.ScopeDelete != nil {
-		key.ScopeDelete = *payload.ScopeDelete
+		canDelete = *payload.ScopeDelete
 	}
 	if payload.ScopeAdmin != nil {
-		key.ScopeAdmin = *payload.ScopeAdmin
+		canAdmin = *payload.ScopeAdmin
 	}
+	key.Scope = repo.NewAccessGrant(canView, canCreate, canEdit, canDelete, canAdmin)
 
 	// Detect if expires_at was explicitly sent (even if null)
 	var rawMap map[string]any
@@ -496,11 +499,11 @@ func (h *UserHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 		"key_id":       string(updatedKey.ID),
 		"key_name":     updatedKey.Name,
 		"key_hint":     updatedKey.KeyHint,
-		"scope_view":   updatedKey.ScopeView,
-		"scope_create": updatedKey.ScopeCreate,
-		"scope_edit":   updatedKey.ScopeEdit,
-		"scope_delete": updatedKey.ScopeDelete,
-		"scope_admin":  updatedKey.ScopeAdmin,
+		"scope_view":   updatedKey.Scope.HasAccess(repo.AccessView),
+		"scope_create": updatedKey.Scope.HasAccess(repo.AccessCreate),
+		"scope_edit":   updatedKey.Scope.HasAccess(repo.AccessEdit),
+		"scope_delete": updatedKey.Scope.HasAccess(repo.AccessDelete),
+		"scope_admin":  updatedKey.Scope.HasAccess(repo.AccessAdmin),
 	})
 
 	utils.RespondWithJSON(w, http.StatusOK, mapToAPIKeyResponse(updatedKey))
