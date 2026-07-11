@@ -5,6 +5,7 @@ export interface Permission {
   can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  can_admin: boolean;
 }
 
 // Update the User interface to perfectly match the backend JSON

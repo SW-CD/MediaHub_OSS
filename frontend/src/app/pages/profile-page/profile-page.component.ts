@@ -21,7 +21,7 @@ import { ConfirmationModalComponent, ConfirmationModalData } from '../../compone
 export class ProfilePageComponent implements OnInit, OnDestroy {
   public user: User | null = null;
   public apiKeys: ApiKey[] = [];
-  public databasePermissionsMapped: { name: string; view: boolean; create: boolean; edit: boolean; delete: boolean }[] = [];
+  public databasePermissionsMapped: { name: string; view: boolean; create: boolean; edit: boolean; delete: boolean; admin: boolean }[] = [];
   
   public passwordForm: FormGroup;
   public isPasswordLoading = false;
@@ -110,7 +110,8 @@ export class ProfilePageComponent implements OnInit, OnDestroy {
           view: true,
           create: true,
           edit: true,
-          delete: true
+          delete: true,
+          admin: true
         }));
       } else {
         this.databasePermissionsMapped = dbs
@@ -121,11 +122,12 @@ export class ProfilePageComponent implements OnInit, OnDestroy {
               view: perm?.can_view || false,
               create: perm?.can_create || false,
               edit: perm?.can_edit || false,
-              delete: perm?.can_delete || false
+              delete: perm?.can_delete || false,
+              admin: perm?.can_admin || false
             };
           })
           // only display databases where they have at least one permission
-          .filter(p => p.view || p.create || p.edit || p.delete);
+          .filter(p => p.view || p.create || p.edit || p.delete || p.admin);
       }
       this.cdr.markForCheck();
     });

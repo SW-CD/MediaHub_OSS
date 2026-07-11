@@ -31,12 +31,12 @@ export class DatabaseGuard implements CanActivate {
         // Admins can view everything
         if (user.is_admin) return true;
 
-        // Check if the user has explicitly been granted CanView for this specific database ID
-        const hasViewPermission = user.permissions?.some(
-          (p: Permission) => p.database_id === dbId && p.can_view
+        // Check if the user has explicitly been granted CanView or CanAdmin for this specific database ID
+        const hasAccess = user.permissions?.some(
+          (p: Permission) => p.database_id === dbId && (p.can_view || p.can_admin)
         );
 
-        if (hasViewPermission) {
+        if (hasAccess) {
           return true;
         }
 

@@ -177,8 +177,13 @@ export class AuthService {
     // Find the specific permission record for this database using the ULID
     const dbPerms = user.permissions?.find(p => p.database_id === databaseId);
 
-    // Return the requested permission flag, or false if no record exists
-    return dbPerms ? !!dbPerms[permission] : false;
+    if (!dbPerms) return false;
+
+    // A database admin has implicit access to all other database actions
+    if (dbPerms.can_admin) return true;
+
+    // Return the requested permission flag
+    return !!dbPerms[permission];
   }
 
   changeOwnPassword(oldPassword: string, newPassword: string): Observable<any> {

@@ -207,7 +207,8 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
         can_view: [existingPerm?.can_view || false],
         can_create: [existingPerm?.can_create || false],
         can_edit: [existingPerm?.can_edit || false],
-        can_delete: [existingPerm?.can_delete || false]
+        can_delete: [existingPerm?.can_delete || false],
+        can_admin: [existingPerm?.can_admin || false]
       }));
     });
 
@@ -230,7 +231,7 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleColumnAll(permissionType: 'can_view' | 'can_create' | 'can_edit' | 'can_delete'): void {
+  toggleColumnAll(permissionType: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_admin'): void {
     if (this.detailForm.get('is_admin')?.value) return;
 
     const allTrue = this.permissions.controls.every(ctrl => ctrl.get(permissionType)?.value === true);

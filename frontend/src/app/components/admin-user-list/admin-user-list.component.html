@@ -118,7 +118,7 @@
           <div class="form-group admin-toggle-wrapper">
             <label class="checkbox-group">
               <input type="checkbox" formControlName="is_admin" class="form-checkbox">
-              <span class="form-label" style="font-weight: 600; color: var(--text-primary);">Global Administrator</span>
+              <span class="form-label" style="font-weight: 600; color: #f6ad55;">Global Administrator</span>
             </label>
           </div>
 
@@ -150,6 +150,10 @@
                       <div style="margin-bottom: 0.25rem;">Delete</div>
                       <button type="button" (click)="toggleColumnAll('can_delete')" class="btn-link" style="font-size: 0.7rem;">Toggle All</button>
                     </th>
+                    <th style="text-align: center;">
+                      <div style="margin-bottom: 0.25rem;">Admin</div>
+                      <button type="button" (click)="toggleColumnAll('can_admin')" class="btn-link" style="font-size: 0.7rem;">Toggle All</button>
+                    </th>
                   </tr>
                 </thead>
                 
@@ -170,10 +174,13 @@
                     <td style="text-align: center;">
                       <input type="checkbox" formControlName="can_delete" class="form-checkbox" style="margin: 0 auto;">
                     </td>
+                    <td style="text-align: center;">
+                      <input type="checkbox" formControlName="can_admin" class="form-checkbox" style="margin: 0 auto;">
+                    </td>
                   </tr>
                   
                   <tr *ngIf="permissions.controls.length === 0">
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); font-style: italic;">
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); font-style: italic;">
                       No databases created in the system yet.
                     </td>
                   </tr>
