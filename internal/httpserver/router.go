@@ -84,20 +84,15 @@ func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware)
 	ReqPerm := func(perm string, h http.HandlerFunc) http.Handler {
 		return Chain(h, am.AuthMiddleware, am.RequireDatabasePermission(perm))
 	}
-	// Stack: Auth -> Check Global Admin
-	ReqAdmin := func(h http.HandlerFunc) http.Handler {
-		return Chain(h, am.AuthMiddleware, am.RequireGlobalRole("IsAdmin"))
-	}
-
 	// 1. Global Database List (Any Authenticated User)
 	mux.Handle("GET /api/databases", Chain(h.DatabaseHandler.GetDatabases, am.AuthMiddleware))
 
-	// 2. Database Admin Operations (Global Admin Only)
-	mux.Handle("DELETE /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.DeleteDatabase))
-	mux.Handle("PUT /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.UpdateDatabase))
-	mux.Handle("POST /api/database/{database_id}/field", ReqAdmin(h.DatabaseHandler.AddField))
-	mux.Handle("PATCH /api/database/{database_id}/field/{field_id}", ReqAdmin(h.DatabaseHandler.UpdateField))
-	mux.Handle("DELETE /api/database/{database_id}/field/{field_id}", ReqAdmin(h.DatabaseHandler.DeleteField))
+	// 2. Database Admin Operations (Global Admin or DB Admin)
+	mux.Handle("DELETE /api/database/{database_id}", ReqPerm("CanAdmin", h.DatabaseHandler.DeleteDatabase))
+	mux.Handle("PUT /api/database/{database_id}", ReqPerm("CanAdmin", h.DatabaseHandler.UpdateDatabase))
+	mux.Handle("POST /api/database/{database_id}/field", ReqPerm("CanAdmin", h.DatabaseHandler.AddField))
+	mux.Handle("PATCH /api/database/{database_id}/field/{field_id}", ReqPerm("CanAdmin", h.DatabaseHandler.UpdateField))
+	mux.Handle("DELETE /api/database/{database_id}/field/{field_id}", ReqPerm("CanAdmin", h.DatabaseHandler.DeleteField))
 
 	// 3. Database View Operations (CanView)
 	// Covers getting DB stats, searching entries, and viewing specific entries
