@@ -34,13 +34,13 @@
       <h3>General Settings</h3>
       <div class="form-group">
         <label for="dbName" class="form-label">Database Name</label>
-        <input type="text" id="dbName" class="form-control" formControlName="name" [readOnly]="!canEdit">
+        <input type="text" id="dbName" class="form-control" formControlName="name" [readOnly]="!canAdmin">
         <small class="text-muted">The display name of your database. Changing this will not break any existing file links or uploads.</small>
       </div>
 
       <div class="form-group" style="margin-top: 1.5rem;">
         <label for="nMaxQueued" class="form-label">Max Queued Conversions</label>
-        <input type="number" id="nMaxQueued" class="form-control" formControlName="n_max_queued" [readOnly]="!canEdit" min="0">
+        <input type="number" id="nMaxQueued" class="form-control" formControlName="n_max_queued" [readOnly]="!canAdmin" min="0">
         <small class="text-muted">Maximum number of entries that can be queued for processing at once. Set to 0 to disable queuing.</small>
         <div *ngIf="settingsForm.get('n_max_queued')?.invalid && settingsForm.get('n_max_queued')?.touched" class="form-error" style="color: var(--button-danger-bg); font-size: 0.85rem; margin-top: 0.25rem;">
           <span *ngIf="settingsForm.get('n_max_queued')?.hasError('required')">Max queued conversions is required.</span>
@@ -62,7 +62,7 @@
           <span class="field-col-name">Name</span>
           <span class="field-col-type">Type</span>
           <span class="field-col-indexed">Indexed</span>
-          <span class="field-col-actions" *ngIf="canEdit">Actions</span>
+          <span class="field-col-actions" *ngIf="canAdmin">Actions</span>
         </div>
         
         <div class="custom-fields-scroll-area">
@@ -77,7 +77,7 @@
                   {{ field.is_indexed ? 'Yes' : 'No' }}
                 </span>
               </span>
-              <span class="field-col-actions" *ngIf="canEdit">
+              <span class="field-col-actions" *ngIf="canAdmin">
                 <button type="button" class="btn-icon" (click)="onStartEditField(field)" title="Edit field">✏️</button>
                 <button type="button" class="btn-icon btn-icon-danger" (click)="onDeleteField(field)" title="Delete field">🗑️</button>
               </span>
@@ -95,7 +95,7 @@
                   <input type="checkbox" [(ngModel)]="editingFieldIsIndexed" [ngModelOptions]="{standalone: true}">
                 </label>
               </span>
-              <span class="field-col-actions" *ngIf="canEdit">
+              <span class="field-col-actions" *ngIf="canAdmin">
                 <button type="button" class="btn-icon btn-icon-success" (click)="onSaveField(field.id!)" title="Save changes" [disabled]="isLoading || !editingFieldName">✔️</button>
                 <button type="button" class="btn-icon" (click)="onCancelEditField()" title="Cancel">❌</button>
               </span>
@@ -108,8 +108,8 @@
         <p class="text-muted" style="font-style: italic; margin-bottom: 1.5rem;">No custom metadata fields have been added yet.</p>
       </ng-template>
 
-      <!-- Add New Custom Field Form (Only if canEdit) -->
-      <div class="add-field-form" *ngIf="canEdit" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+      <!-- Add New Custom Field Form (Only if canAdmin) -->
+      <div class="add-field-form" *ngIf="canAdmin" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
         <h4>Add New Custom Field</h4>
         <div class="add-field-row">
           <div class="form-group" style="margin: 0;">
@@ -242,8 +242,8 @@
           <div class="form-group">
             <label class="form-label">Run Interval</label>
             <div style="display: flex; gap: 0.5rem;">
-              <input type="number" formControlName="interval_value" class="form-control" min="0" [readOnly]="!canEdit">
-              <select formControlName="interval_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+              <input type="number" formControlName="interval_value" class="form-control" min="0" [readOnly]="!canAdmin">
+              <select formControlName="interval_unit" class="form-control" style="width: 100px;" *ngIf="canAdmin">
                 <option value="m">Minutes</option>
                 <option value="h">Hours</option>
                 <option value="d">Days</option>
@@ -257,8 +257,8 @@
               <span>Max Disk Space</span>
             </label>
             <div style="display: flex; gap: 0.5rem;">
-              <input type="number" formControlName="disk_space_value" class="form-control" min="0" [readOnly]="!canEdit">
-              <select formControlName="disk_space_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+              <input type="number" formControlName="disk_space_value" class="form-control" min="0" [readOnly]="!canAdmin">
+              <select formControlName="disk_space_unit" class="form-control" style="width: 100px;" *ngIf="canAdmin">
                 <option value="M">MB</option>
                 <option value="G">GB</option>
                 <option value="T">TB</option>
@@ -272,8 +272,8 @@
               <span>Max Entry Age</span>
             </label>
             <div style="display: flex; gap: 0.5rem;">
-              <input type="number" formControlName="max_age_value" class="form-control" min="0" [readOnly]="!canEdit">
-              <select formControlName="max_age_unit" class="form-control" style="width: 100px;" *ngIf="canEdit">
+              <input type="number" formControlName="max_age_value" class="form-control" min="0" [readOnly]="!canAdmin">
+              <select formControlName="max_age_unit" class="form-control" style="width: 100px;" *ngIf="canAdmin">
                 <option value="h">Hours</option>
                 <option value="d">Days</option>
               </select>
@@ -286,7 +286,7 @@
       
       <div class="form-actions">
         <button 
-          *ngIf="canEdit"
+          *ngIf="canAdmin"
           type="submit" 
           class="btn btn-primary"
           [disabled]="settingsForm.invalid || settingsForm.pristine || isLoading">
@@ -304,7 +304,7 @@
     </div>
   </form>
 
-  <div class="settings-card" *ngIf="canEdit">
+  <div class="settings-card" *ngIf="canCreate">
     <h3>Data Management</h3>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Import new entries from a ZIP archive or export your existing database structure and media.</p>
     

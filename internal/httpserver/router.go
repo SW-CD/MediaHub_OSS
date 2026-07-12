@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"mediahub_oss/internal/httpserver/auth"
+	repo "mediahub_oss/internal/repository"
 	"net/http"
 	"strings"
 
@@ -48,7 +49,7 @@ func SetupRouter(h *Handlers, frontendFS http.FileSystem, am *auth.AuthMiddlewar
 func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 	// Middleware Stack: Auth -> IsAdmin
 	ReqAdmin := func(h http.HandlerFunc) http.Handler {
-		return Chain(h, am.AuthMiddleware, am.RequireGlobalRole("IsAdmin"))
+		return Chain(h, am.AuthMiddleware, am.RequireGlobalAdmin())
 	}
 
 	// User Management
@@ -58,8 +59,9 @@ func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 	mux.Handle("PATCH /api/user/{user_ulid}", ReqAdmin(h.UserHandler.UpdateUser))
 	mux.Handle("DELETE /api/user/{user_ulid}", ReqAdmin(h.UserHandler.DeleteUser))
 
-	// Global Database Creation (Restricted to Admin)
+	// Global Database Creation and Deletion (Restricted to Admin)
 	mux.Handle("POST /api/database", ReqAdmin(h.DatabaseHandler.CreateDatabase))
+	mux.Handle("DELETE /api/database/{database_id}", ReqAdmin(h.DatabaseHandler.DeleteDatabase))
 
 	// Audit Logs (Restricted to Admin)
 	mux.Handle("GET /api/audit", ReqAdmin(h.AuditHandler.GetLogs))
@@ -81,43 +83,42 @@ func addAdminRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 // addDatabaseRoutes configures database routes AND nested entry routes.
 func addDatabaseRoutes(mux *http.ServeMux, h *Handlers, am *auth.AuthMiddleware) {
 	// Stack: Auth -> Check Permission for {database_id}
-	ReqPerm := func(perm string, h http.HandlerFunc) http.Handler {
+	ReqPerm := func(perm repo.AccessGrant, h http.HandlerFunc) http.Handler {
 		return Chain(h, am.AuthMiddleware, am.RequireDatabasePermission(perm))
 	}
 	// 1. Global Database List (Any Authenticated User)
 	mux.Handle("GET /api/databases", Chain(h.DatabaseHandler.GetDatabases, am.AuthMiddleware))
 
 	// 2. Database Admin Operations (Global Admin or DB Admin)
-	mux.Handle("DELETE /api/database/{database_id}", ReqPerm("CanAdmin", h.DatabaseHandler.DeleteDatabase))
-	mux.Handle("PUT /api/database/{database_id}", ReqPerm("CanAdmin", h.DatabaseHandler.UpdateDatabase))
-	mux.Handle("POST /api/database/{database_id}/field", ReqPerm("CanAdmin", h.DatabaseHandler.AddField))
-	mux.Handle("PATCH /api/database/{database_id}/field/{field_id}", ReqPerm("CanAdmin", h.DatabaseHandler.UpdateField))
-	mux.Handle("DELETE /api/database/{database_id}/field/{field_id}", ReqPerm("CanAdmin", h.DatabaseHandler.DeleteField))
+	mux.Handle("PUT /api/database/{database_id}", ReqPerm(repo.AccessAdmin, h.DatabaseHandler.UpdateDatabase))
+	mux.Handle("POST /api/database/{database_id}/field", ReqPerm(repo.AccessAdmin, h.DatabaseHandler.AddField))
+	mux.Handle("PATCH /api/database/{database_id}/field/{field_id}", ReqPerm(repo.AccessAdmin, h.DatabaseHandler.UpdateField))
+	mux.Handle("DELETE /api/database/{database_id}/field/{field_id}", ReqPerm(repo.AccessAdmin, h.DatabaseHandler.DeleteField))
 
-	// 3. Database View Operations (CanView)
+	// 3. Database View Operations (CanView / CanCreate / CanEdit / CanDelete/ CanAdmin)
 	// Covers getting DB stats, searching entries, and viewing specific entries
-	mux.Handle("GET /api/database/{database_id}", ReqPerm("CanView", h.DatabaseHandler.GetDatabase))
-	mux.Handle("GET /api/database/{database_id}/fields", ReqPerm("CanView", h.DatabaseHandler.GetFields))
+	mux.Handle("GET /api/database/{database_id}", ReqPerm(repo.AccessView|repo.AccessCreate|repo.AccessEdit|repo.AccessDelete|repo.AccessAdmin, h.DatabaseHandler.GetDatabase))
+	mux.Handle("GET /api/database/{database_id}/fields", ReqPerm(repo.AccessView|repo.AccessCreate|repo.AccessEdit|repo.AccessDelete|repo.AccessAdmin, h.DatabaseHandler.GetFields))
 
 	// Bulk Operations (List/Search/Export/Import)
-	mux.Handle("GET /api/database/{database_id}/entries", ReqPerm("CanView", h.EntryHandler.QueryEntries))
-	mux.Handle("POST /api/database/{database_id}/entries/search", ReqPerm("CanView", h.EntryHandler.SearchEntries))
-	mux.Handle("POST /api/database/{database_id}/entries/export", ReqPerm("CanView", h.EntryHandler.ExportEntries))
-	mux.Handle("POST /api/database/{database_id}/entries/import", ReqPerm("CanCreate", h.EntryHandler.ImportEntries))
+	mux.Handle("GET /api/database/{database_id}/entries", ReqPerm(repo.AccessView, h.EntryHandler.QueryEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/search", ReqPerm(repo.AccessView, h.EntryHandler.SearchEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/export", ReqPerm(repo.AccessView, h.EntryHandler.ExportEntries))
+	mux.Handle("POST /api/database/{database_id}/entries/import", ReqPerm(repo.AccessCreate, h.EntryHandler.ImportEntries))
 
 	// Single Entry Read Operations
-	mux.Handle("GET /api/database/{database_id}/entry/{id}", ReqPerm("CanView", h.EntryHandler.GetEntryMeta))
-	mux.Handle("GET /api/database/{database_id}/entry/{id}/file", ReqPerm("CanView", h.EntryHandler.GetEntryFile))
-	mux.Handle("GET /api/database/{database_id}/entry/{id}/preview", ReqPerm("CanView", h.EntryHandler.GetEntryPreview))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}", ReqPerm(repo.AccessView, h.EntryHandler.GetEntryMeta))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}/file", ReqPerm(repo.AccessView, h.EntryHandler.GetEntryFile))
+	mux.Handle("GET /api/database/{database_id}/entry/{id}/preview", ReqPerm(repo.AccessView, h.EntryHandler.GetEntryPreview))
 
 	// 4. Database Write Operations (CanCreate / CanEdit)
-	mux.Handle("POST /api/database/{database_id}/entry", ReqPerm("CanCreate", h.EntryHandler.PostEntry))
-	mux.Handle("PATCH /api/database/{database_id}/entry/{id}", ReqPerm("CanEdit", h.EntryHandler.PatchEntry))
+	mux.Handle("POST /api/database/{database_id}/entry", ReqPerm(repo.AccessCreate, h.EntryHandler.PostEntry))
+	mux.Handle("PATCH /api/database/{database_id}/entry/{id}", ReqPerm(repo.AccessEdit, h.EntryHandler.PatchEntry))
 
 	// 5. Database Delete Operations (CanDelete)
-	mux.Handle("POST /api/database/{database_id}/housekeeping", ReqPerm("CanDelete", h.DatabaseHandler.TriggerHousekeeping))
-	mux.Handle("POST /api/database/{database_id}/entries/delete", ReqPerm("CanDelete", h.EntryHandler.DeleteEntries))
-	mux.Handle("DELETE /api/database/{database_id}/entry/{id}", ReqPerm("CanDelete", h.EntryHandler.DeleteEntry))
+	mux.Handle("POST /api/database/{database_id}/housekeeping", ReqPerm(repo.AccessDelete, h.DatabaseHandler.TriggerHousekeeping))
+	mux.Handle("POST /api/database/{database_id}/entries/delete", ReqPerm(repo.AccessDelete, h.EntryHandler.DeleteEntries))
+	mux.Handle("DELETE /api/database/{database_id}/entry/{id}", ReqPerm(repo.AccessDelete, h.EntryHandler.DeleteEntry))
 }
 
 func addFrontendRoutes(mux *http.ServeMux, frontendFS http.FileSystem, indexFile string, basePath string) {

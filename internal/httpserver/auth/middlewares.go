@@ -121,7 +121,7 @@ func (am *AuthMiddleware) asyncUpdateAPIKeyLastUsed(keyID repository.ULID) {
 	}
 }
 
-// cacheUserPermissions lazily loads bitmasked permissions into the context.
+// cacheUserPermissions assigns a `PermissionHolder` into the context, which will then lazily loads bitmasked permissions as required.
 func (am *AuthMiddleware) cacheUserPermissions(ctx context.Context, user repository.User, apiKey repository.APIKey, isAPIKey bool) context.Context {
 	var holder utils.PermissionHolder
 
@@ -164,54 +164,26 @@ func (am *AuthMiddleware) cacheUserPermissions(ctx context.Context, user reposit
 	return context.WithValue(ctx, utils.PermissionHolderKey, holder)
 }
 
-// HasPermission performs a check against the cached PermissionHolder.
-func (am *AuthMiddleware) HasPermission(ctx context.Context, requiredPerm string, dbID string) bool {
-	holder := utils.GetPermissionHolderFromContext(ctx)
-
-	// 1. Global Admins bypass all database permission checks
-	if holder.IsGlobalAdmin() {
-		return true
-	}
-
-	ulidDbID := repository.ULID(dbID)
-	switch requiredPerm {
-	case "CanView":
-		return holder.CanView(ulidDbID)
-	case "CanCreate":
-		return holder.CanCreate(ulidDbID)
-	case "CanEdit":
-		return holder.CanEdit(ulidDbID)
-	case "CanDelete":
-		return holder.CanDelete(ulidDbID)
-	case "CanAdmin":
-		return holder.CanAdmin(ulidDbID)
-	}
-	return false
-}
-
 // ---------------------------------------------------------------------
 // 2. Authorization Middlewares
 // ---------------------------------------------------------------------
 
-func (am *AuthMiddleware) RequireGlobalRole(role string) func(http.Handler) http.Handler {
+func (am *AuthMiddleware) RequireGlobalAdmin() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if role == "IsAdmin" {
-				holder := utils.GetPermissionHolderFromContext(r.Context())
-				if !holder.IsGlobalAdmin() {
-					http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
-					return
-				}
+			holder := utils.GetPermissionHolderFromContext(r.Context())
+			if !holder.IsGlobalAdmin() {
+				http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func (am *AuthMiddleware) RequireDatabasePermission(perm string) func(http.Handler) http.Handler {
+func (am *AuthMiddleware) RequireDatabasePermission(perm repository.AccessGrant) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_ = utils.GetUserFromContext(r.Context()) // Ensure user is authenticated
 
 			dbID := r.PathValue("database_id")
 			if dbID == "" {
@@ -219,8 +191,9 @@ func (am *AuthMiddleware) RequireDatabasePermission(perm string) func(http.Handl
 				return
 			}
 
-			if !am.HasPermission(r.Context(), perm, dbID) {
-				http.Error(w, fmt.Sprintf("Forbidden: You lack '%s' rights on database '%s'", perm, dbID), http.StatusForbidden)
+			holder := utils.GetPermissionHolderFromContext(r.Context())
+			if !holder.HasPermission(repository.ULID(dbID), perm) {
+				http.Error(w, fmt.Sprintf("Forbidden: You lack required rights on database '%s'", dbID), http.StatusForbidden)
 				return
 			}
 

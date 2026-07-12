@@ -25,7 +25,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
 
   public currentDb: Database | null = null;
   
-  public canEdit = false;
+  public canAdmin = false;
+  public canCreate = false;
   public canDelete = false;
   public isGlobalAdmin = false;
 
@@ -142,7 +143,8 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     const user = this.authService.getCurrentUser();
     
     if (!user || !this.currentDb) {
-      this.canEdit = false;
+      this.canAdmin = false;
+      this.canCreate = false;
       this.canDelete = false;
       this.isGlobalAdmin = false;
       this.settingsForm.disable();
@@ -152,16 +154,18 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     this.isGlobalAdmin = user.is_admin;
 
     if (user.is_admin) {
-      this.canEdit = true;
+      this.canAdmin = true;
+      this.canCreate = true;
       this.canDelete = true;
     } else {
       // UPDATED: Match the permission's database_id against currentDb.id
       const dbPermission = user.permissions?.find(p => p.database_id === this.currentDb!.id);
-      this.canEdit = dbPermission?.can_edit || false;
+      this.canAdmin = dbPermission?.can_admin || false;
+      this.canCreate = dbPermission?.can_create || false;
       this.canDelete = dbPermission?.can_delete || false;
     }
 
-    if (this.canEdit) {
+    if (this.canAdmin) {
       this.settingsForm.enable();
     } else {
       this.settingsForm.disable();
@@ -169,7 +173,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onSaveSettings(): void {
-    if (this.settingsForm.invalid || !this.currentDb || !this.canEdit) {
+    if (this.settingsForm.invalid || !this.currentDb || !this.canAdmin) {
       return;
     }
     this.isLoading = true;
@@ -241,7 +245,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddField(): void {
-    if (!this.currentDb || !this.canEdit || !this.newFieldName) return;
+    if (!this.currentDb || !this.canAdmin || !this.newFieldName) return;
 
     if (!isValidCustomFieldName(this.newFieldName)) {
       this.notificationService.showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
@@ -276,7 +280,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onSaveField(fieldId: number): void {
-    if (!this.currentDb || !this.canEdit || !this.editingFieldName) return;
+    if (!this.currentDb || !this.canAdmin || !this.editingFieldName) return;
 
     if (!isValidCustomFieldName(this.editingFieldName)) {
       this.notificationService.showError('Field name must start with a letter or underscore and contain only alphanumeric characters or underscores.');
@@ -293,7 +297,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onDeleteField(field: CustomField): void {
-    if (!this.currentDb || !this.canEdit || field.id === undefined) return;
+    if (!this.currentDb || !this.canAdmin || field.id === undefined) return;
 
     const modalData: ConfirmationModalData = {
       title: 'Confirm Custom Field Deletion',

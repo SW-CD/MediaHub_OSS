@@ -7,11 +7,7 @@ import (
 
 type PermissionHolder interface {
 	IsGlobalAdmin() bool
-	CanView(database repository.ULID) bool
-	CanCreate(database repository.ULID) bool
-	CanEdit(database repository.ULID) bool
-	CanDelete(database repository.ULID) bool
-	CanAdmin(database repository.ULID) bool
+	HasPermission(database repository.ULID, ag repository.AccessGrant) bool // check with OR logic, one of the ag bits is enough
 
 	GetUserULID() repository.ULID
 	GetAllPermissions(ctx context.Context) (map[repository.ULID]repository.AccessGrant, error)
@@ -31,23 +27,7 @@ func (g *GlobalAdmin) IsGlobalAdmin() bool {
 	return true
 }
 
-func (g *GlobalAdmin) CanView(database repository.ULID) bool {
-	return true
-}
-
-func (g *GlobalAdmin) CanCreate(database repository.ULID) bool {
-	return true
-}
-
-func (g *GlobalAdmin) CanEdit(database repository.ULID) bool {
-	return true
-}
-
-func (g *GlobalAdmin) CanDelete(database repository.ULID) bool {
-	return true
-}
-
-func (g *GlobalAdmin) CanAdmin(database repository.ULID) bool {
+func (g *GlobalAdmin) HasPermission(database repository.ULID, ag repository.AccessGrant) bool {
 	return true
 }
 
@@ -73,24 +53,9 @@ func (a *APIKeyOfAdmin) IsGlobalAdmin() bool {
 	return false
 }
 
-func (a *APIKeyOfAdmin) CanView(database repository.ULID) bool {
-	return a.Scope.HasAccess(repository.AccessView)
-}
-
-func (a *APIKeyOfAdmin) CanCreate(database repository.ULID) bool {
-	return a.Scope.HasAccess(repository.AccessCreate)
-}
-
-func (a *APIKeyOfAdmin) CanEdit(database repository.ULID) bool {
-	return a.Scope.HasAccess(repository.AccessEdit)
-}
-
-func (a *APIKeyOfAdmin) CanDelete(database repository.ULID) bool {
-	return a.Scope.HasAccess(repository.AccessDelete)
-}
-
-func (a *APIKeyOfAdmin) CanAdmin(database repository.ULID) bool {
-	return a.Scope.HasAccess(repository.AccessAdmin)
+func (a *APIKeyOfAdmin) HasPermission(database repository.ULID, ag repository.AccessGrant) bool {
+	// OR logic: if the API key scope has ANY of the requested bits
+	return (a.Scope & ag) != 0
 }
 
 func (a *APIKeyOfAdmin) GetUserULID() repository.ULID {
@@ -157,47 +122,11 @@ func (u *UserPermissions) loadPermissions(ctx context.Context) {
 	u.loaded = true
 }
 
-func (u *UserPermissions) CanView(database repository.ULID) bool {
+func (u *UserPermissions) HasPermission(database repository.ULID, ag repository.AccessGrant) bool {
 	u.loadPermissions(context.Background())
-	const access = repository.AccessView
 	if perm, exists := u.permissions[database]; exists {
-		return (u.Scope & perm & access) == access
-	}
-	return false
-}
-
-func (u *UserPermissions) CanCreate(database repository.ULID) bool {
-	u.loadPermissions(context.Background())
-	const access = repository.AccessCreate
-	if perm, exists := u.permissions[database]; exists {
-		return (u.Scope & perm & access) == access
-	}
-	return false
-}
-
-func (u *UserPermissions) CanEdit(database repository.ULID) bool {
-	u.loadPermissions(context.Background())
-	const access = repository.AccessEdit
-	if perm, exists := u.permissions[database]; exists {
-		return (u.Scope & perm & access) == access
-	}
-	return false
-}
-
-func (u *UserPermissions) CanDelete(database repository.ULID) bool {
-	u.loadPermissions(context.Background())
-	const access = repository.AccessDelete
-	if perm, exists := u.permissions[database]; exists {
-		return (u.Scope & perm & access) == access
-	}
-	return false
-}
-
-func (u *UserPermissions) CanAdmin(database repository.ULID) bool {
-	u.loadPermissions(context.Background())
-	const access = repository.AccessAdmin
-	if perm, exists := u.permissions[database]; exists {
-		return (u.Scope & perm & access) == access
+		// OR logic: if the user's specific database perm & scope has ANY of the requested bits
+		return (u.Scope & perm & ag) != 0
 	}
 	return false
 }
