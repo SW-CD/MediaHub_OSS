@@ -99,6 +99,10 @@ export class OverviewPageComponent implements OnInit, OnDestroy {
     this.router.navigate(['/dashboard/settings', dbId]);
   }
 
+  public hasAdminAccess(dbId: string): boolean {
+    return this.authService.hasDatabasePermission(dbId, 'can_admin');
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

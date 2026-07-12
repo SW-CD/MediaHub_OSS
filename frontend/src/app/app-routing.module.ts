@@ -6,6 +6,7 @@ import { PageNotFoundComponent } from './pages/page-not-found/page-not-found.com
 import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { DatabaseGuard } from './guards/database.guard';
+import { DatabaseAdminGuard } from './guards/database-admin.guard';
 import { EntryListComponent } from './components/entry-list/entry-list.component';
 import { AdminAuditLogComponent } from './components/admin-audit-log/admin-audit-log.component';
 import { DatabaseSettingsComponent } from './components/database-settings/database-settings.component';
@@ -37,13 +38,13 @@ const routes: Routes = [
       {
         path: 'settings/:id',
         component: DatabaseSettingsComponent,
-        canActivate: [AdminGuard], // Only global admins can access database settings
+        canActivate: [DatabaseAdminGuard], // Database admins can access database settings
       },
 
       {
         path: 'db/:id/import',
         component: ImportPageComponent,
-        canActivate: [AdminGuard], // Or DatabaseGuard if you want non-admins with 'CanCreate' rights to use it
+        canActivate: [DatabaseAdminGuard], // Database admins can access import page
       },
 
       {

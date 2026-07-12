@@ -60,7 +60,7 @@
           </ng-template>
 
           <button 
-            *ngIf="currentUser?.is_admin" 
+            *ngIf="hasAdminAccess(db.id)" 
             class="db-settings-btn" 
             (click)="goToSettings($event, db.id)" 
             title="Database Settings">
