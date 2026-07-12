@@ -74,6 +74,7 @@ func (am *AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Extract either the Authorization header or the query parameter token. Returns the schema and value.
 func (am *AuthMiddleware) extractAuthCredentials(r *http.Request) (string, string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
@@ -96,13 +97,13 @@ func (am *AuthMiddleware) authenticateRequest(schema, value string) (repository.
 	switch schema {
 	case "Bearer":
 		if strings.HasPrefix(value, "srv_") {
-			user, apiKey, err := am.validateAPIKey(value) // Assumed implemented
+			user, apiKey, err := am.validateAPIKey(value)
 			return user, apiKey, err
 		}
-		user, err := am.validateJWT(value) // Assumed implemented
+		user, err := am.validateJWT(value)
 		return user, repository.APIKey{}, err
 	case "Basic":
-		user, err := am.validateBasicAuth(value) // Assumed implemented
+		user, err := am.validateBasicAuth(value)
 		return user, repository.APIKey{}, err
 	default:
 		return repository.User{}, repository.APIKey{}, fmt.Errorf("Unsupported scheme: %s", schema)

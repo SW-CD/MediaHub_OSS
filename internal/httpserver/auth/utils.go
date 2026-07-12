@@ -68,6 +68,11 @@ func (am *AuthMiddleware) validateBasicAuth(encodedValue string) (repository.Use
 		return repository.User{}, errors.New("user not found")
 	}
 
+	// Prevent Service Accounts from using Basic Auth
+	if user.IsServiceAccount {
+		return repository.User{}, errors.New("service accounts cannot use basic auth")
+	}
+
 	// Verify Password using bcrypt
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return repository.User{}, errors.New("invalid password")

@@ -30,7 +30,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	user := utils.GetUserFromContext(ctx)
 
 	holder := utils.GetPermissionHolderFromContext(ctx)
-	isAdmin := holder != nil && holder.IsGlobalAdmin()
+	isAdmin := holder.IsGlobalAdmin()
 
 	// 2. Initialize the base response
 	response := UserResponse{
@@ -48,14 +48,10 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Retrieve permissions from request context cache
-	permsMap := map[repo.ULID]repo.AccessGrant{}
-	var err error
-	if holder != nil {
-		permsMap, err = holder.GetAllPermissions(r.Context())
-		if err != nil {
-			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
-			return
-		}
+	permsMap, err := holder.GetAllPermissions(r.Context())
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
+		return
 	}
 
 	// 5. Parse the roles
