@@ -27,6 +27,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   
   public canEdit = false;
   public canDelete = false;
+  public isGlobalAdmin = false;
 
   // Custom Field Form State
   public newFieldName = '';
@@ -143,9 +144,12 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     if (!user || !this.currentDb) {
       this.canEdit = false;
       this.canDelete = false;
+      this.isGlobalAdmin = false;
       this.settingsForm.disable();
       return;
     }
+
+    this.isGlobalAdmin = user.is_admin;
 
     if (user.is_admin) {
       this.canEdit = true;

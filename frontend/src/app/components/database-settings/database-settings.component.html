@@ -320,7 +320,7 @@
     </div>
   </div>
 
-  <div class="settings-card danger-zone" *ngIf="canDelete">
+  <div class="settings-card danger-zone" *ngIf="isGlobalAdmin">
      <h3>Danger Zone</h3>
     <div class="danger-content">
       <p>Deleting a database is permanent and cannot be undone. This will remove all entries and metadata associated with it.</p>
