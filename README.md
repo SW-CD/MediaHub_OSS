@@ -3,7 +3,7 @@
 This open source project provides a HTTP REST API and web frontend for working with images, audio, videos or generic files The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
 <p align="center">
-  <img src="screenshots/DataFlow2.webp" alt="MediaHub" width="600">
+  <img src="screenshots/Dataflow2.webp" alt="MediaHub" width="600">
 </p>
 
 Intended use-cases for the software are data acquisition pipelines:
