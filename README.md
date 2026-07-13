@@ -1,9 +1,9 @@
-# MediaHub API & Web Interface (upcoming v3.0.0) ✨
+# MediaHub API & Web Interface (v3.0.0) ✨
 
 This open source project provides a HTTP REST API and web frontend for working with images, audio, videos or generic files The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
 <p align="center">
-  <img src="screenshots/DataFlow.webp" alt="MediaHub" width="600">
+  <img src="screenshots/DataFlow2.webp" alt="MediaHub" width="600">
 </p>
 
 Intended use-cases for the software are data acquisition pipelines:
@@ -185,7 +185,6 @@ source = "mediahub.db"
 [storage.local]
 root = "storage_root"
 
-
 [logging]
 level = "info" # Standard application logging level
 
@@ -272,6 +271,7 @@ password = "BobsPassword"
     can_create = true
     can_edit = false
     can_delete = false
+    can_admin = false
 
     # Bob's permissions for Audio_Archive
     [[user.permissions]]
@@ -280,6 +280,7 @@ password = "BobsPassword"
     can_create = false
     can_edit = false
     can_delete = false
+    can_admin = false
 
 
 # --- Databases ---
@@ -293,7 +294,7 @@ housekeeping = { interval = "1h", disk_space = "100G", max_age = "365d" }
 custom_fields = [
     {name = "latitude", type = "REAL"},
     {name = "longitude", type = "REAL"},
-    {name = "description", type = "TEXT"}
+    {name = "description", type = "TEXT", is_indexed=false}
 ]
 
 [[database]]
