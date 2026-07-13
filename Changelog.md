@@ -1,10 +1,29 @@
-# v2.2
+# v3.0
 
 Features:
-- updated frontend layout and navigation to work better on mobile devices.
+- allow retrieving entries by `created_at` or `updated_at` instead of `timestamp`
+- add API-Key management with service accounts
+- add `can_admin` role on database level, to allow standard users to manage database settings
 
-Other changes:
-- preview generation and display clipped to aspect ratios 0.4 and 2.5 instead of 0.25 and 4.
+Improvements:
+- remove audit log button if audit logs not available/not stored in DB
+- frontend complete rework: 
+    * fullscreen entry dashboard, with improved tiling
+    * light mode
+    * home dashbord showing databases, instead of in the sidebar
+    * new page and modals for API key management
+    * new page for user settings
+    * new icons and logo
+- improve middleware performance
+
+Bug fixes:
+- correctly index custom fields
+
+Breaking Changes:
+- user id are now ULID instead of simple integers
+- user endpoints to use path parameter instead of query parameter
+- preview generation now clipping aspect ratios for stretched images 
+
 
 # v2.1
 
