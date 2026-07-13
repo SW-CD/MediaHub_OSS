@@ -2932,6 +2932,9 @@ const docTemplate = `{
         "userhandler.DatabasePermission": {
             "type": "object",
             "properties": {
+                "can_admin": {
+                    "type": "boolean"
+                },
                 "can_create": {
                     "type": "boolean"
                 },

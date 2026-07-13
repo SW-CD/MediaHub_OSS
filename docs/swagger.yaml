@@ -421,6 +421,8 @@ definitions:
     type: object
   userhandler.DatabasePermission:
     properties:
+      can_admin:
+        type: boolean
       can_create:
         type: boolean
       can_delete:
