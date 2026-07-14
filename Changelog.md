@@ -1,3 +1,8 @@
+# v3.1
+
+Bug fixes:
+- do not show content above header in profile page anymore
+
 # v3.0
 
 Features:

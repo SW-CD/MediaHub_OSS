@@ -96,7 +96,7 @@
 
 .danger-zone h3 {
   /* Use CSS variables */
-  color: var(--button-danger-bg);
+  color: var(--text-danger);
 }
 
 .danger-content {
@@ -207,7 +207,7 @@
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
   background-color: rgba(239, 68, 68, 0.1);
-  color: var(--button-danger-bg);
+  color: var(--text-danger);
 }
 
 .indexed-badge.indexed-true {

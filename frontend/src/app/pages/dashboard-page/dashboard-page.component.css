@@ -54,4 +54,11 @@
 .dashboard-layout.no-sidebar {
   grid-template-columns: 1fr;
   grid-template-areas: 'content';
-}
+}
+
+@media (max-width: 600px) {
+  :host {
+    --sidebar-width-collapsed: 60px;
+  }
+}
+

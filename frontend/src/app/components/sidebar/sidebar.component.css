@@ -376,3 +376,18 @@
   padding: 0;
   justify-content: center;
 }
+
+@media (max-width: 600px) {
+  .sidebar-container.collapsed {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .sidebar-container.collapsed .db-link,
+  .sidebar-container.collapsed .nav-link,
+  .sidebar-container.collapsed .theme-toggle-button,
+  .sidebar-container.collapsed .logout-button,
+  .sidebar-container.collapsed .sidebar-toggle-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}

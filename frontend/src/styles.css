@@ -24,6 +24,7 @@ html {
   --text-secondary: #e2e8f0;
   --text-muted: #a0aec0;
   --text-accent: #4299e1;
+  --text-danger: #e53e3e;
 
   --border-color: #2d3748;
   --border-color-light: #4a5568;
@@ -134,6 +135,8 @@ a:hover {
 .cursor-pointer { cursor: pointer; }
 .flex-grow { flex-grow: 1; }
 .flex-shrink-0 { flex-shrink: 0; }
+
+.text-danger { color: var(--text-danger) !important; }
 
 .truncate {
     overflow: hidden;
@@ -293,7 +296,7 @@ a:hover {
 .form-error {
   margin-top: 0.5rem;
   font-size: 0.875rem;
-  color: var(--button-danger-bg);
+  color: var(--text-danger);
 }
 
 /* Custom Checkbox */
@@ -645,6 +648,7 @@ body.light-theme {
   --text-secondary: #4b5563;
   --text-muted: #9ca3af;
   --text-accent: #3182ce;
+  --text-danger: #c53030;
   --border-color: #e5e7eb;
   --border-color-light: #d1d5db;
   --button-primary-bg: #bee3f8;
