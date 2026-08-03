@@ -1,8 +1,3 @@
-# v3.1
-
-Bug fixes:
-- do not show content above header in profile page anymore
-
 # v3.0
 
 Features:
@@ -23,6 +18,7 @@ Improvements:
 
 Bug fixes:
 - correctly index custom fields
+- do not show content above header in profile page anymore
 
 Breaking Changes:
 - user id are now ULID instead of simple integers
