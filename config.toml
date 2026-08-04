@@ -10,11 +10,32 @@ n_ffmpeg_async = "auto"
 n_ffmpeg_total = "auto"
 
 [database]
-# Relative or absolute path to the .db file (e.g., "mediahub.db")
+# Driver: "sqlite" or "postgres"
+driver = "sqlite"
+
+# Source:
+# For SQLite: Relative or absolute path to the .db file (e.g., "mediahub.db")
+# For Postgres: Connection string (e.g., "postgres://user:pass@localhost:5432/mediahub?sslmode=disable")
 source = "mediahub.db"
+
+# Relevant only for Postgres connection pool
+max_open_conns = 25
+max_idle_conns = 25
+
+[storage]
+# Type: "local" or "s3"
+type = "local"
 
 [storage.local]
 root = "storage_root"
+
+[storage.s3]
+endpoint = ""
+region = ""
+bucket = ""
+access_key = ""
+secret_key = ""
+use_ssl = true
 
 [logging]
 level = "info" # Standard application logging level

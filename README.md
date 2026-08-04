@@ -29,6 +29,7 @@ In summary, if you need a place to store your private photos, other solutions mi
 
 ## 🚀 Features
 
+  * **Database & Storage Flexibility:** Supports both **SQLite** and **PostgreSQL** database drivers, as well as **Local Filesystem** and **S3-compatible API** (MinIO, Wasabi, AWS S3, ...) storage solutions.
   * **Database Management:** Create, list, view details, update housekeeping rules, and delete files managed in databases.
   * **Dynamic Metadata:** Supports defining custom fields (e.g., `score`, `source`, `defect`) for each database. These fields are stored and indexed for efficient searching.
   * **Automated Housekeeping:** A background service periodically cleans up files based on configurable age (set to `0` to disable) and disk space limits (set to `0` to disable).
@@ -180,7 +181,13 @@ max_sync_upload_size = "8MB" # Threshold for switching from RAM to Disk processi
 # cors_allowed_origins = ["http://localhost:4200"]
 
 [database]
+# Driver: "sqlite" or "postgres"
+driver = "sqlite"
 source = "mediahub.db"
+
+[storage]
+# Type: "local" or "s3"
+type = "local"
 
 [storage.local]
 root = "storage_root"
@@ -223,9 +230,19 @@ You can override any setting from the `config.toml` file using environment varia
 | `--server-max-sync-upload` | `MEDIAHUB_SERVER_MAX_SYNC_UPLOAD` | RAM threshold for uploads (e.g., "8MB"). Larger files use disk. | `8MB` |
 | `--server-cors-origins` | `MEDIAHUB_SERVER_CORS_ORIGINS` | Comma-separated list of allowed CORS origins. | `""` |
 | **Database Settings** `[database]` |  |  |  |
+| `--database-driver` | `MEDIAHUB_DATABASE_DRIVER` | Database driver to use (`sqlite` or `postgres`). | `sqlite` |
 | `--database-source` | `MEDIAHUB_DATABASE_SOURCE` | Path to DB file or connection string. | `mediahub.db` |
+| `--database-max-open-conns` | `MEDIAHUB_DATABASE_MAX_OPEN_CONNS` | Relevant only for PostgreSQL. | `25` |
+| `--database-max-idle-conns` | `MEDIAHUB_DATABASE_MAX_IDLE_CONNS` | Relevant only for PostgreSQL. | `25` |
 | **Storage Settings** `[storage]` |  |  |  |
+| `--storage-type` | `MEDIAHUB_STORAGE_TYPE` | Storage backend type (`local` or `s3`). | `local` |
 | `--storage-local-root` | `MEDIAHUB_STORAGE_LOCAL_ROOT` | Root directory for `local` file storage. | `storage_root` |
+| `--storage-s3-endpoint` | `MEDIAHUB_STORAGE_S3_ENDPOINT` | S3 API endpoint (e.g., `s3.amazonaws.com`). | `""` |
+| `--storage-s3-region` | `MEDIAHUB_STORAGE_S3_REGION` | S3 region. | `""` |
+| `--storage-s3-bucket` | `MEDIAHUB_STORAGE_S3_BUCKET` | S3 bucket name. | `""` |
+| `--storage-s3-access-key` | `MEDIAHUB_STORAGE_S3_ACCESS_KEY` | S3 Access Key. | `""` |
+| `--storage-s3-secret-key` | `MEDIAHUB_STORAGE_S3_SECRET_KEY` | S3 Secret Key. | `""` |
+| `--storage-s3-use-ssl` | `MEDIAHUB_STORAGE_S3_USE_SSL` | Enable HTTPS for S3 connection (`true`/`false`). | `true` |
 | **Logging Settings** `[logging]` |  |  |  |
 | `--logging-level` | `MEDIAHUB_LOGGING_LEVEL` | Application logging verbosity (`debug`, `info`, `warn`, `error`). | `info` |
 | `--logging-audit-type` | `MEDIAHUB_LOGGING_AUDIT_TYPE` | Where to store audit logs (`stdio` or `database`). | `stdio` |
