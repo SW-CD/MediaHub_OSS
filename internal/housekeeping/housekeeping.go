@@ -79,8 +79,11 @@ func (s *HouseKeeper) runGlobalTasks(ctx context.Context) {
 
 	// Ensure the lock is released when we finish
 	defer func() {
-		if err := s.Repo.ReleaseLock(ctx, lockName, s.InstanceID); err != nil {
+		released, err := s.Repo.ReleaseLock(ctx, lockName, s.InstanceID)
+		if err != nil {
 			s.Logger.Error("Failed to release global tasks lock", "error", err)
+		} else if !released {
+			s.Logger.Warn("Global tasks lock was not released; lock expired or was claimed by another instance", "lock_name", lockName, "instance_id", s.InstanceID)
 		}
 	}()
 
@@ -152,8 +155,11 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 	// Ensure lock is released regardless of panics or errors
 	defer func() {
-		if err := s.Repo.ReleaseLock(ctx, lockName, s.InstanceID); err != nil {
+		released, err := s.Repo.ReleaseLock(ctx, lockName, s.InstanceID)
+		if err != nil {
 			s.Logger.Error("Failed to release lock after housekeeping", "database", db.Name, "error", err)
+		} else if !released {
+			s.Logger.Warn("Housekeeping lock was not released; lock expired or was claimed by another instance", "database_id", db.ID, "database_name", db.Name, "instance_id", s.InstanceID)
 		}
 	}()
 

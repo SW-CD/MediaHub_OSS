@@ -361,11 +361,18 @@ func initStorage(storageCfg config.StorageConfig) (storage.StorageProvider, erro
 	case "local":
 		return &localstorage.LocalStorage{RootPath: storageCfg.Local.Root}, nil
 	case "s3":
-		s3prov, err := s3storage.NewS3StorageProvider()
+		s3prov, err := s3storage.NewS3StorageProvider(s3storage.Config{
+			Endpoint:  storageCfg.S3.Endpoint,
+			Region:    storageCfg.S3.Region,
+			Bucket:    storageCfg.S3.Bucket,
+			AccessKey: storageCfg.S3.AccessKey,
+			SecretKey: storageCfg.S3.SecretKey,
+			UseSSL:    storageCfg.S3.UseSSL,
+		})
 		if err != nil {
 			return nil, err
 		}
-		return &s3prov, nil
+		return s3prov, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type, must be `local` or `s3`: %s", storageCfg.Type)
 	}

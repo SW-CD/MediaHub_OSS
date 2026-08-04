@@ -89,7 +89,7 @@ type Repository interface {
 
 	// Distributed Locking
 	AcquireLock(ctx context.Context, lockName string, ownerID string, ttl time.Duration) (bool, error)
-	ReleaseLock(ctx context.Context, lockName string, ownerID string) error
+	ReleaseLock(ctx context.Context, lockName string, ownerID string) (bool, error)
 
 	// Migration
 	GetMigrationVersion(ctx context.Context) (int, error) // integer is 1000*major version + minor version

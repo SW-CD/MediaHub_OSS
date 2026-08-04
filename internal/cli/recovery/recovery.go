@@ -51,11 +51,18 @@ func NewRecoveryService(conf *config.Config, logger *slog.Logger, dryRun bool) (
 			RootPath: conf.Storage.Local.Root,
 		}
 	case "s3":
-		s3prov, err := s3storage.NewS3StorageProvider()
+		s3prov, err := s3storage.NewS3StorageProvider(s3storage.Config{
+			Endpoint:  conf.Storage.S3.Endpoint,
+			Region:    conf.Storage.S3.Region,
+			Bucket:    conf.Storage.S3.Bucket,
+			AccessKey: conf.Storage.S3.AccessKey,
+			SecretKey: conf.Storage.S3.SecretKey,
+			UseSSL:    conf.Storage.S3.UseSSL,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize s3 storage: %w", err)
 		}
-		storageProvider = &s3prov
+		storageProvider = s3prov
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", conf.Storage.Type)
 	}

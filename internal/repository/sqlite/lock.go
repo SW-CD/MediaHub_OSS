@@ -10,6 +10,6 @@ func (r *SQLiteRepository) AcquireLock(ctx context.Context, lockName string, own
 	return true, nil
 }
 
-func (r *SQLiteRepository) ReleaseLock(ctx context.Context, lockName string, ownerID string) error {
-	return nil
+func (r *SQLiteRepository) ReleaseLock(ctx context.Context, lockName string, ownerID string) (bool, error) {
+	return true, nil
 }

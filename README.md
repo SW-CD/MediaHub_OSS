@@ -414,12 +414,7 @@ The application is a monorepo containing two main parts:
 ## 💼 Support and commercial features
 
 You can use the free version for commercial use cases without any restrictions.
-If you are in need of software support or you are interested in a commercial version with additional, industrial features, please [contact me](denglerchr@gmail.com). 
-
-Available commercial features include:
-
-  * PostgreSQL and S3/MinIO/DeuxfleursGarage support, allowing horizontal scaling
-  * single sign on via OIDC (e.g., using keycloak)
+If you are in need of software support, specific features or similar, please [contact me](denglerchr@gmail.com). 
 
 -----
 

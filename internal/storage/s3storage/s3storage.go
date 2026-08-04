@@ -1,65 +1,107 @@
 package s3storage
 
 import (
-	"context"
+	"bytes"
+	"fmt"
 	"io"
+	"os"
 
-	"mediahub_oss/internal/shared/customerrors"
-	"mediahub_oss/internal/storage"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-type S3StorageProvider struct{}
-
-func NewS3StorageProvider() (S3StorageProvider, error) {
-	return S3StorageProvider{}, customerrors.ErrNotImplemented
+type Config struct {
+	Endpoint  string
+	Region    string
+	Bucket    string
+	AccessKey string
+	SecretKey string
+	UseSSL    bool
 }
 
-func (s *S3StorageProvider) Write(ctx context.Context, dbID string, id int64, content io.Reader) (int64, error) {
-	return 0, customerrors.ErrNotImplemented
+type S3StorageProvider struct {
+	client *minio.Client
+	bucket string
 }
 
-func (s *S3StorageProvider) WritePreview(ctx context.Context, dbID string, id int64, preview io.Reader) (int64, error) {
-	return 0, customerrors.ErrNotImplemented
+type limitedReadCloser struct {
+	io.Reader
+	io.Closer
 }
 
-// Stat retrieves metadata about the main file without downloading the content.
-func (s *S3StorageProvider) Stat(ctx context.Context, dbID string, id int64) (storage.FileInfo, error) {
-	return storage.FileInfo{}, customerrors.ErrNotImplemented
+func NewS3StorageProvider(cfg Config) (*S3StorageProvider, error) {
+	if cfg.Endpoint == "" {
+		return nil, fmt.Errorf("s3 endpoint is required")
+	}
+	if cfg.Bucket == "" {
+		return nil, fmt.Errorf("s3 bucket is required")
+	}
+	if cfg.AccessKey == "" {
+		return nil, fmt.Errorf("s3 access_key is required")
+	}
+	if cfg.SecretKey == "" {
+		return nil, fmt.Errorf("s3 secret_key is required")
+	}
+
+	client, err := minio.New(cfg.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
+		Secure: cfg.UseSSL,
+		Region: cfg.Region,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create s3 client: %w", err)
+	}
+
+	return &S3StorageProvider{
+		client: client,
+		bucket: cfg.Bucket,
+	}, nil
 }
 
-// StatPreview retrieves metadata about the preview file without downloading the content.
-func (s *S3StorageProvider) StatPreview(ctx context.Context, dbID string, id int64) (storage.FileInfo, error) {
-	return storage.FileInfo{}, customerrors.ErrNotImplemented
+// Helper to construct main object key (e.g. "01HGFB9Z5W7ABCDEFGHJKMNPQR/10/10232")
+func getObjectKey(dbID string, id int64) string {
+	return fmt.Sprintf("%s/%d/%d", dbID, id/1000, id)
 }
 
-func (s *S3StorageProvider) Read(ctx context.Context, dbID string, id int64, offset int64, length int64) (io.ReadCloser, error) {
-	return nil, customerrors.ErrNotImplemented
+// Helper to construct preview object key (e.g. "previews/01HGFB9Z5W7ABCDEFGHJKMNPQR/10/10232")
+func getPreviewObjectKey(dbID string, id int64) string {
+	return fmt.Sprintf("previews/%s/%d/%d", dbID, id/1000, id)
 }
 
-func (s *S3StorageProvider) ReadPreview(ctx context.Context, dbID string, id int64) (io.ReadCloser, error) {
-	return nil, customerrors.ErrNotImplemented
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errResp := minio.ToErrorResponse(err)
+	return errResp.Code == "NoSuchKey" || errResp.Code == "NotFound" || errResp.StatusCode == 404
 }
 
-func (s *S3StorageProvider) Delete(ctx context.Context, dbID string, id int64) error {
-	return customerrors.ErrNotImplemented
-}
-
-func (s *S3StorageProvider) DeleteMultiple(ctx context.Context, dbID string, ids []int64) (storage.BulkDeleteResult, error) {
-	return storage.BulkDeleteResult{}, customerrors.ErrNotImplemented
-}
-
-func (s *S3StorageProvider) DeletePreview(ctx context.Context, dbID string, id int64) error {
-	return customerrors.ErrNotImplemented
-}
-
-func (s *S3StorageProvider) DeleteMultiplePreviews(ctx context.Context, dbID string, ids []int64) (storage.BulkDeleteResult, error) {
-	return storage.BulkDeleteResult{}, customerrors.ErrNotImplemented
-}
-
-func (s *S3StorageProvider) Walk(ctx context.Context, dbID string, walkFn func(id int64, info storage.FileInfo) error) error {
-	return customerrors.ErrNotImplemented
-}
-
-func (s *S3StorageProvider) WalkPreview(ctx context.Context, dbID string, walkFn func(id int64, info storage.FileInfo) error) error {
-	return customerrors.ErrNotImplemented
+// Helper function to inspect an io.Reader and determine size if possible
+func getStreamSize(r io.Reader) int64 {
+	if f, ok := r.(*os.File); ok {
+		if stat, err := f.Stat(); err == nil {
+			return stat.Size()
+		}
+	}
+	if b, ok := r.(*bytes.Buffer); ok {
+		return int64(b.Len())
+	}
+	if b, ok := r.(*bytes.Reader); ok {
+		return int64(b.Len())
+	}
+	if s, ok := r.(interface{ Len() int }); ok {
+		return int64(s.Len())
+	}
+	if seeker, ok := r.(io.Seeker); ok {
+		current, err := seeker.Seek(0, io.SeekCurrent)
+		if err == nil {
+			end, err := seeker.Seek(0, io.SeekEnd)
+			if err == nil {
+				seeker.Seek(current, io.SeekStart)
+				return end - current
+			}
+			seeker.Seek(current, io.SeekStart)
+		}
+	}
+	return -1
 }

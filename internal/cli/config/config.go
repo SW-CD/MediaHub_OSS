@@ -11,7 +11,7 @@ import (
 )
 
 // LoadConfig leverages Viper to merge TOML, Env Variables, and CLI flags natively.
-func LoadConfig(path string, isOSS bool) (*Config, error) {
+func LoadConfig(path string) (*Config, error) {
 	// 1. Tell Viper where to find the TOML file
 	viper.SetConfigFile(path)
 
@@ -35,13 +35,6 @@ func LoadConfig(path string, isOSS bool) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Check that commercial settings are not enabled
-	if isOSS {
-		if err := config.validateOSS(); err != nil {
-			return nil, err
-		}
-	}
-
 	// Validate settings
 	if err := config.ValidateConfig(); err != nil {
 		return nil, err
@@ -56,6 +49,28 @@ func (cfg *Config) ValidateConfig() error {
 	if cfg.Auth.OIDC.DisableLoginPage && !cfg.Auth.OIDC.Enabled {
 		return fmt.Errorf("invalid configuration: login page is disabled but OIDC is not enabled. You must enable at least one authentication method")
 	}
+
+	if cfg.Storage.Type == "s3" {
+		if cfg.Storage.S3.Endpoint == "" {
+			return fmt.Errorf("invalid configuration: storage.s3.endpoint must be specified when storage.type is 's3'")
+		}
+		if cfg.Storage.S3.Bucket == "" {
+			return fmt.Errorf("invalid configuration: storage.s3.bucket must be specified when storage.type is 's3'")
+		}
+		if cfg.Storage.S3.AccessKey == "" {
+			return fmt.Errorf("invalid configuration: storage.s3.access_key must be specified when storage.type is 's3'")
+		}
+		if cfg.Storage.S3.SecretKey == "" {
+			return fmt.Errorf("invalid configuration: storage.s3.secret_key must be specified when storage.type is 's3'")
+		}
+	} else if cfg.Storage.Type == "local" {
+		if cfg.Storage.Local.Root == "" {
+			return fmt.Errorf("invalid configuration: storage.local.root must be specified when storage.type is 'local'")
+		}
+	} else if cfg.Storage.Type != "" {
+		return fmt.Errorf("invalid configuration: unsupported storage type '%s', must be 'local' or 's3'", cfg.Storage.Type)
+	}
+
 	return nil
 }
 

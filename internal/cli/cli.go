@@ -49,7 +49,7 @@ func NewRootCMD(frontendFS fs.FS) *cobra.Command {
 			}
 
 			// Load the base configuration from the TOML file
-			loadedConfig, err := conf.LoadConfig(cfgPath, true)
+			loadedConfig, err := conf.LoadConfig(cfgPath)
 			if err != nil {
 				return fmt.Errorf("failed to load configuration from %s: %w", cfgPath, err)
 			}

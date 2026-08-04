@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-//go:embed sqlite/*.sql
+//go:embed sqlite/*.sql postgres/*.sql
 var EmbedFS embed.FS
 
 // RequiredVersion is the database schema version required by this version of MediaHub.
