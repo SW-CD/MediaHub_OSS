@@ -26,6 +26,7 @@ func TestMigration03001(t *testing.T) {
 		t.Fatalf("failed to set goose dialect: %v", err)
 	}
 	goose.SetBaseFS(migrations.EmbedFS)
+	Register()
 
 	// 3. Migrate UP to version 3000 (pre-ULID)
 	if err := goose.UpTo(db, "sqlite", 3000); err != nil {

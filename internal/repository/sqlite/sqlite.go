@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mediahub_oss/internal/media"
 	"mediahub_oss/internal/repository"
+	sqlitemigrations "mediahub_oss/internal/repository/migrations/sqlite"
 	"regexp"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ type MediaField struct {
 
 // NewRepository initializes and returns a pointer to a new SQLiteRepository.
 func NewRepository(path string) (*SQLiteRepository, error) {
+	sqlitemigrations.Register()
 	// 1. Configure the Connection String (DSN) with essential Pragmas
 	dsn := path
 

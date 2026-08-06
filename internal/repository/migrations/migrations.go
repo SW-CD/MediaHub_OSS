@@ -9,7 +9,6 @@ import (
 var EmbedFS embed.FS
 
 // RequiredVersion is the database schema version required by this version of MediaHub.
-// TODO: Update for the next release once all migrations files are done.
 const RequiredVersion = 3003
 
 // CheckVersion validates if the database schema version matches the expected RequiredVersion.

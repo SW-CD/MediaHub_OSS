@@ -27,13 +27,11 @@ import (
 
 	"mediahub_oss/internal/media"
 	"mediahub_oss/internal/repository"
-	sqlite "mediahub_oss/internal/repository/sqlite"
-
-	"github.com/pressly/goose/v3"
 )
 
-func init() {
-	goose.AddMigrationContext(up02001, down02001)
+type mediaFieldDef struct {
+	Name       string
+	SQLiteType string
 }
 
 func up02001(ctx context.Context, tx *sql.Tx) error {
@@ -406,24 +404,17 @@ func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []
 		databases[idx].CustomFields = customFields
 	}
 
-	// 2. Build MediaFields map for SQLiteRepository helper
-	mediaFields := make(map[string][]sqlite.MediaField)
+	mediaFields := make(map[string][]mediaFieldDef)
 	for _, contentType := range media.GetContentTypes() {
 		fieldDefs, err := media.GetMetadataFields(contentType)
 		if err != nil {
 			return err
 		}
-		mediaFieldsOfContent := make([]sqlite.MediaField, len(fieldDefs))
+		mediaFieldsOfContent := make([]mediaFieldDef, len(fieldDefs))
 		for i, v := range fieldDefs {
-			mediaFieldsOfContent[i] = sqlite.MediaField{Name: v.Name, SQLiteType: v.Type}
+			mediaFieldsOfContent[i] = mediaFieldDef{Name: v.Name, SQLiteType: v.Type}
 		}
 		mediaFields[contentType] = mediaFieldsOfContent
-	}
-
-	// Create a temporary SQLiteRepository for schema generation
-	r := &sqlite.SQLiteRepository{
-		AllowedStatuses: allowedStatuses,
-		MediaFields:     mediaFields,
 	}
 
 	// 3. Migrate each entries table
@@ -458,7 +449,10 @@ func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []
 			_, _ = tx.ExecContext(ctx, updateSQL)
 		}
 
-		newSchemaSQL, err := r.BuildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields)
+		newSchemaSQL, err := buildDynamicTableSchema(db.ID, db.ContentType, db.CustomFields, allowedStatuses, mediaFields)
+		if err != nil {
+			return fmt.Errorf("failed to build dynamic schema SQL for db %s: %w", db.ID, err)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to build dynamic schema SQL for db %s: %w", db.ID, err)
 		}
@@ -487,7 +481,7 @@ func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []
 		}
 
 		// Recreate indexes
-		indexesSQLs := sqlite.BuildIndexesSQL(db.ID, db.CustomFields)
+		indexesSQLs := buildIndexesSQL(db.ID, db.CustomFields)
 		for _, indexSQL := range indexesSQLs {
 			if _, err := tx.ExecContext(ctx, indexSQL); err != nil {
 				return fmt.Errorf("failed to recreate index: %w", err)
@@ -496,4 +490,63 @@ func migrateCheckConstraints(ctx context.Context, tx *sql.Tx, allowedStatuses []
 	}
 
 	return nil
+}
+
+func buildDynamicTableSchema(dbID, contentType string, customFields []repository.CustomFieldDef, allowedStatuses []repository.EntryStatus, mediaFields map[string][]mediaFieldDef) (string, error) {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n", tableName))
+	sb.WriteString("\tid INTEGER PRIMARY KEY AUTOINCREMENT,\n")
+	sb.WriteString("\ttimestamp BIGINT NOT NULL,\n")
+	sb.WriteString("\tcreated_at BIGINT NOT NULL,\n")
+	sb.WriteString("\tupdated_at BIGINT NOT NULL,\n")
+	sb.WriteString("\tfilesize INTEGER NOT NULL,\n")
+	sb.WriteString("\tpreview_filesize INTEGER NOT NULL,\n")
+	sb.WriteString("\tfilename TEXT NOT NULL DEFAULT '',\n")
+
+	var statusStrs []string
+	for _, s := range allowedStatuses {
+		statusStrs = append(statusStrs, fmt.Sprintf("%d", s))
+	}
+	statusList := strings.Join(statusStrs, ", ")
+	sb.WriteString(fmt.Sprintf("\n\tstatus INTEGER NOT NULL DEFAULT %d CHECK(status IN (%s))", repository.EntryStatusReady, statusList))
+
+	fields, typeExists := mediaFields[contentType]
+	if !typeExists {
+		return "", fmt.Errorf("unsupported content type: %s", contentType)
+	}
+
+	for _, field := range fields {
+		sb.WriteString(fmt.Sprintf(",\n\t%s %s NOT NULL", field.Name, field.SQLiteType))
+	}
+
+	sb.WriteString(",\n\tmime_type TEXT NOT NULL")
+
+	for _, cf := range customFields {
+		datatype := strings.ToUpper(cf.Type)
+		switch datatype {
+		case "TEXT", "INTEGER", "REAL", "BOOLEAN":
+			sb.WriteString(fmt.Sprintf(",\n\t\"cf_%d\" %s", cf.ID, datatype))
+		default:
+			return "", fmt.Errorf("unsupported custom field type: %s", cf.Type)
+		}
+	}
+
+	sb.WriteString("\n);")
+	return sb.String(), nil
+}
+
+func buildIndexesSQL(dbID string, customFields []repository.CustomFieldDef) []string {
+	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
+	var sqls []string
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_time" ON %s(timestamp);`, dbID, tableName))
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_status" ON %s(status);`, dbID, tableName))
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_created" ON %s(created_at);`, dbID, tableName))
+	sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_updated" ON %s(updated_at);`, dbID, tableName))
+	for _, cf := range customFields {
+		if cf.IsIndexed {
+			sqls = append(sqls, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS "idx_entries_%s_cf_%d" ON %s("cf_%d");`, dbID, cf.ID, tableName, cf.ID))
+		}
+	}
+	return sqls
 }

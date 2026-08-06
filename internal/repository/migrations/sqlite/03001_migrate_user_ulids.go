@@ -6,13 +6,7 @@ import (
 	"fmt"
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared"
-
-	"github.com/pressly/goose/v3"
 )
-
-func init() {
-	goose.AddMigrationContext(up03001, down03001)
-}
 
 func up03001(ctx context.Context, tx *sql.Tx) error {
 	// 1. Query all existing users

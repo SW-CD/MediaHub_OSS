@@ -7,13 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
-	"github.com/pressly/goose/v3"
 )
-
-func init() {
-	goose.AddMigrationContext(up02002, down02002)
-}
 
 func up02002(ctx context.Context, tx *sql.Tx) error {
 	// Query all existing database IDs
