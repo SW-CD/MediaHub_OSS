@@ -19,8 +19,6 @@ localconfig.toml
 go.work
 go.work.sum
 
-# Environment variables
-.env
 
 # SQLite database files
 *.db

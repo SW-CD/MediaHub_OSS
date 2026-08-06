@@ -1,0 +1,14 @@
+services:
+  mediahub:
+    build:
+      context: ../../../
+      dockerfile: docker/Dockerfile
+    container_name: mediahub-app
+    hostname: mediahub
+    restart: unless-stopped
+    ports:
+      - "${MEDIAHUB_PORT:-8080}:8080"
+    volumes:
+      - mediahub_storage:/storage
+    environment:
+      - MEDIAHUB_PASSWORD=${MEDIAHUB_PASSWORD:-my-secret-password!!01}

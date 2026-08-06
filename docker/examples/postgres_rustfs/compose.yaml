@@ -1,0 +1,85 @@
+name: mediahub-postgres-rustfs
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: mediahub-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: mediahub-rustfs
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "${RUSTFS_PORT}:9000"
+      - "${RUSTFS_CONSOLE_PORT}:9001"
+    volumes:
+      - rustfs_data:/data
+    restart: unless-stopped
+
+  create-bucket:
+    image: minio/mc:latest
+    container_name: mediahub-create-bucket
+    depends_on:
+      - rustfs
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set rustfs http://rustfs:9000 ${RUSTFS_ACCESS_KEY} ${RUSTFS_SECRET_KEY}; do
+        echo 'Waiting for RustFS to start...'
+        sleep 1
+      done;
+      mc mb --ignore-existing rustfs/${RUSTFS_BUCKET};
+      echo 'Bucket ${RUSTFS_BUCKET} ready.'
+      "
+
+  mediahub:
+    build:
+      context: ../../../
+      dockerfile: docker/Dockerfile
+    container_name: mediahub-app
+    ports:
+      - "${MEDIAHUB_PORT}:8080"
+    environment:
+      MEDIAHUB_DATABASE_DRIVER: postgres
+      MEDIAHUB_DATABASE_SOURCE: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      MEDIAHUB_STORAGE_TYPE: s3
+      MEDIAHUB_STORAGE_S3_ENDPOINT: rustfs:9000
+      MEDIAHUB_STORAGE_S3_REGION: ${RUSTFS_REGION}
+      MEDIAHUB_STORAGE_S3_BUCKET: ${RUSTFS_BUCKET}
+      MEDIAHUB_STORAGE_S3_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      MEDIAHUB_STORAGE_S3_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      MEDIAHUB_STORAGE_S3_USE_SSL: "false"
+      MEDIAHUB_PASSWORD: ${MEDIAHUB_ADMIN_PASSWORD}
+      MEDIAHUB_LOGGING_LEVEL: ${MEDIAHUB_LOGGING_LEVEL}
+    volumes:
+      - mediahub_storage:/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rustfs_data:
+  mediahub_config:
+  mediahub_storage:
