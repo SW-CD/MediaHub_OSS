@@ -34,6 +34,13 @@ export class EntryGridComponent implements OnChanges {
   public dateGroups: DateGroup[] = [];
   public aspectRatios = new Map<number, number>();
 
+  // Touch gesture state for smartphone long-press & multi-select tap
+  private touchTimer: any = null;
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private isLongPress = false;
+  private wasTouchHandled = false;
+
   constructor(
     private entryservice: EntryService,
     private cdr: ChangeDetectorRef,
@@ -41,7 +48,7 @@ export class EntryGridComponent implements OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    // UPDATED: Check for dbId changes
+    // Check for dbId changes
     if (changes['dbId'] || changes['entries']) {
       if (changes['dbId']) {
         this.failedImageIds.clear();
@@ -86,11 +93,93 @@ export class EntryGridComponent implements OnChanges {
 
   public getPreviewUrl(entry: Entry): string {
     if (!this.dbId) return '';
-    return this.entryservice.getEntryPreviewUrl(this.dbId, entry.id); // UPDATED: Pass dbId
+    return this.entryservice.getEntryPreviewUrl(this.dbId, entry.id);
   }
 
-  public onEntryClick(entry: Entry): void {
+  public onEntryClick(entry: Entry, event?: MouseEvent): void {
+    // If touch gesture already handled this interaction, ignore synthetic click
+    if (this.wasTouchHandled) {
+      this.wasTouchHandled = false;
+      return;
+    }
+
+    // As soon as one image is selected, simply tapping other images selects those entries as well
+    if (this.selectedIds.size > 0) {
+      const mouseEvent = event || new MouseEvent('click', { bubbles: true, cancelable: true });
+      this.toggleSelection.emit({ entry, event: mouseEvent });
+      return;
+    }
+
     this.entryClicked.emit(entry);
+  }
+
+  public onTouchStart(entry: Entry, event: TouchEvent): void {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    this.touchStartX = touch.clientX;
+    this.touchStartY = touch.clientY;
+    this.isLongPress = false;
+
+    this.clearTouchTimer();
+    this.touchTimer = setTimeout(() => {
+      this.isLongPress = true;
+      // Haptic vibration feedback on long-press selection
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(50);
+        } catch (_) {}
+      }
+      const syntheticEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      this.toggleSelection.emit({ entry, event: syntheticEvent });
+      this.cdr.markForCheck();
+    }, 500);
+  }
+
+  public onTouchMove(event: TouchEvent): void {
+    if (!this.touchTimer) return;
+    if (event.touches.length > 0) {
+      const touch = event.touches[0];
+      const deltaX = Math.abs(touch.clientX - this.touchStartX);
+      const deltaY = Math.abs(touch.clientY - this.touchStartY);
+      // Cancel long-press timer if user is scrolling
+      if (deltaX > 10 || deltaY > 10) {
+        this.clearTouchTimer();
+      }
+    }
+  }
+
+  public onTouchEnd(entry: Entry, event: TouchEvent): void {
+    const wasLongPress = this.isLongPress;
+    this.clearTouchTimer();
+
+    if (wasLongPress) {
+      this.wasTouchHandled = true;
+      if (event.cancelable) event.preventDefault();
+      setTimeout(() => { this.wasTouchHandled = false; }, 300);
+      return;
+    }
+
+    // If selection active and this was a simple tap (not long press)
+    if (this.selectedIds.size > 0) {
+      this.wasTouchHandled = true;
+      const syntheticEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      this.toggleSelection.emit({ entry, event: syntheticEvent });
+      if (event.cancelable) event.preventDefault();
+      setTimeout(() => { this.wasTouchHandled = false; }, 300);
+      this.cdr.markForCheck();
+    }
+  }
+
+  public onTouchCancel(): void {
+    this.clearTouchTimer();
+    this.isLongPress = false;
+  }
+
+  private clearTouchTimer(): void {
+    if (this.touchTimer) {
+      clearTimeout(this.touchTimer);
+      this.touchTimer = null;
+    }
   }
 
   public onCheckboxClick(entry: Entry, event: MouseEvent): void {

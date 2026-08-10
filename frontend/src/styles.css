@@ -2,10 +2,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 /* Modern standard for Firefox & Chromium Scrollbars */
-html {
-  height: 100%;
+html, * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-color-light) var(--app-bg);
+}
+
+html {
+  height: 100%;
 }
 
 :root {
@@ -634,7 +637,7 @@ input:focus-visible + .toggle-slider {
 }
 
 /* Light theme overrides */
-body.light-theme {
+html.light-theme, body.light-theme {
   --app-bg: #f3f4f6;
   --sidebar-bg: #ffffff;
   --header-bg: #ffffff;

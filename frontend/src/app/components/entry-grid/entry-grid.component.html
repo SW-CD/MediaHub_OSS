@@ -1,4 +1,4 @@
-<div class="groups-container">
+<div class="groups-container" [class.selection-active]="selectedIds.size > 0">
   <div class="date-group" *ngFor="let group of dateGroups"
        [class.large-group]="isLargeGroup(group)"
        [style.flex-grow]="isLargeGroup(group) ? 1 : getGroupAspectRatio(group)"
@@ -9,7 +9,11 @@
         *ngFor="let entry of group.entries; trackBy: trackById" 
         class="grid-card"
         [class.selected]="isSelected(entry)"
-        (click)="onEntryClick(entry)"
+        (click)="onEntryClick(entry, $event)"
+        (touchstart)="onTouchStart(entry, $event)"
+        (touchmove)="onTouchMove($event)"
+        (touchend)="onTouchEnd(entry, $event)"
+        (touchcancel)="onTouchCancel()"
         [style.flex-grow]="getAspectRatio(entry)"
         [style.flex-basis]="'calc(var(--tile-height) * ' + getAspectRatio(entry) + ')'">
         

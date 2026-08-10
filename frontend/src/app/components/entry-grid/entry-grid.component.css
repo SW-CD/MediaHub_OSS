@@ -106,7 +106,8 @@
 .checkbox-circle:not(.checked) {
   opacity: 0;
 }
-.grid-card:hover .checkbox-circle {
+.grid-card:hover .checkbox-circle,
+.groups-container.selection-active .checkbox-circle {
   opacity: 1;
 }
 
