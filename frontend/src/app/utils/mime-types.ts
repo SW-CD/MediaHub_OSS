@@ -69,3 +69,18 @@ export function isMimeTypeStreamable(mimeType: string): boolean {
   
   return false; // Default to false for unknown or generic files
 }
+
+/**
+ * Generates an accept string for HTML file inputs based on content type.
+ */
+export function getFileAcceptString(contentType: string): string | null {
+  const allowedConfig = ALLOWED_MIME_TYPES[contentType as ContentType];
+  if (allowedConfig && allowedConfig.length > 0) {
+    let accept = allowedConfig.map(config => config.mime).join(',');
+    if (contentType === 'audio') {
+      accept += ',.m4a,.mp3,.flac,.wav,.ogg,.opus';
+    }
+    return accept;
+  }
+  return null;
+}

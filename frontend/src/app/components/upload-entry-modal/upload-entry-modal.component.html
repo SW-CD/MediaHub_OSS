@@ -1,4 +1,4 @@
-<app-modal [modalId]="'uploadEntryModal'" [modalTitle]="'Upload Entry to ' + (currentDatabase?.name || '')">
+<app-modal [modalId]="'uploadEntryModal'" [modalTitle]="isMultipleUpload ? ('Upload ' + selectedFiles.length + ' Entries to ' + (currentDatabase?.name || '')) : ('Upload Entry to ' + (currentDatabase?.name || ''))">
   
   <div *ngIf="currentDatabase && uploadForm"
        appFileDragDrop
@@ -30,7 +30,7 @@
           
           <label for="file" class="file-label">{{ selectedFileName || 'No file chosen' }}</label>
           
-          <button type="button" class="file-browse-btn" (click)="fileInput.click()">Browse...</button>
+          <button type="button" class="file-browse-btn" (click)="fileInput.click()" [disabled]="isLoading">Browse...</button>
         </div>
         
         <div *ngIf="uploadForm.get('file')?.invalid && uploadForm.get('file')?.touched" class="form-error">
@@ -40,12 +40,29 @@
 
       <!-- Multiple Files List -->
       <div class="form-group" *ngIf="isMultipleUpload">
-        <label class="form-label">Files to Upload</label>
+        <div class="multiple-files-header">
+          <label class="form-label">Files to Upload</label>
+          <input 
+            id="multiFileInput" 
+            type="file" 
+            multiple
+            class="sr-only"
+            (change)="onMultipleFilesSelected($event)" 
+            [accept]="fileAcceptString"
+            #multiFileInput>
+          <button type="button" class="btn btn-outline btn-sm" (click)="multiFileInput.click()" [disabled]="isLoading">
+            Select different files...
+          </button>
+        </div>
         <div class="multiple-files-list">
-          <strong>{{ selectedFiles.length }} files selected:</strong>
-          <ul>
-            <li *ngFor="let file of selectedFiles.slice(0, 5)">{{ file.name }} ({{ file.size | formatBytes }})</li>
-            <li *ngIf="selectedFiles.length > 5" class="more-items">... and {{ selectedFiles.length - 5 }} more files</li>
+          <div class="files-count-badge">
+            <strong>{{ selectedFiles.length }} files selected:</strong>
+          </div>
+          <ul class="files-scroll-container">
+            <li *ngFor="let file of selectedFiles">
+              <span class="file-name" title="{{ file.name }}">{{ file.name }}</span>
+              <span class="file-size">{{ file.size | formatBytes }}</span>
+            </li>
           </ul>
         </div>
       </div>
@@ -108,10 +125,22 @@
         </div>
       </div>
 
+      <!-- Upload Progress Indicator -->
+      <div class="upload-progress-container" *ngIf="isLoading">
+        <div class="progress-status">
+          <span *ngIf="isMultipleUpload">Uploading file {{ uploadProgressIndex }} of {{ totalUploads }}: <strong>{{ currentUploadingFileName }}</strong></span>
+          <span *ngIf="!isMultipleUpload">Uploading file: <strong>{{ selectedFileName }}</strong></span>
+          <span class="progress-percent">{{ uploadProgressPercent }}%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" [style.width.%]="isMultipleUpload ? uploadProgressPercent : 100"></div>
+        </div>
+      </div>
+
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-secondary" (click)="closeModal()" [disabled]="isLoading">Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="uploadForm.invalid || isLoading">
-          {{ isLoading ? 'Uploading...' : 'Upload' }}
+          {{ isLoading ? (isMultipleUpload ? ('Uploading (' + uploadProgressIndex + '/' + totalUploads + ')...') : 'Uploading...') : 'Upload' }}
         </button>
       </div>
 

@@ -125,7 +125,12 @@ export class EntryService {
    * Uploads a file with associated metadata.
    * Sends both payload and binary using multipart/form-data.
    */
-  public uploadEntry(dbId: string, metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, file: File): Observable<void> {
+  public uploadEntry(
+    dbId: string, 
+    metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, 
+    file: File,
+    options?: { skipRefresh?: boolean; silentSuccess?: boolean }
+  ): Observable<void> {
     const formData = new FormData();
     
     formData.append('metadata', JSON.stringify(metadata)); 
@@ -137,21 +142,29 @@ export class EntryService {
       tap(response => {
         if (response.status === 201) {
           const entry = response.body as Entry;
-          this.notificationService.showSuccess('Entry uploaded successfully.');
+          if (!options?.silentSuccess) {
+            this.notificationService.showSuccess('Entry uploaded successfully.');
+          }
           
           if (entry && entry.status === 'processing') {
              this.addProcessingEntry(entry.id);
              this.pollForEntryStatus(dbId, entry.id);
           }
-          this.triggerImageListRefresh();
+          if (!options?.skipRefresh) {
+            this.triggerImageListRefresh();
+          }
         }
         
         if (response.status === 202) {
           const partialEntry = response.body as PartialEntryResponse;
           this.addProcessingEntry(partialEntry.id);
-          this.notificationService.showInfo(`Large file (ID: ${partialEntry.id}) is processing...`);
+          if (!options?.silentSuccess) {
+            this.notificationService.showInfo(`Large file (ID: ${partialEntry.id}) is processing...`);
+          }
           this.pollForEntryStatus(dbId, partialEntry.id);
-          this.triggerImageListRefresh();
+          if (!options?.skipRefresh) {
+            this.triggerImageListRefresh();
+          }
         }
       }),
       map(() => void 0),

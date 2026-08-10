@@ -12,7 +12,7 @@ import { UploadEntryModalComponent } from '../upload-entry-modal/upload-entry-mo
 import { EntryDetailModalComponent } from '../entry-detail-modal/entry-detail-modal.component';
 import { EditEntryModalComponent } from '../edit-entry-modal/edit-entry-modal.component';
 import { ConfirmationModalComponent, ConfirmationModalData } from '../confirmation-modal/confirmation-modal.component';
-import { isMimeTypeAllowed } from '../../utils/mime-types';
+import { isMimeTypeAllowed, getFileAcceptString } from '../../utils/mime-types';
 import { AvailableFilter, FilterChangedEvent } from '../entry-filter/entry-filter.component';
 
 @Component({
@@ -33,6 +33,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
 
   public dbId: string | null = null; // UPDATED: dbName -> dbId
   public currentDb: Database | null = null;
+  public fileAcceptString: string | null = null;
 
   // Scoped permission flags
   public canCreate = false;
@@ -86,10 +87,16 @@ export class EntryListComponent implements OnInit, OnDestroy {
       tap(id => this.setupForNewDatabase(id)),
       filter((id): id is string => !!id), 
       switchMap(id =>
-        merge(of(null), this.manualFetchTrigger$, this.entryService.refreshRequired$).pipe(
-          tap(() => {
-            this.isLoading = true; 
-            this.clearSelection();
+        merge(
+          of({ isSilent: false }),
+          this.manualFetchTrigger$.pipe(map(() => ({ isSilent: false }))),
+          this.entryService.refreshRequired$.pipe(map(() => ({ isSilent: true })))
+        ).pipe(
+          tap(({ isSilent }) => {
+            if (!isSilent) {
+              this.isLoading = true; 
+              this.clearSelection();
+            }
             this.cdr.markForCheck();
           }),
           switchMap(() => {
@@ -179,11 +186,13 @@ export class EntryListComponent implements OnInit, OnDestroy {
       this.databaseService.selectDatabase(id).pipe(take(1)).subscribe(db => { // UPDATED: pass id
         if (db) {
           this.currentDb = db;
+          this.fileAcceptString = getFileAcceptString(db.content_type);
           this.updatePermissions();
           this.setupTableColumns(db);
           this.setupAvailableFilters(db);
         } else {
           this.currentDb = null;
+          this.fileAcceptString = null;
           this.updatePermissions();
           this.tableColumns = [];
           this.availableFilters = [];
@@ -193,6 +202,7 @@ export class EntryListComponent implements OnInit, OnDestroy {
       });
     } else {
       this.currentDb = null;
+      this.fileAcceptString = null;
       this.updatePermissions();
       this.tableColumns = [];
       this.availableFilters = [];
@@ -330,9 +340,46 @@ export class EntryListComponent implements OnInit, OnDestroy {
     this.tableColumns = ['Preview', ...standardColumns, ...customColumns, ...actionColumn];
   }
 
-  openUploadModal(): void {
-    if (this.dbId) this.modalService.open(UploadEntryModalComponent.MODAL_ID); // UPDATED
-    else this.notificationService.showInfo('Please select a database first.');
+  openUploadModal(fileInput?: HTMLInputElement): void {
+    if (!this.dbId || !this.currentDb) {
+      this.notificationService.showInfo('Please select a database first.');
+      return;
+    }
+    if (!this.canCreate) {
+      this.notificationService.showInfo('Cannot upload here.');
+      return;
+    }
+    if (fileInput) {
+      fileInput.value = '';
+      fileInput.click();
+    } else {
+      this.modalService.open(UploadEntryModalComponent.MODAL_ID);
+    }
+  }
+
+  onFabFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0 || !this.currentDb) {
+      return;
+    }
+
+    const files = Array.from(input.files);
+    const validFiles = files.filter(f => isMimeTypeAllowed(this.currentDb!.content_type, f.type));
+
+    if (validFiles.length === 0) {
+      this.notificationService.showError(`No valid files selected. Allowed types: ${this.currentDb.content_type}`);
+      return;
+    }
+
+    if (validFiles.length < files.length) {
+      this.notificationService.showInfo(`Skipped ${files.length - validFiles.length} file(s) of invalid type.`);
+    }
+
+    if (validFiles.length === 1) {
+      this.modalService.open(UploadEntryModalComponent.MODAL_ID, { file: validFiles[0] });
+    } else {
+      this.modalService.open(UploadEntryModalComponent.MODAL_ID, { files: validFiles });
+    }
   }
 
   openEditModal(entry: Entry): void {

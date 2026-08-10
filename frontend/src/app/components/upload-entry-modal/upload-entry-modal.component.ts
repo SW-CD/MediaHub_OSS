@@ -1,13 +1,12 @@
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subject, firstValueFrom } from 'rxjs';
-import { takeUntil, filter, finalize, switchMap } from 'rxjs/operators';
+import { takeUntil, filter, switchMap } from 'rxjs/operators';
 import { Database, CustomField } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
-import { isMimeTypeAllowed, ALLOWED_MIME_TYPES } from '../../utils/mime-types';
-import { ContentType } from '../../models/enums'; 
+import { isMimeTypeAllowed, getFileAcceptString } from '../../utils/mime-types';
 import { NotificationService } from '../../services/notification.service';
 import { AuthService } from '../../services/auth.service';
 import { extractMetadata } from '../../utils/metadata-extractor';
@@ -31,10 +30,16 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
   
   public fileAcceptString: string | null = null;
 
+  // Batch upload progress state
+  public uploadProgressIndex = 0;
+  public totalUploads = 0;
+  public currentUploadingFileName = '';
+  public uploadProgressPercent = 0;
+
   constructor(
     private fb: FormBuilder,
     private databaseService: DatabaseService,
-    private enryService: EntryService,
+    private entryService: EntryService,
     private modalService: ModalService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
@@ -52,15 +57,24 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       .subscribe((db: Database) => {
         this.currentDatabase = db;
         this.initializeForm(); 
-        this.updateFileAcceptString(db.content_type); 
+        this.fileAcceptString = getFileAcceptString(db.content_type);
       });
     
     this.modalService.getModalEvents(UploadEntryModalComponent.MODAL_ID)
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
         if (event.action === 'open') {
-           if (event.data?.droppedFiles) {
+           this.resetProgressState();
+           if (event.data?.files && event.data.files.length > 1) {
+              this.handleMultipleFiles(event.data.files);
+           } else if (event.data?.files && event.data.files.length === 1) {
+              this.handleFile(event.data.files[0]);
+           } else if (event.data?.file) {
+              this.handleFile(event.data.file);
+           } else if (event.data?.droppedFiles && event.data.droppedFiles.length > 1) {
               this.handleMultipleFiles(event.data.droppedFiles);
+           } else if (event.data?.droppedFiles && event.data.droppedFiles.length === 1) {
+              this.handleFile(event.data.droppedFiles[0]);
            } else if (event.data?.droppedFile) {
               this.handleFile(event.data.droppedFile);
            } else {
@@ -70,27 +84,11 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Dynamically generates the accept string from our central utility
-   * so it automatically includes audio/m4a, audio/mp4, application/ogg, etc.
-   */
-  private updateFileAcceptString(contentType: string): void {
-    // We cast to ContentType to access the record map safely
-    const allowedConfig = ALLOWED_MIME_TYPES[contentType as ContentType];
-    
-    if (allowedConfig && allowedConfig.length > 0) {
-      // Maps the array of objects into a single comma-separated string of mime types
-      // Example output: "audio/mpeg,audio/wav,audio/flac,audio/opus,audio/ogg,application/ogg,audio/x-flac,audio/m4a,audio/mp4"
-      this.fileAcceptString = allowedConfig.map(config => config.mime).join(',');
-      
-      // OPTIONAL OS FALLBACK: Some older OS file pickers rely strictly on extensions 
-      // instead of MIME types. You can append explicit extensions if you want to be 100% safe.
-      if (contentType === 'audio') {
-        this.fileAcceptString += ',.m4a,.mp3,.flac,.wav,.ogg,.opus';
-      }
-    } else {
-      this.fileAcceptString = null; // Allows any file for "file" content type
-    }
+  private resetProgressState(): void {
+    this.uploadProgressIndex = 0;
+    this.totalUploads = 0;
+    this.currentUploadingFileName = '';
+    this.uploadProgressPercent = 0;
   }
 
   private getLocalISOString(date: Date): string {
@@ -122,6 +120,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     this.selectedFileName = null;
     this.selectedFiles = [];
     this.isMultipleUpload = false;
+    this.resetProgressState();
     this.uploadForm.get('file')?.setValue(null, { emitEvent: false });
     this.uploadForm.get('timestamp')?.setValidators([Validators.required]);
     this.uploadForm.get('timestamp')?.updateValueAndValidity();
@@ -134,6 +133,21 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     if (fileList && fileList.length > 0) {
       const file = fileList[0];
       this.handleFile(file);
+    }
+  }
+
+  onMultipleFilesSelected(event: Event): void {
+    const element = event.currentTarget as HTMLInputElement;
+    const fileList: FileList | null = element.files;
+    if (fileList && fileList.length > 0) {
+      const files = Array.from(fileList).filter(f => 
+        this.currentDatabase ? isMimeTypeAllowed(this.currentDatabase.content_type, f.type) : true
+      );
+      if (files.length === 1) {
+        this.handleFile(files[0]);
+      } else if (files.length > 1) {
+        this.handleMultipleFiles(files);
+      }
     }
   }
 
@@ -208,7 +222,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
         if (rawCustomFields.hasOwnProperty(field.name)) {
             let value = rawCustomFields[field.name];
             
-            // Strictly enforce data types based on the schema before sending to the backend
             if (field.type === 'BOOLEAN') {
                 value = !!value; 
             } else if ((field.type === 'INTEGER' || field.type === 'REAL') && value !== '' && value !== null) {
@@ -224,8 +237,17 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       filter(user => user !== null),
       switchMap(async () => {
         if (this.isMultipleUpload) {
+          this.totalUploads = this.selectedFiles.length;
+          this.uploadProgressIndex = 0;
+          this.uploadProgressPercent = 0;
+
           for (let i = 0; i < this.selectedFiles.length; i++) {
             const f = this.selectedFiles[i];
+            this.uploadProgressIndex = i + 1;
+            this.currentUploadingFileName = f.name;
+            this.uploadProgressPercent = Math.round((i / this.selectedFiles.length) * 100);
+            this.cdr.detectChanges();
+
             const ext = await extractMetadata(f);
             const ts = ext?.timestamp ? ext.timestamp.getTime() : Date.now();
             const metadata = {
@@ -233,32 +255,46 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
               filename: f.name,
               custom_fields: custom_fields
             };
-            await firstValueFrom(this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, f));
+            
+            await firstValueFrom(this.entryService.uploadEntry(
+              this.currentDatabase!.id, 
+              metadata as any, 
+              f,
+              { skipRefresh: true, silentSuccess: true }
+            ));
+
+            this.uploadProgressPercent = Math.round(((i + 1) / this.selectedFiles.length) * 100);
+            this.cdr.detectChanges();
           }
+
+          this.entryService.triggerImageListRefresh();
+          this.notificationService.showSuccess(`Successfully uploaded ${this.selectedFiles.length} entries.`);
         } else {
           const metadata = {
             timestamp: new Date(timestamp).getTime(),
             filename: this.selectedFile!.name,
             custom_fields: custom_fields 
           };
-          await firstValueFrom(this.enryService.uploadEntry(this.currentDatabase!.id, metadata as any, this.selectedFile!));
+          await firstValueFrom(this.entryService.uploadEntry(this.currentDatabase!.id, metadata as any, this.selectedFile!));
         }
-      }),
-      finalize(() => this.isLoading = false)
+      })
     ).subscribe({
       next: () => {
-        if (this.isMultipleUpload) {
-          this.notificationService.showSuccess(`Successfully uploaded ${this.selectedFiles.length} entries.`);
-        }
+        this.isLoading = false;
+        this.resetProgressState();
         this.closeModal();
       },
-      error: () => {
-        // Error handled by service
+      error: (err) => {
+        this.isLoading = false;
+        if (this.isMultipleUpload) {
+          this.entryService.triggerImageListRefresh();
+        }
       }
     });
   }
 
   closeModal(): void {
+    if (this.isLoading) return;
     this.modalService.close();
     if (this.currentDatabase) {
       this.initializeForm();
