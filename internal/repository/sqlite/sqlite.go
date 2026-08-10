@@ -96,7 +96,7 @@ func NewRepository(path string) (*SQLiteRepository, error) {
 		}
 		mediaFieldsOfContent := make([]MediaField, len(fieldDefs))
 		for i, v := range fieldDefs {
-			mediaFieldsOfContent[i] = MediaField{v.Name, v.Type}
+			mediaFieldsOfContent[i] = MediaField{v.Name, mapToSQLiteType(v.Type)}
 		}
 		mediaFields[contentType] = mediaFieldsOfContent
 	}
@@ -108,6 +108,21 @@ func NewRepository(path string) (*SQLiteRepository, error) {
 		AllowedStatuses: repository.GetAllEntryStatuses(),
 		MediaFields:     mediaFields, // TODO create map from media interface methods
 	}, nil
+}
+
+func mapToSQLiteType(t string) string {
+	switch strings.ToUpper(t) {
+	case "INTEGER", "INT", "INT64", "UINT64", "INT32", "UINT32", "INT16", "UINT16", "INT8", "UINT8", "SMALLINT", "BIGINT":
+		return "INTEGER"
+	case "REAL", "FLOAT64", "FLOAT32", "DOUBLE", "DOUBLE PRECISION":
+		return "REAL"
+	case "TEXT", "STRING":
+		return "TEXT"
+	case "BOOLEAN", "BOOL":
+		return "INTEGER"
+	default:
+		return t
+	}
 }
 
 func (s *SQLiteRepository) Close() error {

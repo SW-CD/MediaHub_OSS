@@ -82,10 +82,15 @@ func TestValidOperator(t *testing.T) {
 
 func TestMapToPostgresType(t *testing.T) {
 	tests := map[string]string{
-		"INTEGER": "INTEGER",
-		"REAL":    "DOUBLE PRECISION",
-		"TEXT":    "TEXT",
-		"BOOLEAN": "BOOLEAN",
+		"INTEGER":  "INTEGER",
+		"REAL":     "DOUBLE PRECISION",
+		"TEXT":     "TEXT",
+		"BOOLEAN":  "BOOLEAN",
+		"uint64":   "BIGINT",
+		"INT64":    "BIGINT",
+		"float64":  "DOUBLE PRECISION",
+		"uint8":    "SMALLINT",
+		"SMALLINT": "SMALLINT",
 	}
 	for in, expected := range tests {
 		got := mapToPostgresType(in)

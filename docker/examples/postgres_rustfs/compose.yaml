@@ -69,6 +69,8 @@ services:
       MEDIAHUB_STORAGE_S3_USE_SSL: "false"
       MEDIAHUB_PASSWORD: ${MEDIAHUB_ADMIN_PASSWORD}
       MEDIAHUB_LOGGING_LEVEL: ${MEDIAHUB_LOGGING_LEVEL}
+      MEDIAHUB_LOGGING_AUDIT_TYPE: database
+      MEDIAHUB_LOGGING_AUDIT_ENABLED: true
     volumes:
       - mediahub_storage:/storage
     depends_on:

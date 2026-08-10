@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"mediahub_oss/internal/media"
@@ -68,14 +69,18 @@ func NewRepository(source string) (*PostgresRepository, error) {
 }
 
 func mapToPostgresType(t string) string {
-	switch t {
-	case "INTEGER":
+	switch strings.ToUpper(t) {
+	case "INTEGER", "INT", "INT32", "UINT32":
 		return "INTEGER"
-	case "REAL":
+	case "INT64", "UINT64", "BIGINT":
+		return "BIGINT"
+	case "INT16", "UINT16", "INT8", "UINT8", "SMALLINT":
+		return "SMALLINT"
+	case "REAL", "FLOAT64", "FLOAT32", "DOUBLE", "DOUBLE PRECISION":
 		return "DOUBLE PRECISION"
-	case "TEXT":
+	case "TEXT", "STRING":
 		return "TEXT"
-	case "BOOLEAN":
+	case "BOOLEAN", "BOOL":
 		return "BOOLEAN"
 	default:
 		return t

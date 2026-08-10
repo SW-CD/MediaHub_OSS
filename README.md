@@ -227,7 +227,7 @@ You can override any setting from the `config.toml` file using environment varia
 | `--server-host` | `MEDIAHUB_SERVER_HOST` | The host address to bind to. | `0.0.0.0` |
 | `--server-port` | `MEDIAHUB_SERVER_PORT` | The HTTP port to bind to. | `8080` |
 | `--server-basepath` | `MEDIAHUB_SERVER_BASEPATH` | The base path in case the app is behind a reverse proxy. | `/` |
-| `--server-max-sync-upload` | `MEDIAHUB_SERVER_MAX_SYNC_UPLOAD` | RAM threshold for uploads (e.g., "8MB"). Larger files use disk. | `8MB` |
+| `--server-max-sync-upload` | `MEDIAHUB_SERVER_MAX_SYNC_UPLOAD` | RAM threshold for uploads (e.g., "8MB"). Larger files use disk. | `4MB` |
 | `--server-cors-origins` | `MEDIAHUB_SERVER_CORS_ORIGINS` | Comma-separated list of allowed CORS origins. | `""` |
 | **Database Settings** `[database]` |  |  |  |
 | `--database-driver` | `MEDIAHUB_DATABASE_DRIVER` | Database driver to use (`sqlite` or `postgres`). | `sqlite` |
