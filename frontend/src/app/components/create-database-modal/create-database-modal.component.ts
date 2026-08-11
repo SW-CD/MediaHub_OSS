@@ -36,7 +36,7 @@ export class CreateDatabaseModalComponent implements OnInit {
         interval_unit: ['h'],
         disk_space_value: [100, [Validators.required, Validators.min(0)]],
         disk_space_unit: ['G'],
-        max_age_value: [365, [Validators.required, Validators.min(0)]],
+        max_age_value: [0, [Validators.required, Validators.min(0)]],
         max_age_unit: ['d'],
       }),
       custom_fields: this.fb.array([]),
@@ -114,7 +114,7 @@ export class CreateDatabaseModalComponent implements OnInit {
             housekeeping: { 
               interval_value: 1, interval_unit: 'h', 
               disk_space_value: 100, disk_space_unit: 'G', 
-              max_age_value: 365, max_age_unit: 'd' 
+              max_age_value: 0, max_age_unit: 'd' 
             } 
           });
           this.customFields.clear();

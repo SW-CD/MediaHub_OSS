@@ -87,10 +87,10 @@ func (hk HousekeepingPayload) toModel() repository.DatabaseHK {
 		dbHk.DiskSpace = size
 	}
 
-	// Default: "365d"
+	// Default: "0"
 	maxAgeStr := hk.MaxAge
 	if maxAgeStr == "" {
-		maxAgeStr = "365d"
+		maxAgeStr = "0"
 	}
 	if age, err := shared.ParseDuration(maxAgeStr); err == nil {
 		dbHk.MaxAge = age

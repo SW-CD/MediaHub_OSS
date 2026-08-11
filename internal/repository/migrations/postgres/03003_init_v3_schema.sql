@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS databases (
     content_type VARCHAR(32) NOT NULL DEFAULT 'image',
     hk_interval BIGINT NOT NULL DEFAULT 3600000, -- 1 hour in milliseconds
     hk_disk_space BIGINT NOT NULL DEFAULT 107374182400, -- 100GB in bytes
-    hk_max_age BIGINT NOT NULL DEFAULT 31536000000000, -- 365 days in milliseconds
+    hk_max_age BIGINT NOT NULL DEFAULT 0, -- 0 = disabled, value is in milliseconds if provided
     
     create_preview BOOLEAN NOT NULL DEFAULT FALSE,
     auto_conversion VARCHAR(32) NOT NULL DEFAULT 'none',

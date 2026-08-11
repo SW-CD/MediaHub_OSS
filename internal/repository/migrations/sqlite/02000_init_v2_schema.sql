@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS databases (
     content_type TEXT NOT NULL DEFAULT 'image',
     hk_interval INTEGER NOT NULL DEFAULT 3600000, -- 1 hour in milliseconds
     hk_disk_space INTEGER NOT NULL DEFAULT 107374182400, -- 100GB in bytes
-    hk_max_age INTEGER NOT NULL DEFAULT 31536000000, -- 365 days in milliseconds
+    hk_max_age INTEGER NOT NULL DEFAULT 0, -- 0 = disabled, value is in milliseconds if provided
     
     -- Extracted config fields
     create_preview BOOLEAN NOT NULL DEFAULT 0,

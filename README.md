@@ -1,4 +1,4 @@
-# MediaHub API & Web Interface (upcoming v3.0.1) ✨
+# MediaHub API & Web Interface (upcoming v3.1.0) ✨
 
 This open source project provides a HTTP REST API and web frontend for working with images, audio, videos or generic files The software has a dependency on ffmpeg for automatic transcoding of files and metadata extraction.
 
@@ -306,7 +306,7 @@ password = "BobsPassword"
 name = "ImageDB1"
 content_type = "image"
 config = { create_previews = true, auto_conversion = "jpeg" }
-housekeeping = { interval = "1h", disk_space = "100G", max_age = "365d" }
+housekeeping = { interval = "1h", disk_space = "100G", max_age = "0" }
 # Custom metadata schema
 custom_fields = [
     {name = "latitude", type = "REAL"},

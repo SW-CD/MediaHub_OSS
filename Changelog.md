@@ -1,3 +1,14 @@
+# v3.1
+
+Features:
+- add Postgres and S3 compatibility
+
+Improvements:
+- improved entry upload, enabling multi-file uploads from mobile devices
+- improved preview querying and caching
+- default to 0 days max age for new databases instead of 365 days
+
+
 # v3.0
 
 Features:
