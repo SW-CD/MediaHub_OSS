@@ -43,7 +43,7 @@ export class EntryGridComponent implements OnChanges {
   private wasTouchHandled = false;
 
   constructor(
-    private entryservice: EntryService,
+    private entryService: EntryService,
     private imageCacheService: ImageCacheService,
     private cdr: ChangeDetectorRef,
     private el: ElementRef
@@ -96,7 +96,7 @@ export class EntryGridComponent implements OnChanges {
 
   public getPreviewUrl(entry: Entry): string {
     if (!this.dbId) return '';
-    return this.entryservice.getEntryPreviewUrl(this.dbId, entry.id);
+    return this.entryService.getEntryPreviewUrl(this.dbId, entry.id);
   }
 
   public onEntryClick(entry: Entry, event?: MouseEvent): void {
