@@ -260,7 +260,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
               this.currentDatabase!.id, 
               metadata as any, 
               f,
-              { skipRefresh: true, silentSuccess: true }
+              { silentSuccess: true }
             ));
 
             this.uploadProgressPercent = Math.round(((i + 1) / this.selectedFiles.length) * 100);

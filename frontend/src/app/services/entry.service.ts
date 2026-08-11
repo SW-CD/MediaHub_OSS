@@ -133,7 +133,7 @@ export class EntryService {
     dbId: string, 
     metadata: Omit<Entry, 'id' | 'width' | 'height' | 'filesize' | 'mime_type' | 'status'>, 
     file: File,
-    options?: { skipRefresh?: boolean; silentSuccess?: boolean }
+    options?: { silentSuccess?: boolean }
   ): Observable<void> {
     const formData = new FormData();
     
@@ -157,9 +157,6 @@ export class EntryService {
              }
              this.entryCreatedNotifier.next(entry);
           }
-          if (!options?.skipRefresh) {
-            this.triggerImageListRefresh();
-          }
         }
         
         if (response.status === 202) {
@@ -181,9 +178,6 @@ export class EntryService {
           }
           this.pollForEntryStatus(dbId, partialEntry.id);
           this.entryCreatedNotifier.next(entry);
-          if (!options?.skipRefresh) {
-            this.triggerImageListRefresh();
-          }
         }
       }),
       map(() => void 0),
