@@ -11,14 +11,12 @@ import {
   Renderer2,
   HostListener
 } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription, BehaviorSubject } from 'rxjs';
 import { switchMap, filter } from 'rxjs/operators';
+import { ImageCacheService } from '../services/image-cache.service';
 
 /**
- * Directive to load images/media securely using the JwtInterceptor.
- * It handles Blob URL creation and REVOCATION to prevent memory leaks.
- * Usage: <img [secureSrc]="'/api/entry/preview?...'" (imageError)="handleError()">
+ * Directive to load images/media securely using ImageCacheService and JwtInterceptor.
  * Optimized to load images lazily via IntersectionObserver when entering the viewport.
  */
 @Directive({
@@ -32,34 +30,25 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
 
   private currentUrlSubject = new BehaviorSubject<string | null>(null);
   private subscription: Subscription;
-  private currentObjectUrl: string | null = null;
   private observer: IntersectionObserver | null = null;
   private isVisible = false;
 
   constructor(
     private el: ElementRef,
-    private http: HttpClient,
+    private imageCacheService: ImageCacheService,
     private renderer: Renderer2
   ) {
     this.subscription = this.currentUrlSubject
       .pipe(
-        // Only load if a URL is provided AND the element is visible in the viewport
-        filter(url => !!url && this.isVisible),
+        filter((url): url is string => !!url && this.isVisible),
         switchMap(url => {
           this.renderer.addClass(this.el.nativeElement, 'loading-image');
-          
-          // UPDATED: Explicitly request */* to ensure we get a binary Blob, not JSON Base64
-          return this.http.get(url!, { 
-            responseType: 'blob',
-            headers: new HttpHeaders({ 'Accept': '*/*' }) 
-          });
+          return this.imageCacheService.getBlobUrl(url);
         })
       )
       .subscribe({
-        next: (blob) => {
-          this.revokeCurrentUrl();
-          this.currentObjectUrl = URL.createObjectURL(blob);
-          this.renderer.setAttribute(this.el.nativeElement, 'src', this.currentObjectUrl);
+        next: (blobUrl) => {
+          this.renderer.setAttribute(this.el.nativeElement, 'src', blobUrl);
           this.renderer.removeClass(this.el.nativeElement, 'loading-image');
         },
         error: (err) => {
@@ -79,7 +68,6 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
           const entry = entries[0];
           if (entry && entry.isIntersecting) {
             this.isVisible = true;
-            // Trigger the behavior subject to load the current URL
             if (this.secureSrc) {
               this.currentUrlSubject.next(this.secureSrc);
             }
@@ -92,7 +80,6 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
       );
       this.observer.observe(this.el.nativeElement);
     } else {
-      // Fallback for environments/browsers without IntersectionObserver
       this.isVisible = true;
     }
   }
@@ -107,11 +94,9 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['secureSrc']) {
       if (!this.secureSrc) {
-        this.revokeCurrentUrl();
         this.renderer.removeAttribute(this.el.nativeElement, 'src');
       }
       
-      // If already visible, load immediately. Otherwise, observer will trigger it.
       if (this.isVisible) {
         this.currentUrlSubject.next(this.secureSrc);
       }
@@ -120,15 +105,7 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
-    this.revokeCurrentUrl();
     this.disconnectObserver();
-  }
-
-  private revokeCurrentUrl(): void {
-    if (this.currentObjectUrl) {
-      URL.revokeObjectURL(this.currentObjectUrl);
-      this.currentObjectUrl = null;
-    }
   }
 
   @HostListener('load')

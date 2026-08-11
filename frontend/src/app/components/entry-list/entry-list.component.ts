@@ -126,6 +126,28 @@ export class EntryListComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck(); 
       }
     });
+
+    this.entryService.entryCreated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(newEntry => {
+        if (this.currentDb && !this.entriesToShow.some(e => e.id === newEntry.id)) {
+          const updated = [newEntry, ...this.entriesToShow];
+          updated.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          this.entriesToShow = updated;
+          this.cdr.markForCheck();
+        }
+      });
+
+    this.entryService.entryUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(updatedEntry => {
+        const index = this.entriesToShow.findIndex(e => e.id === updatedEntry.id);
+        if (index !== -1) {
+          this.entriesToShow[index] = { ...this.entriesToShow[index], ...updatedEntry };
+          this.entriesToShow = [...this.entriesToShow];
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   // Calculates permissions for the currently selected database

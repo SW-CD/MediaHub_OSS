@@ -18,10 +18,14 @@ export class EntryService {
   // State specific to entries
   private selectedEntrySubject = new BehaviorSubject<Entry | null>(null);
   private refreshNotifier = new Subject<void>();
+  private entryCreatedNotifier = new Subject<Entry>();
+  private entryUpdatedNotifier = new Subject<Entry>();
   private processingEntriesSubject = new BehaviorSubject<number[]>([]);
 
   public selectedEntry$ = this.selectedEntrySubject.asObservable();
   public refreshRequired$ = this.refreshNotifier.asObservable();
+  public entryCreated$ = this.entryCreatedNotifier.asObservable();
+  public entryUpdated$ = this.entryUpdatedNotifier.asObservable();
   public processingEntries$ = this.processingEntriesSubject.asObservable();
 
   constructor(
@@ -146,9 +150,12 @@ export class EntryService {
             this.notificationService.showSuccess('Entry uploaded successfully.');
           }
           
-          if (entry && entry.status === 'processing') {
-             this.addProcessingEntry(entry.id);
-             this.pollForEntryStatus(dbId, entry.id);
+          if (entry) {
+             if (entry.status === 'processing') {
+                this.addProcessingEntry(entry.id);
+                this.pollForEntryStatus(dbId, entry.id);
+             }
+             this.entryCreatedNotifier.next(entry);
           }
           if (!options?.skipRefresh) {
             this.triggerImageListRefresh();
@@ -157,11 +164,23 @@ export class EntryService {
         
         if (response.status === 202) {
           const partialEntry = response.body as PartialEntryResponse;
+          const entry: Entry = {
+            id: partialEntry.id,
+            timestamp: (metadata as any).timestamp || Date.now(),
+            created_at: partialEntry.created_at || Date.now(),
+            updated_at: partialEntry.updated_at || Date.now(),
+            database_id: dbId,
+            filename: file.name,
+            filesize: file.size,
+            mime_type: file.type,
+            status: 'processing'
+          };
           this.addProcessingEntry(partialEntry.id);
           if (!options?.silentSuccess) {
             this.notificationService.showInfo(`Large file (ID: ${partialEntry.id}) is processing...`);
           }
           this.pollForEntryStatus(dbId, partialEntry.id);
+          this.entryCreatedNotifier.next(entry);
           if (!options?.skipRefresh) {
             this.triggerImageListRefresh();
           }
@@ -256,10 +275,10 @@ export class EntryService {
       next: entry => {
         this.removeProcessingEntry(entry.id);
         if (entry.status === 'ready') {
-          this.triggerImageListRefresh();
+          this.entryUpdatedNotifier.next(entry);
         } else if (entry.status === 'error') {
           this.notificationService.showError(`Entry ${entry.id} failed to process.`);
-          this.triggerImageListRefresh();
+          this.entryUpdatedNotifier.next(entry);
         }
       },
       error: err => {

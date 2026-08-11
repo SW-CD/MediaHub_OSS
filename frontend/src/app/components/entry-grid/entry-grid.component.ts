@@ -3,6 +3,7 @@ import { Entry } from '../../models';
 import { EntryService } from '../../services/entry.service';
 import { CommonModule } from '@angular/common'; 
 import { SecureImageDirective } from '../../directives/secure-image.directive';
+import { ImageCacheService } from '../../services/image-cache.service';
 
 export interface DateGroup {
   dateStr: string;
@@ -43,6 +44,7 @@ export class EntryGridComponent implements OnChanges {
 
   constructor(
     private entryservice: EntryService,
+    private imageCacheService: ImageCacheService,
     private cdr: ChangeDetectorRef,
     private el: ElementRef
   ) {}
@@ -52,6 +54,7 @@ export class EntryGridComponent implements OnChanges {
     if (changes['dbId'] || changes['entries']) {
       if (changes['dbId']) {
         this.failedImageIds.clear();
+        this.imageCacheService.clearAll();
       }
       this.groupEntries();
     }
@@ -193,6 +196,10 @@ export class EntryGridComponent implements OnChanges {
 
   public trackById(index: number, entry: Entry): number {
     return entry.id;
+  }
+
+  public trackByDateStr(index: number, group: DateGroup): string {
+    return group.dateStr;
   }
 
   public isSelected(entry: Entry): boolean {

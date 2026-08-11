@@ -267,7 +267,6 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           }
 
-          this.entryService.triggerImageListRefresh();
           this.notificationService.showSuccess(`Successfully uploaded ${this.selectedFiles.length} entries.`);
         } else {
           const metadata = {

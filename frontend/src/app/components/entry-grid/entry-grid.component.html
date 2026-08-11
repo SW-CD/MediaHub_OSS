@@ -1,5 +1,5 @@
 <div class="groups-container" [class.selection-active]="selectedIds.size > 0">
-  <div class="date-group" *ngFor="let group of dateGroups"
+  <div class="date-group" *ngFor="let group of dateGroups; trackBy: trackByDateStr"
        [class.large-group]="isLargeGroup(group)"
        [style.flex-grow]="isLargeGroup(group) ? 1 : getGroupAspectRatio(group)"
        [style.flex-basis]="isLargeGroup(group) ? '100%' : 'calc(var(--tile-height) * ' + getGroupAspectRatio(group) + ')'">

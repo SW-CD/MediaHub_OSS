@@ -159,6 +159,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover; /* Cover for a beautiful immersive borderless grid! */
+  transition: opacity 0.25s ease-in-out;
+}
+
+.grid-card-img.loading-image {
+  opacity: 0;
 }
 
 .group-spacer,
