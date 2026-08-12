@@ -5,9 +5,10 @@ Features:
 
 Improvements:
 - improved entry upload, enabling multi-file uploads from mobile devices
+- improved touch screen support for selecting files
 - improved preview querying and caching
 - default to 0 days max age for new databases instead of 365 days
-
+- add Docusaurus docs
 
 # v3.0
 

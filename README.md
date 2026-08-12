@@ -34,17 +34,12 @@ In summary, if you need a place to store your private photos, other solutions mi
   * **Dynamic Metadata:** Supports defining custom fields (e.g., `score`, `source`, `defect`) for each database. These fields are stored and indexed for efficient searching.
   * **Automated Housekeeping:** A background service periodically cleans up files based on configurable age (set to `0` to disable) and disk space limits (set to `0` to disable).
   * **Media Processing:** Configure databases to automatically transcode media files, e.g., images to Webp, video to Webm or audio files to FLAC.
-  * **Hybrid File Uploads:** Optimizes file uploads by processing small files **synchronously** (returning `201 Created`) and large files **asynchronously** (returning `202 Accepted`). The size threshold for this switch is configurable (default: 4MB). This provides immediate feedback to the user for large files, which can then be processed in the background.
   * **Integrated Web UI:** The Go application serves the Angular frontend from the embedded binary, providing a seamless user experience from a single executable.
-  * **Drag & Drop Uploads:** Intuitive file uploading by dragging files directly onto the entry list or the upload modal.
-  * **Metadata Auto-Extraction:** Automatically extracts capture and creation timestamps from JPEGs (EXIF headers) and MP4 videos (Movie Header Box) on upload to pre-populate entry timestamps.
   * **Bulk Import & Export:** Export and import your data as zip-files.
-  * **Preview Generation:** Automatically generates downscaled Webp previews for images or videos and waveform images for audio files (using FFmpeg) to enable fast-loading galleries.
   * **Advanced Entry Search:** The API supports powerful filtering on custom fields with operators like `>`, `<`, `>=`, `<=`, `!=`, and `LIKE` (for wildcard text search).
   * **Hybrid Authentication:** Supports both **Basic Authentication** (for simple API scripts) and **JWT (JSON Web Tokens)** with Access/Refresh tokens (for the Web UI), protected by role-based access control.
   * **Flexible User Roles:** User roles can be defined on database level, allowing fine grained access control.
   * **Audit Logging:** Optional logging of every action taken by users can be enabled for traceability. 
-  * **Config-File Initialization:** On startup, can create users and databases from a TOML config file if they don't already exist.
 
 -----
 

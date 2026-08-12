@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Refined Minimal Tech Startup Logo - Castle in Circle</title>
+  <defs>
+    <linearGradient id="circleGradient" x1="256" y1="0" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#7E22CE"/>
+    </linearGradient>
+    <linearGradient id="castleGradient" x1="256" y1="156" x2="256" y2="356" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C4B5FD"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="250" fill="url(#circleGradient)" />
+  <path d="M 146 356 V 156 H 176 V 236 H 206 V 156 H 236 V 236 H 276 V 156 H 306 V 236 H 336 V 156 H 366 V 356 Z
+           M 216 356 V 296 C 216 274 234 256 256 256 S 296 274 296 296 V 356 Z" 
+        fill-rule="evenodd" 
+        fill="url(#castleGradient)" />
+</svg>
