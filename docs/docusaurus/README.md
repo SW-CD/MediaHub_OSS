@@ -87,3 +87,20 @@ You can also build and run the documentation container using Docker without inst
    ```
 
 3. Open **`http://localhost:8081`** in your browser.
+
+---
+
+## 📌 Documentation Versioning
+
+Versioning is configured and enabled for this project.
+
+### How to Create a New Version in the Future (e.g. `3.2` or `4.0`)
+
+1. Make sure your active manual files in `docs/manual/` are up to date.
+2. From `docs/docusaurus`, run:
+   ```bash
+   npm run docusaurus docs:version 3.2
+   ```
+3. Update `docusaurus.config.js` to set `lastVersion: '3.2'` and add the new version label under `versions`.
+4. Commit the generated version files (`versioned_docs/`, `versioned_sidebars/`, `versions.json`).
+

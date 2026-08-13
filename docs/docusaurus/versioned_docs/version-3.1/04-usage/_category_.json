@@ -1,0 +1,8 @@
+{
+  "label": "Usage",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Guides for using the MediaHub Web UI, managing databases, uploading entries, permissions, and API keys."
+  }
+}

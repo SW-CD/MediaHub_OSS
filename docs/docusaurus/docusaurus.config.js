@@ -31,6 +31,17 @@ const config = {
           path: '../manual',
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
+          lastVersion: '3.1',
+          versions: {
+            current: {
+              label: 'Development (Next)',
+              path: 'next',
+            },
+            '3.1': {
+              label: 'v3.1',
+              path: '',
+            },
+          },
         },
         blog: false,
         theme: {
@@ -68,6 +79,11 @@ const config = {
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Documentation',
+          },
+          {
+            type: 'docsVersionDropdown',
+            position: 'right',
+            dropdownActiveClassDisabled: true,
           },
           {
             href: 'https://github.com/denglerchr/MediaHub_OSS',
