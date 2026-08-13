@@ -47,6 +47,7 @@ const config = {
         hashed: true,
         language: ['en'],
         docsRouteBasePath: '/',
+        docsDir: '../manual',
         indexBlog: false,
       },
     ],

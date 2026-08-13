@@ -38,6 +38,8 @@ mediahub_data/
 
 # --- Documentation & AI Context ---
 AI/
+docs/docusaurus
+docs/manual
 
 # --- Docker specific ---
 docker/

@@ -1,0 +1,14 @@
+# Docusaurus build output
+build/
+
+# Docusaurus local search / cache files
+.docusaurus/
+
+# Node dependencies
+node_modules/
+package-lock.json
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.log

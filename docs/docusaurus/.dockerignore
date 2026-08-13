@@ -1,0 +1,9 @@
+# Docusaurus Docker Ignore
+node_modules/
+build/
+.docusaurus/
+.git
+.gitignore
+*.log
+.DS_Store
+Thumbs.db
