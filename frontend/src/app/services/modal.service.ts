@@ -15,7 +15,7 @@ export interface ModalEvent {
 })
 export class ModalService {
   private modalEventSubject = new Subject<ModalEvent>();
-  private resultSubject!: Subject<boolean>;
+  private resultSubjects = new Map<string, Subject<boolean>>();
 
   constructor() {}
 
@@ -26,31 +26,39 @@ export class ModalService {
    * @returns An Observable that emits `true` for confirm, `false` for cancel/close.
    */
   open(id: string, data?: any): Observable<boolean> {
-    this.resultSubject = new Subject<boolean>();
+    const subject = new Subject<boolean>();
+    this.resultSubjects.set(id, subject);
     this.modalEventSubject.next({ id, action: 'open', data });
-    return this.resultSubject.asObservable();
+    return subject.asObservable();
   }
 
   /**
    * Emits a result to the result subject without closing the modal.
    */
-  emitResult(result: boolean): void {
-    if (this.resultSubject) {
-      this.resultSubject.next(result);
+  emitResult(result: boolean, id?: string): void {
+    if (id && this.resultSubjects.has(id)) {
+      this.resultSubjects.get(id)!.next(result);
+    } else if (this.resultSubjects.size > 0) {
+      const lastKey = Array.from(this.resultSubjects.keys()).pop()!;
+      this.resultSubjects.get(lastKey)!.next(result);
     }
   }
 
   /**
    * Closes the currently active modal and emits the result.
    * @param result The result to emit (true for confirm, false for cancel).
+   * @param id Optional specific modal id to close.
    */
-  close(result: boolean = false): void {
-    if (this.resultSubject) {
-      this.resultSubject.next(result);
-      this.resultSubject.complete();
+  close(result: boolean = false, id?: string): void {
+    const targetId = id || Array.from(this.resultSubjects.keys()).pop();
+    if (targetId && this.resultSubjects.has(targetId)) {
+      const subject = this.resultSubjects.get(targetId)!;
+      subject.next(result);
+      subject.complete();
+      this.resultSubjects.delete(targetId);
     }
     // Broadcast a general close event for the modal component to hide itself.
-    this.modalEventSubject.next({ id: '', action: 'close' });
+    this.modalEventSubject.next({ id: targetId || '', action: 'close' });
   }
 
   /**

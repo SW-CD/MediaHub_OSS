@@ -188,7 +188,7 @@
         <button type="button" class="btn-link" (click)="addCustomField()">+ Add Field</button>
       </div>
       <div formArrayName="custom_fields">
-        <div *ngFor="let field of customFields.controls; let i = index" [formGroupName]="i" class="custom-field-row">
+        <div *ngFor="let field of customFields.controls; let i = index; trackBy: trackByIndex" [formGroupName]="i" class="custom-field-row">
           <input type="text" formControlName="name" placeholder="Field Name" class="form-control">
           <select formControlName="type" class="form-control">
             <option value="TEXT">Text</option>

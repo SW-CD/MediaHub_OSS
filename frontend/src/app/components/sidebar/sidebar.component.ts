@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { takeUntil, map } from 'rxjs/operators';
 import { User, AppInfo } from '../../models';
 import { AuthService } from '../../services/auth.service';
 import { AppInfoService } from '../../services/app-info.service'; 
@@ -39,7 +39,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.appInfoService.loadInfo().subscribe();
+    this.appInfoService.loadInfo().pipe(takeUntil(this.destroy$)).subscribe();
   }
 
   onToggleSidebar(): void {

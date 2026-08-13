@@ -64,7 +64,7 @@
           </td>
         </tr>
         
-        <tr *ngFor="let log of logs">
+        <tr *ngFor="let log of logs; trackBy: trackByLogId">
           <td class="log-id">#{{ log.id }}</td>
           <td>{{ log.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}</td>
           <td>

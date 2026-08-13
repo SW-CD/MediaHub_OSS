@@ -300,6 +300,14 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
     }
   }
 
+  trackByFileName(index: number, file: File): string {
+    return file.name;
+  }
+
+  trackByFieldId(index: number, field: any): number | string {
+    return field.id ?? field.name;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

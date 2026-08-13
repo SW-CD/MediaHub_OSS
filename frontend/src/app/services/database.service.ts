@@ -19,7 +19,7 @@ export interface DatabaseUpdatePayload {
   providedIn: 'root',
 })
 export class DatabaseService {
-  private readonly apiUrl = 'api';
+  private readonly apiUrl = '/api';
 
   // State specific to databases
   private databasesSubject = new BehaviorSubject<Database[]>([]);
@@ -38,64 +38,64 @@ export class DatabaseService {
    * Centralized error handler for HTTP requests.
    */
   private handleError(error: HttpErrorResponse): Observable<never> {
-    console.error("[DEBUG] DatabaseService: Full HTTP Error Response:", error);
-
-    let errorMessage: string;
-    let isAuthError = false;
-
+    let errorMessage = 'An unknown error occurred.';
     if (error.error && typeof error.error.error === 'string') {
-        errorMessage = error.error.error;
+      errorMessage = error.error.error;
     } else if (error.status === 0) {
-      errorMessage = 'Network error or backend unreachable. Check CORS or server status.';
+      errorMessage = 'Network error: Server is unreachable.';
     } else if (error.status === 401) {
-      errorMessage = 'Authentication failed or session expired. Please log in again.';
-      isAuthError = true;
+      errorMessage = 'Unauthorized: Please log in again.';
     } else if (error.status === 403) {
-      errorMessage = 'Forbidden: You lack permission for this action.';
-    } else if (error.status === 400) {
-      errorMessage = `Bad Request: ${error.error?.error || 'Invalid input.'}`;
+      errorMessage = 'Forbidden: You lack permission for this operation.';
+    } else if (error.status === 404) {
+      errorMessage = 'Not Found: The requested database resource does not exist.';
     } else if (error.status >= 500) {
-      errorMessage = `Server Error (${error.status}): ${error.statusText}. Please try again later.`;
-    } else if (error.statusText) {
-      errorMessage = `Error ${error.status}: ${error.statusText}`;
-    } else {
-      errorMessage = 'An unknown error occurred.';
+      errorMessage = `Server Error (${error.status}): ${error.statusText || 'Internal Error'}`;
     }
 
-    if (isAuthError) {
-      this.notificationService.showGlobalError(errorMessage);
-    } else {
-      this.notificationService.showError(errorMessage);
-    }
-
+    this.notificationService.showError(errorMessage);
     return throwError(() => new Error(errorMessage));
   }
 
   // --- DATABASE ENDPOINTS ---
 
+  /**
+   * Fetches the list of databases accessible to the current user.
+   */
   public loadDatabases(): Observable<Database[]> {
-    return this.http
-      .get<Database[]>(`${this.apiUrl}/databases`)
-      .pipe(
-        tap((databases) => this.databasesSubject.next(databases || [])),
-        catchError((err) => this.handleError(err))
-      );
+    return this.http.get<Database[]>(`${this.apiUrl}/databases`).pipe(
+      tap((databases) => {
+        this.databasesSubject.next(databases);
+      }),
+      catchError((err) => this.handleError(err))
+    );
   }
 
   /**
-   * Fetches a single database by its ULID.
+   * Selects a database by its ULID and updates the active database state.
    */
   public selectDatabase(id: string): Observable<Database | null> {
-    return this.http
-      .get<Database>(`${this.apiUrl}/database/${id}`)
-      .pipe(
-        tap((db) => this.selectedDatabaseSubject.next(db)),
-        catchError((err) => {
-          this.selectedDatabaseSubject.next(null);
-          this.handleError(err);
-          return of(null);
-        })
-      );
+    const currentList = this.databasesSubject.value;
+    const localDb = currentList.find((db) => db.id === id);
+
+    if (localDb) {
+      this.selectedDatabaseSubject.next(localDb);
+    }
+
+    return this.http.get<Database>(`${this.apiUrl}/database/${id}`).pipe(
+      tap((db) => {
+        this.selectedDatabaseSubject.next(db);
+        const updatedList = this.databasesSubject.value.map((d) => (d.id === db.id ? db : d));
+        if (!updatedList.some((d) => d.id === db.id)) {
+          updatedList.push(db);
+        }
+        this.databasesSubject.next(updatedList);
+      }),
+      catchError((err) => {
+        this.handleError(err);
+        return of(null);
+      })
+    );
   }
 
   /**
@@ -105,7 +105,7 @@ export class DatabaseService {
     return this.http.post<Database>(`${this.apiUrl}/database`, dbData).pipe(
       tap(newDb => {
         this.notificationService.showSuccess(`Database '${newDb.name}' created successfully.`);
-        this.loadDatabases().subscribe();
+        this.loadDatabases().subscribe({ error: (err) => console.error(err) });
         
         // Navigate using the newly generated ULID instead of the name
         this.router.navigate(['/dashboard/db', (newDb as any).id]); 
@@ -150,7 +150,7 @@ export class DatabaseService {
         if ((this.selectedDatabaseSubject.value as any)?.id === id) {
             this.selectedDatabaseSubject.next(null);
         }
-        this.loadDatabases().subscribe();
+        this.loadDatabases().subscribe({ error: (err) => console.error(err) });
         this.router.navigate(['/dashboard']);
       }),
       catchError((err) => this.handleError(err))
@@ -165,7 +165,7 @@ export class DatabaseService {
       tap(report => {
         this.notificationService.showSuccess(report.message || `Housekeeping complete.`);
         if ((this.selectedDatabaseSubject.value as any)?.id === id) {
-            this.selectDatabase(id).subscribe();
+            this.selectDatabase(id).subscribe({ error: (err) => console.error(err) });
         }
       }),
       catchError((err) => this.handleError(err))
@@ -179,7 +179,7 @@ export class DatabaseService {
     return this.http.post<CustomField>(`${this.apiUrl}/database/${dbId}/field`, field).pipe(
       tap(newField => {
         this.notificationService.showSuccess(`Custom field '${newField.name}' added successfully.`);
-        this.selectDatabase(dbId).subscribe();
+        this.selectDatabase(dbId).subscribe({ error: (err) => console.error(err) });
       }),
       catchError((err) => this.handleError(err))
     );
@@ -196,7 +196,7 @@ export class DatabaseService {
     return this.http.patch<CustomField>(`${this.apiUrl}/database/${dbId}/field/${fieldId}`, payload).pipe(
       tap(updatedField => {
         this.notificationService.showSuccess(`Custom field '${updatedField.name}' updated successfully.`);
-        this.selectDatabase(dbId).subscribe();
+        this.selectDatabase(dbId).subscribe({ error: (err) => console.error(err) });
       }),
       catchError((err) => this.handleError(err))
     );
@@ -209,7 +209,7 @@ export class DatabaseService {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/database/${dbId}/field/${fieldId}`).pipe(
       tap(res => {
         this.notificationService.showSuccess(res.message || `Custom field deleted successfully.`);
-        this.selectDatabase(dbId).subscribe();
+        this.selectDatabase(dbId).subscribe({ error: (err) => console.error(err) });
       }),
       catchError((err) => this.handleError(err))
     );

@@ -1,5 +1,11 @@
 /* frontend/src/app/components/database-settings/database-settings.component.css */
 
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .header {
   margin-bottom: 1.5rem;
 }

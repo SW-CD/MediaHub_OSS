@@ -59,7 +59,7 @@
             <strong>{{ selectedFiles.length }} files selected:</strong>
           </div>
           <ul class="files-scroll-container">
-            <li *ngFor="let file of selectedFiles">
+            <li *ngFor="let file of selectedFiles; trackBy: trackByFileName">
               <span class="file-name" title="{{ file.name }}">{{ file.name }}</span>
               <span class="file-size">{{ file.size | formatBytes }}</span>
             </li>
@@ -77,7 +77,7 @@
         <h4>Custom Metadata</h4>
         <div class="form-grid">
           
-          <div *ngFor="let field of currentDatabase.custom_fields" class="form-group">
+          <div *ngFor="let field of currentDatabase.custom_fields; trackBy: trackByFieldId" class="form-group">
             <ng-container [ngSwitch]="field.type">
 
               <ng-container *ngSwitchCase="'BOOLEAN'">

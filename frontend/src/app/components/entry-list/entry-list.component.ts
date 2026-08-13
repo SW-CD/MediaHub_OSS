@@ -418,7 +418,11 @@ export class EntryListComponent implements OnInit, OnDestroy {
     const modalData = { message: `Delete entry ${entry.id}?` };
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(take(1), filter(c => c === true))
-      .subscribe(() => this.entryService.deleteEntry(this.currentDb!.id, entry.id).subscribe()); // UPDATED: pass id
+      .subscribe(() => {
+        this.entryService.deleteEntry(this.currentDb!.id, entry.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe();
+      });
   }
 
   openFullscreenSettingsModal(): void {

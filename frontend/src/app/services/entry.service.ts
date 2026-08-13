@@ -13,7 +13,7 @@ import { HttpEvent, HttpRequest } from '@angular/common/http';
   providedIn: 'root',
 })
 export class EntryService {
-  private readonly apiUrl = 'api';
+  private readonly apiUrl = '/api';
 
   // State specific to entries
   private selectedEntrySubject = new BehaviorSubject<Entry | null>(null);
@@ -256,10 +256,10 @@ export class EntryService {
 
   private pollForEntryStatus(dbId: string, entryId: number): void {
     timer(2000, 2000).pipe(
+      take(30),
       switchMap(() => this.getEntryMeta(dbId, entryId)),
       filter(entry => entry.status !== 'processing'),
       take(1),
-      take(30),
       finalize(() => {
         if (this.processingEntriesSubject.value.includes(entryId)) {
            this.removeProcessingEntry(entryId);

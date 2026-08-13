@@ -32,7 +32,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let key of apiKeys">
+          <tr *ngFor="let key of apiKeys; trackBy: trackByKeyId">
             <td style="font-weight: 600; color: var(--text-primary);">
               {{ key.user?.username || 'Unknown User' }}
             </td>

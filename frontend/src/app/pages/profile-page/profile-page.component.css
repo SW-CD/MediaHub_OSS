@@ -3,17 +3,29 @@
 .profile-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
+  height: auto;
 }
 
 .split-layout {
   display: flex;
   flex-direction: row;
   gap: 1.5rem;
-  padding: 1.5rem 0;
+  padding: 1.5rem 0 3rem 0;
   width: 100%;
   flex: 1;
-  min-height: 0;
+}
+
+.permissions-details .table-wrapper {
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.keys-pane .table-wrapper {
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 .settings-pane {

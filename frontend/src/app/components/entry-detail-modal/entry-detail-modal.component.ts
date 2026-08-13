@@ -174,8 +174,8 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.isLoadingFile = true; 
         
-        // UPDATED: Pass currentDatabase.id instead of .name
         this.entryService.deleteEntry(this.currentDatabase!.id, this.entryForMetadata!.id)
+          .pipe(takeUntil(this.destroy$))
           .subscribe({
             next: () => {
               this.closeModal();
@@ -185,6 +185,10 @@ export class EntryDetailModalComponent implements OnInit, OnDestroy {
             }
           });
       });
+  }
+
+  trackByFieldId(index: number, field: any): number | string {
+    return field.id ?? field.name;
   }
 
   private revokeFileObjectUrl(): void {

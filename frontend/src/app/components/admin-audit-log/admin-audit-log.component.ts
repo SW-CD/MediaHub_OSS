@@ -130,6 +130,10 @@ export class AdminAuditLogComponent implements OnInit, OnDestroy {
       .join(', ');
   }
 
+  trackByLogId(index: number, log: AuditLog): number {
+    return log.id;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

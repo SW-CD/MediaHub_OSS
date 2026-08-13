@@ -3,11 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { HttpEvent, HttpEventType, HttpResponse } from '@angular/common/http';
 import { Subject } from 'rxjs';
-import { takeUntil, switchMap, filter } from 'rxjs/operators';
-
-// Corrected default imports to resolve TypeScript construction errors
-import JSZip from 'jszip';
-import Papa from 'papaparse';
+import { takeUntil } from 'rxjs/operators';
 
 import { Database } from '../../models';
 import { DatabaseService } from '../../services/database.service';
@@ -99,11 +95,10 @@ export class ImportPageComponent implements OnInit, OnDestroy {
       this.onFileSelected(fileList[0]);
     }
     
-    // Optional: Reset the input value so the user can select the same file again if they remove it
     element.value = '';
   }
 
-  public onFileSelected(file: File): void {
+  public async onFileSelected(file: File): Promise<void> {
     if (!file.name.toLowerCase().endsWith('.zip')) {
       this.notificationService.showError('Please select a valid .zip archive.');
       return;
@@ -113,27 +108,27 @@ export class ImportPageComponent implements OnInit, OnDestroy {
     this.isParsingZip = true;
     this.cdr.detectChanges();
 
-    const zip = new JSZip();
-    
-    // Using explicit types in the promise chain to satisfy strict TypeScript rules
-    zip.loadAsync(file).then((loadedZip: JSZip) => {
+    try {
+      const JSZipModule = await import('jszip');
+      const JSZip = JSZipModule.default;
+      const zip = new JSZip();
+
+      const loadedZip = await zip.loadAsync(file);
       const csvFile = loadedZip.file('entries.csv');
-      
+
       if (!csvFile) {
         this.notificationService.showError('The archive does not contain an entries.csv file in the root folder.');
         this.resetFile();
         return;
       }
-      return csvFile.async('text');
-    }).then((csvText: string | undefined) => {
-      if (csvText) {
-        this.extractCsvHeaders(csvText);
-      }
-    }).catch((err: Error) => {
+
+      const csvText = await csvFile.async('text');
+      await this.extractCsvHeaders(csvText);
+    } catch (err: any) {
       console.error('Failed to parse ZIP:', err);
       this.notificationService.showError('Failed to read the ZIP archive. It might be corrupted.');
       this.resetFile();
-    });
+    }
   }
 
   public resetFile(): void {
@@ -144,7 +139,10 @@ export class ImportPageComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private extractCsvHeaders(csvText: string): void {
+  private async extractCsvHeaders(csvText: string): Promise<void> {
+    const PapaModule = await import('papaparse');
+    const Papa = PapaModule.default;
+
     Papa.parse(csvText, {
       header: true,
       preview: 1,
@@ -195,10 +193,7 @@ export class ImportPageComponent implements OnInit, OnDestroy {
       custom_field_mapping: custom_field_mapping
     };
 
-    // Pre-emptively ping the server to ensure our access token is fresh.
-    this.authService.fetchCurrentUser().pipe(
-      filter(user => user !== null), // Proceed only if the user is authenticated
-      switchMap(() => this.entryService.importEntries(this.currentDatabase!.id, this.selectedFile!, config)),
+    this.entryService.importEntries(this.currentDatabase!.id, this.selectedFile!, config).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (event: HttpEvent<any>) => {
@@ -215,11 +210,7 @@ export class ImportPageComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.isUploading = false;
         this.cdr.markForCheck();
-        
-        // Try to extract a meaningful error message from the backend response
         const errorMessage = err.error?.message || err.error?.error || err.message || 'An unexpected error occurred during the upload.';
-        
-        // Display the error to the user
         this.notificationService.showError(`Upload failed: ${errorMessage}`);
       }
     });

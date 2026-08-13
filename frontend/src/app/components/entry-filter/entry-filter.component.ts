@@ -1,5 +1,7 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, AbstractControl } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { SearchFilter } from '../../models';
 
 export interface FilterChangedEvent {
@@ -19,7 +21,7 @@ export interface AvailableFilter {
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: false
 })
-export class EntryFilterComponent implements OnInit, OnChanges {
+export class EntryFilterComponent implements OnInit, OnChanges, OnDestroy {
   @Input() availableFilters: AvailableFilter[] = [];
   @Input() isLoading = false;
   
@@ -27,6 +29,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
 
   public filterForm: FormGroup;
   public isCollapsed = true;
+  private destroy$ = new Subject<void>();
 
   constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef) {
     this.filterForm = this.fb.group({
@@ -39,7 +42,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     // Automatically re-evaluate the active filters count if the form changes
-    this.filterForm.valueChanges.subscribe(() => {
+    this.filterForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.cdr.markForCheck();
     });
   }
@@ -89,7 +92,7 @@ export class EntryFilterComponent implements OnInit, OnChanges {
       value: ['', Validators.required]
     });
 
-    newGroup.get('field')?.valueChanges.subscribe(() => {
+    newGroup.get('field')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       const fieldType = this.getSelectedFieldTypeForGroup(newGroup);
       const defaultOp = this.getOperatorsForFieldType(fieldType)[0] || '=';
       
@@ -224,5 +227,10 @@ export class EntryFilterComponent implements OnInit, OnChanges {
     } catch (e) {
       return null;
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

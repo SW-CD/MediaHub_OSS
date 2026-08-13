@@ -103,7 +103,7 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
 
     combineLatest([
       this.authService.getUsers(filterServiceAccount),
-      this.databaseService.databases$ 
+      this.databaseService.loadDatabases()
     ])
     .pipe(
       take(1),
@@ -123,9 +123,6 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
           const refreshedUser = this.users.find(u => u.id === this.selectedUser!.id);
           if (refreshedUser) {
             this.selectUser(refreshedUser);
-            if (this.activeDetailTab === 'keys') {
-              this.loadUserKeys();
-            }
           } else {
             this.clearSelection();
           }
@@ -153,8 +150,23 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.isNewUser = false;
     this.selectedUser = user;
     this.activeDetailTab = 'settings';
+
+    // 1. Immediately populate form controls synchronously
     this.buildForm(user);
     this.loadUserKeys();
+
+    // 2. Fetch full user record asynchronously to ensure permissions are up to date
+    this.authService.getUser(user.id)
+      .pipe(take(1), takeUntil(this.destroy$))
+      .subscribe({
+        next: (fullUser) => {
+          this.selectedUser = fullUser;
+          this.buildForm(fullUser);
+        },
+        error: () => {
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   createNewUser(): void {
@@ -180,6 +192,7 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       this.detailForm.get('password')?.setValidators([Validators.required, Validators.minLength(8)]);
     }
     this.detailForm.get('password')?.updateValueAndValidity();
+    this.cdr.markForCheck();
   }
 
   clearSelection(): void {
@@ -189,46 +202,73 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.detailForm.reset();
     this.permissions.clear();
     this.userKeys = [];
+    this.cdr.markForCheck();
   }
 
   // --- Detail Pane Logic ---
 
   private buildForm(user: User): void {
-    this.detailForm.reset();
-    this.permissions.clear();
-
-    // Dynamically build a permission group for every available database
-    this.availableDatabases.forEach(db => {
-      const existingPerm = user.permissions?.find(p => p.database_id === db.id);
-      
-      this.permissions.push(this.fb.group({
-        database_id: [db.id],
-        database_name: [db.name],
-        can_view: [existingPerm?.can_view || false],
-        can_create: [existingPerm?.can_create || false],
-        can_edit: [existingPerm?.can_edit || false],
-        can_delete: [existingPerm?.can_delete || false],
-        can_admin: [existingPerm?.can_admin || false]
-      }));
-    });
-
+    // 1. Update top-level detailForm controls
     this.detailForm.patchValue({
       id: user.id || null,
       username: user.username || '',
       is_admin: user.is_admin || false,
       is_service_account: user.is_service_account || false,
       password: ''
+    }, { emitEvent: false });
+
+    // 2. Patch or add permission FormGroups for available databases
+    this.availableDatabases.forEach((db, i) => {
+      const existingPerm = user.permissions?.find(p => p.database_id === db.id);
+      const permValues = {
+        database_id: db.id,
+        database_name: db.name,
+        can_view: existingPerm?.can_view || false,
+        can_create: existingPerm?.can_create || false,
+        can_edit: existingPerm?.can_edit || false,
+        can_delete: existingPerm?.can_delete || false,
+        can_admin: existingPerm?.can_admin || false
+      };
+
+      if (i < this.permissions.length) {
+        // In-place value update so Reactive Forms ControlValueAccessor updates DOM checkboxes seamlessly
+        this.permissions.at(i).patchValue(permValues, { emitEvent: false });
+      } else {
+        this.permissions.push(this.fb.group({
+          database_id: [permValues.database_id],
+          database_name: [permValues.database_name],
+          can_view: [permValues.can_view],
+          can_create: [permValues.can_create],
+          can_edit: [permValues.can_edit],
+          can_delete: [permValues.can_delete],
+          can_admin: [permValues.can_admin]
+        }));
+      }
     });
 
-    // Handle password field validation on edit
+    // Remove extra controls if database count decreased
+    while (this.permissions.length > this.availableDatabases.length) {
+      this.permissions.removeAt(this.permissions.length - 1);
+    }
+
+    // 3. Explicitly sync permissions enabled/disabled state based on user.is_admin
+    if (user.is_admin) {
+      this.permissions.disable({ emitEvent: false });
+    } else {
+      this.permissions.enable({ emitEvent: false });
+    }
+
+    // 4. Handle password field validation on edit
     if (!this.isNewUser) {
       if (user.is_service_account) {
         this.detailForm.get('password')?.clearValidators();
       } else {
         this.detailForm.get('password')?.setValidators([Validators.minLength(8)]);
       }
-      this.detailForm.get('password')?.updateValueAndValidity();
+      this.detailForm.get('password')?.updateValueAndValidity({ emitEvent: false });
     }
+
+    this.cdr.markForCheck();
   }
 
   toggleColumnAll(permissionType: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_admin'): void {
@@ -294,16 +334,18 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(take(1), filter(isConfirmed => isConfirmed === true))
       .subscribe(() => {
-        this.authService.deleteUser(userToDelete.id).subscribe({
-          next: () => {
-            this.notificationService.showSuccess(`User deleted successfully.`);
-            this.clearSelection();
-            this.loadData();
-          },
-          error: (err) => {
-            console.error('Failed to delete user', err);
-          }
-        });
+        this.authService.deleteUser(userToDelete.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.notificationService.showSuccess(`User deleted successfully.`);
+              this.clearSelection();
+              this.loadData();
+            },
+            error: (err) => {
+              console.error('Failed to delete user', err);
+            }
+          });
       });
   }
 
@@ -364,17 +406,27 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
     this.modalService.open(ConfirmationModalComponent.MODAL_ID, modalData)
       .pipe(take(1), filter(isConfirmed => isConfirmed === true))
       .subscribe(() => {
-        this.authService.deleteUserKey(this.selectedUser!.id, key.id).subscribe({
-          next: () => {
-            this.notificationService.showSuccess('API key revoked successfully.');
-            this.loadUserKeys();
-          },
-          error: (err) => {
-            console.error('Failed to revoke key', err);
-            this.notificationService.showError('Could not revoke key.');
-          }
-        });
+        this.authService.deleteUserKey(this.selectedUser!.id, key.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.notificationService.showSuccess('API key revoked successfully.');
+              this.loadUserKeys();
+            },
+            error: (err) => {
+              console.error('Failed to revoke key', err);
+              this.notificationService.showError('Could not revoke key.');
+            }
+          });
       });
+  }
+
+  trackByDbId(index: number, control: any): string | number {
+    return control?.get ? (control.get('database_id')?.value ?? index) : index;
+  }
+
+  trackByKeyId(index: number, key: ApiKey): string {
+    return key.id;
   }
 
   ngOnDestroy(): void {

@@ -136,7 +136,10 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
     });
 
     this.entryService.updateEntry(this.currentDatabase.id, this.currentEntry.id, updates)
-      .pipe(finalize(() => this.isLoading = false))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.isLoading = false)
+      )
       .subscribe(() => {
         this.modalService.close(true); 
       });
@@ -144,6 +147,10 @@ export class EditEntryModalComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.modalService.close(false); 
+  }
+
+  trackByFieldId(index: number, field: any): number | string {
+    return field.id ?? field.name;
   }
 
   ngOnDestroy(): void {

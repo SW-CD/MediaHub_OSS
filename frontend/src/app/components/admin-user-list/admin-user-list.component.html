@@ -158,7 +158,7 @@
                 </thead>
                 
                 <tbody formArrayName="permissions">
-                  <tr *ngFor="let p of permissions.controls; let i = index" [formGroupName]="i">
+                  <tr *ngFor="let p of permissions.controls; let i = index; trackBy: trackByDbId" [formGroupName]="i">
                     <td style="font-weight: 500; color: var(--text-primary);">
                       {{ p.get('database_name')?.value }}
                     </td>
@@ -223,7 +223,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let key of userKeys">
+                <tr *ngFor="let key of userKeys; trackBy: trackByKeyId">
                   <td style="font-weight: 600;">{{ key.name }}</td>
                   <td><code class="hint-code">{{ key.key_hint }}</code></td>
                   <td>

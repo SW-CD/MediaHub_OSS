@@ -18,7 +18,7 @@
         <h4>Custom Metadata</h4>
         <div class="form-grid" formGroupName="custom_fields">
           
-          <div *ngFor="let field of currentDatabase.custom_fields" class="form-group">
+          <div *ngFor="let field of currentDatabase.custom_fields; trackBy: trackByFieldId" class="form-group">
             
             <ng-container [ngSwitch]="field.type">
 

@@ -31,6 +31,11 @@ const routes: Routes = [
     children: [
       // Child routes for the dashboard's <router-outlet>
       {
+        path: 'db/:id/import',
+        component: ImportPageComponent,
+        canActivate: [DatabaseAdminGuard], // Database admins can access import page
+      },
+      {
         path: 'db/:id',
         component: EntryListComponent,
         canActivate: [DatabaseGuard], // Enforce database-level CanView permissions
@@ -40,13 +45,6 @@ const routes: Routes = [
         component: DatabaseSettingsComponent,
         canActivate: [DatabaseAdminGuard], // Database admins can access database settings
       },
-
-      {
-        path: 'db/:id/import',
-        component: ImportPageComponent,
-        canActivate: [DatabaseAdminGuard], // Database admins can access import page
-      },
-
       {
         path: 'admin/users',
         component: AdminUserListComponent,

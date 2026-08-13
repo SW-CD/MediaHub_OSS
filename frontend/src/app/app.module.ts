@@ -5,7 +5,6 @@ import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { CommonModule } from '@angular/common';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -25,7 +24,6 @@ import { EntryDetailModalComponent } from './components/entry-detail-modal/entry
 import { EditEntryModalComponent } from './components/edit-entry-modal/edit-entry-modal.component';
 import { ConfirmationModalComponent } from './components/confirmation-modal/confirmation-modal.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
-import { ChangePasswordModalComponent } from './components/change-password-modal/change-password-modal.component';
 import { IntervalPickerComponent } from './components/interval-picker/interval-picker.component';
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
@@ -65,7 +63,6 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     EditEntryModalComponent,
     ConfirmationModalComponent,
     AdminUserListComponent,
-    ChangePasswordModalComponent,
     EntryFilterComponent,
     AdminAuditLogComponent,
     FullscreenSettingsModalComponent,
@@ -83,7 +80,6 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     FormsModule,
     ReactiveFormsModule,
     BrowserAnimationsModule,
-    CommonModule, 
     IntervalPickerComponent, 
     EntryGridComponent,
     EntryListViewComponent,

@@ -8,7 +8,7 @@ import { AppInfo } from '../models';
   providedIn: 'root'
 })
 export class AppInfoService {
-  private readonly apiUrl = 'api/info';
+  private readonly apiUrl = '/api/info';
   
   private infoSubject = new BehaviorSubject<AppInfo | null>(null);
   public info$ = this.infoSubject.asObservable();

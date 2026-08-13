@@ -133,7 +133,7 @@
           <h3 class="mt-4">Custom Metadata</h3>
           <table class="metadata-table">
             <tbody>
-              <tr *ngFor="let field of currentDatabase.custom_fields">
+              <tr *ngFor="let field of currentDatabase.custom_fields; trackBy: trackByFieldId">
                 <th>{{ field.name }}</th>
                 <td *ngIf="field.type === 'BOOLEAN'">
                    <span [class.text-green]="entryForMetadata.custom_fields?.[field.name]" [class.text-muted]="!entryForMetadata.custom_fields?.[field.name]">

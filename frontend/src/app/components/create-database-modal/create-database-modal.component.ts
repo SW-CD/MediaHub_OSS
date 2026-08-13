@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { DatabaseService } from '../../services/database.service';
 import { ModalService } from '../../services/modal.service';
-import { finalize } from 'rxjs/operators';
+import { finalize, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { DatabaseConfig } from '../../models';
 import { CUSTOM_FIELD_NAME_PATTERN } from '../../utils/validation';
 
@@ -12,10 +13,11 @@ import { CUSTOM_FIELD_NAME_PATTERN } from '../../utils/validation';
   styleUrls: ['./create-database-modal.component.css'],
   standalone: false,
 })
-export class CreateDatabaseModalComponent implements OnInit {
+export class CreateDatabaseModalComponent implements OnInit, OnDestroy {
   public static readonly MODAL_ID = 'createDatabaseModal';
   createDbForm: FormGroup;
   isLoading = false;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -23,8 +25,6 @@ export class CreateDatabaseModalComponent implements OnInit {
     private modalService: ModalService
   ) {
     this.createDbForm = this.fb.group({
-      // UPDATED: Removed the strict Regex pattern since name is now just a display label!
-      // Added a maxLength just for standard safety.
       name: ['', [Validators.required, Validators.maxLength(100)]],
       content_type: ['image', Validators.required],
       n_max_queued: [0, [Validators.required, Validators.min(0)]],
@@ -44,9 +44,15 @@ export class CreateDatabaseModalComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.createDbForm.get('content_type')?.valueChanges.subscribe(() => {
+    this.createDbForm.get('content_type')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
         this.createDbForm.get('auto_conversion')?.setValue('');
-    });
+      });
+  }
+
+  trackByIndex(index: number): number {
+    return index;
   }
 
   get customFields(): FormArray {
@@ -124,5 +130,10 @@ export class CreateDatabaseModalComponent implements OnInit {
 
   closeModal(): void {
     this.modalService.close(false);
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

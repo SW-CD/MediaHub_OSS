@@ -237,8 +237,11 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
         if (this.currentDb) {
           this.isLoading = true;
           this.databaseService
-            .deleteDatabase(this.currentDb.id) // UPDATED: Use ULID
-            .pipe(finalize(() => (this.isLoading = false)))
+            .deleteDatabase(this.currentDb.id)
+            .pipe(
+              takeUntil(this.destroy$),
+              finalize(() => (this.isLoading = false))
+            )
             .subscribe();
         }
       });
@@ -260,7 +263,10 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
     };
 
     this.databaseService.addCustomField(this.currentDb.id, newField)
-      .pipe(finalize(() => this.isLoading = false))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.isLoading = false)
+      )
       .subscribe(() => {
         this.newFieldName = '';
         this.newFieldType = 'TEXT';
@@ -289,10 +295,13 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     this.databaseService.updateCustomField(this.currentDb.id, fieldId, this.editingFieldName, this.editingFieldIsIndexed)
-      .pipe(finalize(() => {
-        this.isLoading = false;
-        this.editingFieldId = null;
-      }))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+          this.editingFieldId = null;
+        })
+      )
       .subscribe();
   }
 
@@ -315,10 +324,17 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
           this.isLoading = true;
           this.databaseService
             .deleteCustomField(this.currentDb.id, field.id)
-            .pipe(finalize(() => (this.isLoading = false)))
+            .pipe(
+              takeUntil(this.destroy$),
+              finalize(() => (this.isLoading = false))
+            )
             .subscribe();
         }
       });
+  }
+
+  trackByFieldId(index: number, field: CustomField): number | string {
+    return field.id ?? field.name;
   }
 
   ngOnDestroy(): void {

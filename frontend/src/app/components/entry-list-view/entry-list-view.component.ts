@@ -1,6 +1,5 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
 import { Entry, User } from '../../models'; 
-import { DatabaseService } from '../../services/database.service';
 import { EntryService } from '../../services/entry.service';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { SecureImageDirective } from '../../directives/secure-image.directive';
@@ -39,7 +38,6 @@ export class EntryListViewComponent implements OnChanges {
   public canDelete = false;
 
   constructor(
-    private databaseService: DatabaseService,
     private entryService: EntryService
   ) {}
 

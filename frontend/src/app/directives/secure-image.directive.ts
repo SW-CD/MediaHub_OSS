@@ -11,8 +11,8 @@ import {
   Renderer2,
   HostListener
 } from '@angular/core';
-import { Subscription, BehaviorSubject } from 'rxjs';
-import { switchMap, filter } from 'rxjs/operators';
+import { Subscription, BehaviorSubject, of } from 'rxjs';
+import { switchMap, filter, catchError } from 'rxjs/operators';
 import { ImageCacheService } from '../services/image-cache.service';
 
 /**
@@ -43,18 +43,22 @@ export class SecureImageDirective implements OnChanges, OnDestroy {
         filter((url): url is string => !!url && this.isVisible),
         switchMap(url => {
           this.renderer.addClass(this.el.nativeElement, 'loading-image');
-          return this.imageCacheService.getBlobUrl(url);
+          return this.imageCacheService.getBlobUrl(url).pipe(
+            catchError(err => {
+              console.error('Error loading secure image:', err);
+              this.renderer.removeClass(this.el.nativeElement, 'loading-image');
+              this.imageError.emit();
+              return of(null);
+            })
+          );
         })
       )
       .subscribe({
         next: (blobUrl) => {
-          this.renderer.setAttribute(this.el.nativeElement, 'src', blobUrl);
-          this.renderer.removeClass(this.el.nativeElement, 'loading-image');
-        },
-        error: (err) => {
-          console.error('Error loading secure image:', err);
-          this.renderer.removeClass(this.el.nativeElement, 'loading-image');
-          this.imageError.emit();
+          if (blobUrl) {
+            this.renderer.setAttribute(this.el.nativeElement, 'src', blobUrl);
+            this.renderer.removeClass(this.el.nativeElement, 'loading-image');
+          }
         }
       });
 

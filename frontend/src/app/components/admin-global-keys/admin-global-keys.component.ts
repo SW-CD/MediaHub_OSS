@@ -77,18 +77,24 @@ export class AdminGlobalKeysComponent implements OnInit, OnDestroy {
         filter(isConfirmed => isConfirmed === true)
       )
       .subscribe(() => {
-        this.authService.deleteUserKey(ownerId, key.id).subscribe({
-          next: () => {
-            this.notificationService.showSuccess('API key revoked successfully.');
-            this.loadGlobalKeys();
-          },
-          error: (err) => {
-            console.error('Failed to revoke key globally', err);
-            this.notificationService.showError('Could not revoke API key.');
-            this.cdr.markForCheck();
-          }
-        });
+        this.authService.deleteUserKey(ownerId, key.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.notificationService.showSuccess('API key revoked successfully.');
+              this.loadGlobalKeys();
+            },
+            error: (err) => {
+              console.error('Failed to revoke key globally', err);
+              this.notificationService.showError('Could not revoke API key.');
+              this.cdr.markForCheck();
+            }
+          });
       });
+  }
+
+  trackByKeyId(index: number, key: ApiKey): string {
+    return key.id;
   }
 
   public openEditKeyModal(key: ApiKey): void {

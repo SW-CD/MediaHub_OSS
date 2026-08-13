@@ -571,7 +571,7 @@ input:focus-visible + .toggle-slider {
 .page-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   position: relative;
 }
 
@@ -596,8 +596,7 @@ input:focus-visible + .toggle-slider {
 
 .scroll-content {
   flex-grow: 1;
-  overflow-y: auto;
-  padding-bottom: 2rem;
+  padding-bottom: 3rem;
 }
 
 .back-btn {

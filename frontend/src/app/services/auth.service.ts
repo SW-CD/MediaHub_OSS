@@ -3,7 +3,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { catchError, map, switchMap, tap, finalize } from 'rxjs/operators';
 import { User, TokenResponse, ApiKey } from '../models';
 import { Router } from '@angular/router';
 
@@ -78,13 +78,12 @@ export class AuthService {
     const refreshToken = this.getRefreshToken();
 
     if (notifyServer && refreshToken) {
-      // Call the server to revoke the token
-      // We use a simple object for the body as per the spec
-      this.http.post(`${this.apiUrl}/logout`, { refresh_token: refreshToken }).subscribe({
-        next: () => console.log('Logout successful on server'),
-        error: (err) => console.warn('Logout failed on server (token might be expired)', err),
-        complete: () => this.clearSessionAndRedirect()
-      });
+      this.http.post(`${this.apiUrl}/logout`, { refresh_token: refreshToken })
+        .pipe(finalize(() => this.clearSessionAndRedirect()))
+        .subscribe({
+          next: () => console.log('Logout successful on server'),
+          error: (err) => console.warn('Logout failed on server (token might be expired)', err)
+        });
     } else {
       this.clearSessionAndRedirect();
     }
@@ -178,9 +177,6 @@ export class AuthService {
     const dbPerms = user.permissions?.find(p => p.database_id === databaseId);
 
     if (!dbPerms) return false;
-
-    // A database admin has implicit access to all other database actions
-    if (dbPerms.can_admin) return true;
 
     // Return the requested permission flag
     return !!dbPerms[permission];
