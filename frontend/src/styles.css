@@ -530,6 +530,7 @@ input:focus-visible + .toggle-slider {
    ========================================= */
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;

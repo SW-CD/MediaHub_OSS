@@ -10,10 +10,6 @@
         class="grid-card"
         [class.selected]="isSelected(entry)"
         (click)="onEntryClick(entry, $event)"
-        (touchstart)="onTouchStart(entry, $event)"
-        (touchmove)="onTouchMove($event)"
-        (touchend)="onTouchEnd(entry, $event)"
-        (touchcancel)="onTouchCancel()"
         [style.flex-grow]="getAspectRatio(entry)"
         [style.flex-basis]="'calc(var(--tile-height) * ' + getAspectRatio(entry) + ')'">
         
