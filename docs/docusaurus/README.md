@@ -94,7 +94,10 @@ You can also build and run the documentation container using Docker without inst
 
 Versioning is configured and enabled for this project.
 
-### How to Create a New Version in the Future (e.g. `3.2` or `4.0`)
+- **`v3.1` (Current/Latest Release)**: Snapshot stored in `docs/docusaurus/versioned_docs/version-3.1/` and served by default at `/`.
+- **`Development (Next)`**: Unreleased working draft in `docs/manual/` served at `/next`.
+
+### Creating a New Version (e.g. `3.2` or `4.0`)
 
 1. Make sure your active manual files in `docs/manual/` are up to date.
 2. From `docs/docusaurus`, run:
@@ -103,4 +106,28 @@ Versioning is configured and enabled for this project.
    ```
 3. Update `docusaurus.config.js` to set `lastVersion: '3.2'` and add the new version label under `versions`.
 4. Commit the generated version files (`versioned_docs/`, `versioned_sidebars/`, `versions.json`).
+
+### Updating an Existing Version (e.g. Fixing typos in `v3.1`)
+
+To edit or patch an existing released version (like `v3.1`):
+Edit the markdown files directly inside:
+```
+docs/docusaurus/versioned_docs/version-3.1/
+```
+*(And if you add/remove pages, update `docs/docusaurus/versioned_sidebars/version-3.1-sidebars.json`)*.
+
+### Overwriting an Existing Version Completely
+
+> **Note:** Running `npm run docusaurus docs:version 3.1` when version `3.1` already exists will throw an error (`[ERROR] Error: [docs]: this version already exists!`).
+
+If you want to **completely replace/overwrite** `v3.1` with the current contents of `docs/manual/`:
+
+1. Delete the snapshot folder: `docs/docusaurus/versioned_docs/version-3.1/`
+2. Delete the sidebar file: `docs/docusaurus/versioned_sidebars/version-3.1-sidebars.json`
+3. Remove `"3.1"` from `docs/docusaurus/versions.json`
+4. Re-run the versioning command:
+   ```bash
+   npm run docusaurus docs:version 3.1
+   ```
+
 
