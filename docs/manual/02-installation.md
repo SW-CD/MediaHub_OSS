@@ -18,12 +18,12 @@ Download the appropriate executable from the official distribution links:
 
 | Operating System | Architecture | Download Link |
 | :--- | :--- | :--- |
-| **Linux** | AArch64 (ARM 64-bit) | [mediahub_linux_aarch64](https://downloads.swcd.lu/MediaHub/v3.0.0/mediahub_linux_aarch64) |
-| **Linux** | x86_64 (AMD/Intel 64-bit) | [mediahub_linux_x86_64](https://downloads.swcd.lu/MediaHub/v3.0.0/mediahub_linux_x86_64) |
-| **Windows** | AArch64 (ARM 64-bit) | [mediahub_windows_aarch64.exe](https://downloads.swcd.lu/MediaHub/v3.0.0/mediahub_windows_aarch64.exe) |
-| **Windows** | x86_64 (AMD/Intel 64-bit) | [mediahub_windows_x86_64.exe](https://downloads.swcd.lu/MediaHub/v3.0.0/mediahub_windows_x86_64.exe) |
+| **Linux** | AArch64 (ARM 64-bit) | [mediahub_linux_aarch64](https://downloads.swcd.lu/MediaHub/latest/mediahub_linux_aarch64) |
+| **Linux** | x86_64 (AMD/Intel 64-bit) | [mediahub_linux_x86_64](https://downloads.swcd.lu/MediaHub/latest/mediahub_linux_x86_64) |
+| **Windows** | AArch64 (ARM 64-bit) | [mediahub_windows_aarch64.exe](https://downloads.swcd.lu/MediaHub/latest/mediahub_windows_aarch64.exe) |
+| **Windows** | x86_64 (AMD/Intel 64-bit) | [mediahub_windows_x86_64.exe](https://downloads.swcd.lu/MediaHub/latest/mediahub_windows_x86_64.exe) |
 
-Download a template `config.toml` file [here](https://downloads.swcd.lu/MediaHub/v3.0.0/config.toml).
+Download a template `config.toml` file [here](https://downloads.swcd.lu/MediaHub/latest/config.toml).
 
 ```bash
 # Download template config.toml
