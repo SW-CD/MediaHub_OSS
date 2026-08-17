@@ -78,9 +78,7 @@ func (s entryScanner) scan(rows *sql.Rows) (repo.Entry, error) {
 			entry.ID = asInt64(val)
 		case "timestamp":
 			tsMs := asInt64(val)
-			if tsMs > 0 {
-				entry.Timestamp = time.UnixMilli(tsMs)
-			}
+			entry.Timestamp = time.UnixMilli(tsMs)
 		case "created_at":
 			tsMs := asInt64(val)
 			if tsMs > 0 {
