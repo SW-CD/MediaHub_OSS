@@ -71,7 +71,10 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 			}
 
 			// --- PHASE 2.5: Sync Statistics ---
-			trueEntryCount := entryCount - uint64(len(missingFileIDs))
+			var trueEntryCount uint64 = 0
+			if entryCount > uint64(len(missingFileIDs)) {
+				trueEntryCount = entryCount - uint64(len(missingFileIDs))
+			}
 
 			// Remove the flawed comparison. Always apply the freshly calculated,
 			// mathematically correct stats to fix any mutations caused by DeleteEntries.

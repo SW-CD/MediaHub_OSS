@@ -9,6 +9,7 @@ import (
 
 	"mediahub_oss/internal/httpserver/utils"
 	"mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
@@ -259,14 +260,14 @@ func (h *DatabaseHandler) DeleteDatabase(w http.ResponseWriter, r *http.Request)
 
 	user := utils.GetUserFromContext(ctx)
 
-	if err := h.Repo.DeleteDatabase(ctx, repository.ULID(id)); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+	if err := shared.DeleteDatabaseSafe(ctx, h.Repo, h.Storage, repository.ULID(id)); err != nil {
+		if errors.Is(err, customerrors.ErrNotFound) || strings.Contains(err.Error(), "not found") {
 			utils.RespondWithError(w, http.StatusNotFound, "Database not found.")
 		} else if strings.Contains(err.Error(), "invalid database name") {
 			utils.RespondWithError(w, http.StatusBadRequest, "Invalid database name.")
 		} else {
-			h.Logger.Error("Failed to delete database record.", "error", err)
-			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete database record. Error: %v", err))
+			h.Logger.Error("Failed to delete database.", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete database. Error: %v", err))
 		}
 		return
 	}

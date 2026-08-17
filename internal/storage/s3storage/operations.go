@@ -74,22 +74,8 @@ func (s *S3StorageProvider) StatPreview(ctx context.Context, dbID string, id int
 // Read retrieves a stream of the file content, supporting range requests.
 func (s *S3StorageProvider) Read(ctx context.Context, dbID string, id int64, offset int64, length int64) (io.ReadCloser, error) {
 	objectKey := getObjectKey(dbID, id)
-	var opts minio.GetObjectOptions
-	if offset > 0 && length >= 0 {
-		if err := opts.SetRange(offset, offset+length-1); err != nil {
-			return nil, err
-		}
-	} else if offset > 0 && length < 0 {
-		if err := opts.SetRange(offset, 0); err != nil {
-			return nil, err
-		}
-	} else if offset == 0 && length >= 0 {
-		if err := opts.SetRange(0, length-1); err != nil {
-			return nil, err
-		}
-	}
 
-	obj, err := s.client.GetObject(ctx, s.bucket, objectKey, opts)
+	obj, err := s.client.GetObject(ctx, s.bucket, objectKey, minio.GetObjectOptions{})
 	if err != nil {
 		if isNotFoundError(err) {
 			return nil, customerrors.ErrNotFound

@@ -80,3 +80,10 @@ func DeleteMultipleSafe(ctx context.Context, repo repository.Repository, storage
 
 	return deletedMeta, err
 }
+
+// DeleteDatabaseSafe safely deletes a complete database including all physical storage files and DB records.
+func DeleteDatabaseSafe(ctx context.Context, repo repository.Repository, storage storage.StorageProvider, dbID repository.ULID) error {
+	storageErr := storage.DeleteDatabase(ctx, dbID.String())
+	repoErr := repo.DeleteDatabase(ctx, dbID)
+	return errors.Join(storageErr, repoErr)
+}

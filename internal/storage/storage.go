@@ -41,4 +41,7 @@ type StorageProvider interface {
 
 	// WalkPreview iterates over all preview files in the storage for a given database. It calls the provided walkFn for each discovered preview file.
 	WalkPreview(ctx context.Context, dbID string, walkFn func(id int64, info FileInfo) error) error
+
+	// DeleteDatabase removes all storage objects and preview files associated with a database.
+	DeleteDatabase(ctx context.Context, dbID string) error
 }

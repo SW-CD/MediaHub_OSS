@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	repo "mediahub_oss/internal/repository"
@@ -21,7 +22,11 @@ func (p *Processor) createPreliminaryEntry(
 
 	partialEntry := repo.Entry{}
 	partialEntry.FileName = plan.FinalFileName
-	partialEntry.Timestamp = time.UnixMilli(entryMetadata.Timestamp)
+	if entryMetadata.Timestamp == math.MinInt64 {
+		partialEntry.Timestamp = time.Time{}
+	} else {
+		partialEntry.Timestamp = time.UnixMilli(entryMetadata.Timestamp)
+	}
 	if useResultMimeType {
 		partialEntry.MimeType = plan.ResultMimeType
 	} else {

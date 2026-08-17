@@ -117,3 +117,34 @@ func (s *S3StorageProvider) walkObjects(ctx context.Context, prefix string, walk
 
 	return nil
 }
+
+// DeleteDatabase removes all storage objects and preview files associated with a database from S3.
+func (s *S3StorageProvider) DeleteDatabase(ctx context.Context, dbID string) error {
+	prefixes := []string{
+		fmt.Sprintf("%s/", dbID),
+		fmt.Sprintf("previews/%s/", dbID),
+	}
+
+	var errs []error
+	for _, prefix := range prefixes {
+		objectsCh := make(chan minio.ObjectInfo)
+		go func(p string) {
+			defer close(objectsCh)
+			opts := minio.ListObjectsOptions{
+				Prefix:    p,
+				Recursive: true,
+			}
+			for object := range s.client.ListObjects(ctx, s.bucket, opts) {
+				if object.Err == nil {
+					objectsCh <- object
+				}
+			}
+		}(prefix)
+
+		for errObj := range s.client.RemoveObjects(ctx, s.bucket, objectsCh, minio.RemoveObjectsOptions{}) {
+			errs = append(errs, errObj.Err)
+		}
+	}
+
+	return errors.Join(errs...)
+}

@@ -285,7 +285,7 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entr
 
 	if delta != 0 {
 		statsQuery, statsArgs, err := r.Builder.Update("databases").
-			Set("total_disk_space_bytes", squirrel.Expr("total_disk_space_bytes + ?", delta)).
+			Set("total_disk_space_bytes", squirrel.Expr("MAX(0, total_disk_space_bytes + ?)", delta)).
 			Where(squirrel.Eq{"id": dbID.String()}).
 			ToSql()
 		if err != nil {

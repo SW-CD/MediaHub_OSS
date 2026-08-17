@@ -5,12 +5,14 @@ import (
 	"mediahub_oss/internal/housekeeping"
 	"mediahub_oss/internal/logging/audit"
 	"mediahub_oss/internal/repository"
+	"mediahub_oss/internal/storage"
 )
 
 type DatabaseHandler struct {
 	Logger      *slog.Logger
 	Auditor     audit.AuditLogger
 	Repo        repository.Repository
+	Storage     storage.StorageProvider
 	HouseKeeper housekeeping.HouseKeeper
 }
 

@@ -271,6 +271,7 @@ func buildHandlers(cfg *config.Config, repo repository.Repository, storageProvid
 			Logger:      logger,
 			Auditor:     svcs.auditLogger,
 			Repo:        repo,
+			Storage:     storageProvider,
 			HouseKeeper: *svcs.houseKeeper,
 		},
 		UserHandler: uh.UserHandler{

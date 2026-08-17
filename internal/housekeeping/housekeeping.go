@@ -208,8 +208,11 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 	// If DiskSpace is 0, this check is disabled.
 	if db.Housekeeping.DiskSpace > 0 {
-		// Calculate current space using the initial stats minus what we just freed
-		currentSpace := db.Stats.TotalDiskSpaceBytes - totalFreed
+		// Calculate current space using the initial stats minus what we just freed, guarded against underflow
+		var currentSpace uint64 = 0
+		if db.Stats.TotalDiskSpaceBytes > totalFreed {
+			currentSpace = db.Stats.TotalDiskSpaceBytes - totalFreed
+		}
 		limit := db.Housekeeping.DiskSpace
 
 		for currentSpace > limit {
@@ -232,7 +235,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 				slideEnd = i + 1
 
 				// Check if this entry pushes us under the limit
-				if currentSpace-targetSpaceToFree <= limit {
+				if targetSpaceToFree >= currentSpace || currentSpace-targetSpaceToFree <= limit {
 					break
 				}
 			}
@@ -240,7 +243,11 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 			delCount, freed, err := s.deleteEntriesBatch(ctx, db.ID, entries[:slideEnd])
 			totalDeleted += delCount
 			totalFreed += freed
-			currentSpace -= freed // Update our running total to know when to stop
+			if currentSpace > freed {
+				currentSpace -= freed
+			} else {
+				currentSpace = 0
+			}
 
 			if err != nil {
 				s.Logger.Error("Housekeeper failed during DiskSpace batch deletion", "error", err, "database_id", db.ID, "database_name", db.Name)

@@ -93,6 +93,12 @@ func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, 
 			}
 			return repo.Entry{}, fmt.Errorf("failed to insert entry: %w", err)
 		}
+
+		// Synchronize the sequence so subsequent auto-generated IDs don't collide
+		seqQuery := fmt.Sprintf(`SELECT setval(pg_get_serial_sequence('%s', 'id'), (SELECT COALESCE(MAX(id), 1) FROM %s))`, tableName, tableName)
+		if _, err := tx.ExecContext(ctx, seqQuery); err != nil {
+			return repo.Entry{}, fmt.Errorf("failed to synchronize sequence: %w", err)
+		}
 	}
 
 	totalSizeDelta := entry.Size + entry.PreviewSize
@@ -275,7 +281,7 @@ func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, en
 
 	if delta != 0 {
 		statsQuery, statsArgs, err := r.Builder.Update("databases").
-			Set("total_disk_space_bytes", squirrel.Expr("total_disk_space_bytes + ?", delta)).
+			Set("total_disk_space_bytes", squirrel.Expr("GREATEST(0, total_disk_space_bytes + ?)", delta)).
 			Where(squirrel.Eq{"id": dbID.String()}).
 			ToSql()
 		if err != nil {

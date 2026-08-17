@@ -143,3 +143,19 @@ func (ds *LocalStorage) WalkPreview(ctx context.Context, dbID string, walkFn fun
 	basePath := filepath.Join(previewRoot, dbID)
 	return ds.walkDirectory(basePath, walkFn)
 }
+
+// DeleteDatabase removes all storage objects and preview files associated with a database.
+func (ds *LocalStorage) DeleteDatabase(ctx context.Context, dbID string) error {
+	mainDir := filepath.Join(ds.RootPath, dbID)
+	previewDir := filepath.Join(ds.RootPath, "previews", dbID)
+
+	var errs []error
+	if err := os.RemoveAll(mainDir); err != nil && !os.IsNotExist(err) {
+		errs = append(errs, err)
+	}
+	if err := os.RemoveAll(previewDir); err != nil && !os.IsNotExist(err) {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}

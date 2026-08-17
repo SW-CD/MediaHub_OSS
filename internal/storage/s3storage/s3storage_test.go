@@ -3,6 +3,7 @@ package s3storage
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -182,18 +183,25 @@ func newMockS3Server() (*httptest.Server, *mockS3Server) {
 			if strings.HasPrefix(rangeHeader, "bytes=") {
 				parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
 				start, _ := strconv.ParseInt(parts[0], 10, 64)
-				end := int64(len(data)) - 1
+				total := len(data)
+				end := int64(total) - 1
 				if len(parts) > 1 && parts[1] != "" {
 					if parsedEnd, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
 						end = parsedEnd
 					}
 				}
-				if start < int64(len(data)) {
-					if end >= int64(len(data)) {
-						end = int64(len(data)) - 1
+				if start < int64(total) {
+					if end >= int64(total) {
+						end = int64(total) - 1
 					}
 					data = data[start : end+1]
 				}
+				w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, total))
+				w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+				w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
+				w.WriteHeader(http.StatusPartialContent)
+				w.Write(data)
+				return
 			}
 			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 			w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
@@ -392,5 +400,30 @@ func TestS3StorageProviderOperations(t *testing.T) {
 	_, err = provider.Stat(ctx, dbID, entryID)
 	if err != customerrors.ErrNotFound {
 		t.Errorf("Stat after Delete: expected ErrNotFound, got: %v", err)
+	}
+
+	// 10. Test DeleteDatabase
+	db2 := "01HGFB9Z5W7ABCDEFGHJKMNPQ2"
+	_, err = provider.Write(ctx, db2, 1, bytes.NewReader([]byte("main file")))
+	if err != nil {
+		t.Fatalf("Write for DeleteDatabase test failed: %v", err)
+	}
+	_, err = provider.WritePreview(ctx, db2, 1, bytes.NewReader([]byte("preview file")))
+	if err != nil {
+		t.Fatalf("WritePreview for DeleteDatabase test failed: %v", err)
+	}
+
+	err = provider.DeleteDatabase(ctx, db2)
+	if err != nil {
+		t.Fatalf("DeleteDatabase failed: %v", err)
+	}
+
+	_, err = provider.Stat(ctx, db2, 1)
+	if err != customerrors.ErrNotFound {
+		t.Errorf("Stat after DeleteDatabase expected ErrNotFound, got: %v", err)
+	}
+	_, err = provider.StatPreview(ctx, db2, 1)
+	if err != customerrors.ErrNotFound {
+		t.Errorf("StatPreview after DeleteDatabase expected ErrNotFound, got: %v", err)
 	}
 }
