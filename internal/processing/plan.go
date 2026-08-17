@@ -23,6 +23,7 @@ type ProcessingPlan struct {
 	TargetMimeType string
 	ResultMimeType string
 
+	InitFileName  string
 	FinalFileName string
 }
 
@@ -56,14 +57,16 @@ func DetermineConversionPlan(mc media.MediaConverter, db repo.Database, original
 	canGenPreview := mc.CanCreatePreview(originalMimeType)
 
 	// derive file name
-	finalFileName := originalFileName
+	initFileName := originalFileName
 	if userFileName != "" {
-		finalFileName = userFileName
-		if filepath.Ext(finalFileName) == "" {
+		initFileName = userFileName
+		if filepath.Ext(initFileName) == "" {
 			originalExt := filepath.Ext(originalFileName)
-			finalFileName = finalFileName + originalExt
+			initFileName = initFileName + originalExt
 		}
 	}
+
+	finalFileName := initFileName
 	if convCheck.NeedsConversion && convCheck.CanConvert {
 		newExtension := GetExtensionForMimeType(db.Config.AutoConversion)
 		finalFileName = ReplaceExtension(finalFileName, newExtension)
@@ -78,6 +81,7 @@ func DetermineConversionPlan(mc media.MediaConverter, db repo.Database, original
 		InitMimeType:    originalMimeType,
 		TargetMimeType:  targetMimeType,
 		ResultMimeType:  resultMimeType,
+		InitFileName:    initFileName,
 		FinalFileName:   finalFileName,
 	}, nil
 }
@@ -100,8 +104,9 @@ func DeterminePlanForEntry(mc media.MediaConverter, db repo.Database, entry repo
 
 	canGenPreview := mc.CanCreatePreview(originalMimeType)
 
-	// Derive final file name
-	finalFileName := entry.FileName
+	// Derive initial and final file names
+	initFileName := entry.FileName
+	finalFileName := initFileName
 	if convCheck.NeedsConversion && convCheck.CanConvert {
 		newExtension := GetExtensionForMimeType(db.Config.AutoConversion)
 		finalFileName = ReplaceExtension(finalFileName, newExtension)
@@ -116,6 +121,7 @@ func DeterminePlanForEntry(mc media.MediaConverter, db repo.Database, entry repo
 		InitMimeType:    originalMimeType,
 		TargetMimeType:  targetMimeType,
 		ResultMimeType:  resultMimeType,
+		InitFileName:    initFileName,
 		FinalFileName:   finalFileName,
 	}
 }

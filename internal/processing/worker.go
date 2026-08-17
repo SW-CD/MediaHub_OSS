@@ -262,6 +262,7 @@ func (p *Processor) runConversionAndFinalize(
 	entry.Status = repo.EntryStatusReady
 	entry.Size = uint64(fileSize)
 	entry.MimeType = plan.ResultMimeType
+	entry.FileName = plan.FinalFileName
 	entry.MediaFields = meta
 
 	if _, err := p.Repo.UpdateEntry(ctx, db.ID, entry); err != nil {

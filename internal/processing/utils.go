@@ -19,18 +19,19 @@ func (p *Processor) createPreliminaryEntry(
 	useResultMimeType bool,
 ) (repo.Entry, error) {
 	var err error
-
 	partialEntry := repo.Entry{}
-	partialEntry.FileName = plan.FinalFileName
 	if entryMetadata.Timestamp == math.MinInt64 {
 		partialEntry.Timestamp = time.Time{}
 	} else {
 		partialEntry.Timestamp = time.UnixMilli(entryMetadata.Timestamp)
 	}
+
 	if useResultMimeType {
 		partialEntry.MimeType = plan.ResultMimeType
+		partialEntry.FileName = plan.FinalFileName
 	} else {
 		partialEntry.MimeType = plan.InitMimeType
+		partialEntry.FileName = plan.InitFileName
 	}
 	partialEntry.Status = status
 
