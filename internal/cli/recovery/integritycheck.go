@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared/customerrors"
@@ -22,14 +23,14 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 		stats := db.Stats
 
 		// --- PHASE 2.1: DB -> Storage (Find missing files) ---
-		missingFileIDs, entryCount, err := s.checkMissingFiles(ctx, db)
+		missingFileIDs, entryCount, existingIDs, err := s.checkMissingFiles(ctx, db)
 		if err != nil {
 			return err
 		}
 
 		// --- PHASE 2.2: Storage -> DB (Find orphan main files & calculate sizes) ---
 		var calculatedTotalBytes uint64 = 0
-		orphanFileIDs, calculatedTotalBytes, err := s.checkOrphanFiles(ctx, db, stats)
+		orphanFileIDs, calculatedTotalBytes, err := s.checkOrphanFiles(ctx, db, stats, existingIDs)
 		if err != nil {
 			fmt.Println() // Break the \r progress line
 			s.logger.Error("Failed walking main storage", "database_id", db.ID.String(), "database_name", db.Name, "error", err)
@@ -37,7 +38,7 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 		}
 
 		// --- PHASE 2.3: Storage -> DB (Find orphan preview files) ---
-		orphanPreviewIDs, calculatedPreviewBytes, err := s.checkOrphanPreviewFiles(ctx, db, stats)
+		orphanPreviewIDs, calculatedPreviewBytes, err := s.checkOrphanPreviewFiles(ctx, db, stats, existingIDs)
 		calculatedTotalBytes += calculatedPreviewBytes
 		if err != nil {
 			fmt.Println() // Break the \r progress line
@@ -96,8 +97,8 @@ func (s *RecoveryService) IntegrityCheck(ctx context.Context) error {
 	return nil
 }
 
-// Loop over entries and check if a file exists in the storage. Return entry IDs without a file, as well as total entry count.
-func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.Database) ([]int64, uint64, error) {
+// Loop over entries and check if a file exists in the storage. Return entry IDs without a file, total entry count, and the sorted slice of all existing entry IDs in the database.
+func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.Database) ([]int64, uint64, []int64, error) {
 
 	var missingFileIDs []int64
 	var totalEntries uint64 = 0
@@ -108,6 +109,7 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 		expectedEntryCount = 1
 	}
 
+	existingIDs := make([]int64, 0, expectedEntryCount)
 	limit := 1000
 	processedDB := uint64(0)
 
@@ -120,7 +122,7 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 			SortBy: "id",
 		})
 		if err != nil {
-			return missingFileIDs, totalEntries, fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
+			return missingFileIDs, totalEntries, nil, fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
 		}
 		totalEntries += uint64(len(entries))
 
@@ -130,6 +132,7 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 		}
 
 		for _, entry := range entries {
+			existingIDs = append(existingIDs, entry.ID)
 			processedDB++
 			percent := (processedDB * 100) / expectedEntryCount
 			fmt.Printf("\r- Step 2: Integrity check: %d%% (Scanning DB->Disk...)", percent)
@@ -159,12 +162,19 @@ func (s *RecoveryService) checkMissingFiles(ctx context.Context, db repository.D
 			}
 		}
 	}
-	return missingFileIDs, totalEntries, nil
+
+	// Ensure IDs are strictly sorted in case the database returned entries out of order.
+	// slices.Sort uses Pattern-Defeating Quicksort (pdqsort), which completes in O(N) linear time on already-sorted data.
+	if !slices.IsSorted(existingIDs) {
+		slices.Sort(existingIDs)
+	}
+
+	return missingFileIDs, totalEntries, existingIDs, nil
 }
 
 // walk over files in the storage and check if a database entry exists. Return file ids without entry,
 // the accumulated file sizes and possible errors.
-func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Database, stats repository.DatabaseStats) ([]int64, uint64, error) {
+func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Database, stats repository.DatabaseStats, existingIDs []int64) ([]int64, uint64, error) {
 	var orphanFileIDs []int64
 	var calculatedTotalBytes uint64 = 0
 
@@ -183,16 +193,9 @@ func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Da
 		} // Cap at 99% until finished
 		fmt.Printf("\r- Step 2: Integrity check: %d%% (Scanning Disk->DB Main)...", percent)
 
-		// Check if the file exists in the database
-		_, err := s.repo.GetEntry(ctx, db.ID, id)
-		if errors.Is(err, customerrors.ErrNotFound) {
+		// Check if the file exists in the database using binary search on ordered IDs
+		if _, found := slices.BinarySearch(existingIDs, id); !found {
 			orphanFileIDs = append(orphanFileIDs, id)
-		} else if err != nil {
-			fmt.Println() // Break the \r progress line
-			s.logger.Error("Database lookup failed during main file walk", "database_id", db.ID.String(), "database_name", db.Name, "id", id, "error", err)
-			// Return the error to abort! If we ignore it, calculatedTotalBytes
-			// will be artificially low and corrupt the database stats.
-			return err
 		} else {
 			// Valid file! Add to our true physical size calculation
 			calculatedTotalBytes += uint64(info.Size)
@@ -202,7 +205,7 @@ func (s *RecoveryService) checkOrphanFiles(ctx context.Context, db repository.Da
 	return orphanFileIDs, calculatedTotalBytes, err
 }
 
-func (s *RecoveryService) checkOrphanPreviewFiles(ctx context.Context, db repository.Database, stats repository.DatabaseStats) ([]int64, uint64, error) {
+func (s *RecoveryService) checkOrphanPreviewFiles(ctx context.Context, db repository.Database, stats repository.DatabaseStats, existingIDs []int64) ([]int64, uint64, error) {
 	var orphanFileIDs []int64
 	var calculatedTotalBytes uint64 = 0
 
@@ -221,15 +224,9 @@ func (s *RecoveryService) checkOrphanPreviewFiles(ctx context.Context, db reposi
 		} // Cap at 99% until finished
 		fmt.Printf("\r- Step 2: Integrity check: %d%% (Scanning Disk->DB Previews)...", percent)
 
-		// Check if the file exists in the database
-		_, err := s.repo.GetEntry(ctx, db.ID, id)
-		if errors.Is(err, customerrors.ErrNotFound) {
+		// Check if the file exists in the database using binary search on ordered IDs
+		if _, found := slices.BinarySearch(existingIDs, id); !found {
 			orphanFileIDs = append(orphanFileIDs, id)
-		} else if err != nil {
-			fmt.Println() // Break the \r progress line
-			s.logger.Error("Database lookup failed during preview file walk", "database_id", db.ID.String(), "database_name", db.Name, "id", id, "error", err)
-			// Return the error to abort!
-			return err
 		} else {
 			// Valid file! Add to our true physical size calculation
 			calculatedTotalBytes += uint64(info.Size)
