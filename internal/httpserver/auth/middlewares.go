@@ -50,14 +50,14 @@ func (am *AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		schema, value, err := am.extractAuthCredentials(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			utils.RespondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		user, apiKey, err := am.authenticateRequest(schema, value)
 		if err != nil {
 			log.Printf("Auth failure: %v", err)
-			http.Error(w, "Unauthorized: Invalid credentials", http.StatusUnauthorized)
+			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: Invalid credentials")
 			return
 		}
 
@@ -174,7 +174,7 @@ func (am *AuthMiddleware) RequireGlobalAdmin() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			holder := utils.GetPermissionHolderFromContext(r.Context())
 			if !holder.IsGlobalAdmin() {
-				http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+				utils.RespondWithError(w, http.StatusForbidden, "Forbidden: Admin access required")
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -188,13 +188,13 @@ func (am *AuthMiddleware) RequireDatabasePermission(perm repository.AccessGrant)
 
 			dbID := r.PathValue("database_id")
 			if dbID == "" {
-				http.Error(w, "Bad Request: Missing database context", http.StatusBadRequest)
+				utils.RespondWithError(w, http.StatusBadRequest, "Bad Request: Missing database context")
 				return
 			}
 
 			holder := utils.GetPermissionHolderFromContext(r.Context())
 			if !holder.HasPermission(repository.ULID(dbID), perm) {
-				http.Error(w, fmt.Sprintf("Forbidden: You lack required rights on database '%s'", dbID), http.StatusForbidden)
+				utils.RespondWithError(w, http.StatusForbidden, fmt.Sprintf("Forbidden: You lack required rights on database '%s'", dbID))
 				return
 			}
 
@@ -220,7 +220,7 @@ func (am *AuthMiddleware) RequireSelfOrAdmin() func(http.Handler) http.Handler {
 			}
 
 			if userULID == "" || repository.ULID(userULID) != user.ID {
-				http.Error(w, "Forbidden: You are not authorized to manage this resource", http.StatusForbidden)
+				utils.RespondWithError(w, http.StatusForbidden, "Forbidden: You are not authorized to manage this resource")
 				return
 			}
 
