@@ -65,7 +65,7 @@ func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, en
 			p.releaseAsyncSlot()
 			p.TriggerQueueWorkersIfPossible(context.Background())
 		}()
-		p.runWorkerForClaimedEntry(ctx, db, entry)
+		p.runWorkerForClaimedEntry(context.Background(), db, entry)
 	}()
 	return true
 }
