@@ -9,6 +9,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mediahub_oss/internal/shared/customerrors"
 	"time"
@@ -100,7 +101,7 @@ type Repository interface {
 func UserExists(ctx context.Context, s Repository, username string) (bool, error) {
 	_, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		if err == customerrors.ErrUserNotFound {
+		if errors.Is(err, customerrors.ErrNotFound) {
 			return false, nil
 		}
 		return false, err

@@ -395,7 +395,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// 3. Fetch the existing user
 	existingUser, err := h.Repo.GetUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, customerrors.ErrUserNotFound) {
+		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "User not found")
 		} else {
 			h.Logger.Error("Failed to retrieve user from the database", "error", err, "user_id", userID)
@@ -535,7 +535,12 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// 2. Fetch the existing user to verify they exist and get their username/admin status
 	userToDelete, err := h.Repo.GetUserByID(ctx, userID)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		if errors.Is(err, customerrors.ErrNotFound) {
+			utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		} else {
+			h.Logger.Error("Failed to fetch user for deletion", "error", err, "user_id", userID)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve user")
+		}
 		return
 	}
 
@@ -556,7 +561,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Delete the user
 	if err := h.Repo.DeleteUser(ctx, userID); err != nil {
-		if errors.Is(err, customerrors.ErrUserNotFound) {
+		if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, "User not found")
 		} else {
 			h.Logger.Error("Failed to delete user", "error", err, "user_id", userID)

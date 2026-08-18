@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared/customerrors"
 )
@@ -156,7 +157,7 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	}
 
 	// 3. Map Custom Fields
-	customFields, err := h.mapCustomFields(row, headers, db.CustomFields, config)
+	customFields, err := h.mapCustomFields(row, headers, db, config)
 	if err != nil {
 		return false, err
 	}
@@ -265,8 +266,19 @@ func (h *EntryHandler) parseStandardFields(row []string) (repo.Entry, error) {
 }
 
 // mapCustomFields extracts dynamic columns, applies user mapping, and validates against the DB schema.
-func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields []repo.CustomFieldDef, config ImportConfigPayload) (map[string]any, error) {
+func (h *EntryHandler) mapCustomFields(row []string, headers []string, db repo.Database, config ImportConfigPayload) (map[string]any, error) {
 	mappedCustomFields := make(map[string]any)
+
+	// Fetch media fields for the content type to ignore them in custom fields mapping
+	mediaFieldDefs, _ := media.GetMetadataFields(db.ContentType)
+	isMediaField := func(name string) bool {
+		for _, mf := range mediaFieldDefs {
+			if mf.Name == name {
+				return true
+			}
+		}
+		return false
+	}
 
 	for i := 7; i < len(headers); i++ {
 		if i >= len(row) {
@@ -274,6 +286,10 @@ func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields 
 		}
 
 		csvHeader := headers[i]
+		if isMediaField(csvHeader) {
+			continue
+		}
+
 		dbField := csvHeader
 
 		// Apply user-defined mapping if provided
@@ -283,7 +299,7 @@ func (h *EntryHandler) mapCustomFields(row []string, headers []string, dbFields 
 
 		// Validate against database schema and enforce types
 		validField := false
-		for _, cf := range dbFields {
+		for _, cf := range db.CustomFields {
 			if cf.Name == dbField {
 				validField = true
 				switch cf.Type {

@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"mediahub_oss/internal/httpserver/utils"
+	"mediahub_oss/internal/media"
 	"mediahub_oss/internal/processing"
 	repo "mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared"
@@ -524,7 +525,7 @@ func (h *EntryHandler) PatchEntry(w http.ResponseWriter, r *http.Request) {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Connection to repository failed.")
 			h.Logger.Error("Failed to connect to repository", "error", err)
 			return
-		} else if errors.Is(err, customerrors.ErrDatabaseNotExisting) {
+		} else if errors.Is(err, customerrors.ErrNotFound) {
 			utils.RespondWithError(w, http.StatusNotFound, fmt.Sprintf("Database with ID %s does not exist.", dbID))
 			return
 		} else {
@@ -645,7 +646,7 @@ func (h *EntryHandler) DeleteEntries(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, customerrors.ErrRepoUnavailable) || errors.Is(err, customerrors.ErrStorageUnavailable) {
 			status = http.StatusInternalServerError
-		} else if errors.Is(err, customerrors.ErrDatabaseNotExisting) {
+		} else if errors.Is(err, customerrors.ErrNotFound) {
 			status = http.StatusNotFound
 		} else {
 			// Optional: Fallback status for any other unexpected errors
@@ -839,7 +840,11 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 		csvWriter := csv.NewWriter(csvFile)
 
 		// --- Build dynamic CSV Header ---
+		mediaFieldDefs, _ := media.GetMetadataFields(db.ContentType)
 		header := []string{"id", "filename", "timestamp", "filesize", "previewsize", "mime_type", "status"}
+		for _, mf := range mediaFieldDefs {
+			header = append(header, mf.Name)
+		}
 		for _, cf := range db.CustomFields {
 			header = append(header, cf.Name)
 		}
@@ -868,6 +873,16 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 				strconv.FormatUint(entry.PreviewSize, 10),
 				entry.MimeType,
 				strconv.Itoa(int(entry.Status)),
+			}
+
+			// Append media field values safely
+			for _, mf := range mediaFieldDefs {
+				val, exists := entry.MediaFields[mf.Name]
+				if !exists || val == nil {
+					row = append(row, "") // Empty column if no value
+				} else {
+					row = append(row, fmt.Sprintf("%v", val))
+				}
 			}
 
 			// Append custom field values safely

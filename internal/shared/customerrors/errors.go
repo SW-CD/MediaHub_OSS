@@ -18,12 +18,10 @@ const (
 	ErrorEncodeFile       = Error("could not encode to file")
 
 	// Repository errors
-	ErrRepoUnavailable     = Error("could not connect to the repository")
-	ErrUserExists          = Error("user already exists")
-	ErrUserNotFound        = Error("user not found")
-	ErrInvalidName         = Error("invalid name")
-	ErrDatabaseExists      = Error("database already exists")
-	ErrDatabaseNotExisting = Error("database does not exist")
+	ErrRepoUnavailable = Error("could not connect to the repository")
+	ErrUserExists      = Error("user already exists")
+	ErrInvalidName     = Error("invalid name")
+	ErrDatabaseExists  = Error("database already exists")
 
 	// Media errors
 	ErrUnsupportedMedia = Error("unsupported media type")
