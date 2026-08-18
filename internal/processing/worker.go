@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
@@ -50,6 +51,11 @@ func (p *Processor) tryAcquireAndSpawn(ctx context.Context, db repo.Database, en
 
 	if !claimed {
 		p.releaseAsyncSlot()
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(10 * time.Millisecond):
+		}
 		return true // continue scanning
 	}
 
@@ -107,6 +113,13 @@ func (p *Processor) runWorkerForClaimedEntry(ctx context.Context, db repo.Databa
 func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Database) {
 	db := initialDB
 	for {
+		select {
+		case <-ctx.Done():
+			p.Logger.Debug("Worker: Context cancelled, terminating queue worker.")
+			return
+		default:
+		}
+
 		nextEntry, nextDB, found, err := p.findNextQueuedEntry(ctx)
 		if err != nil {
 			p.Logger.Error("Worker: Failed to scan for next queued entry", "error", err)
@@ -122,6 +135,11 @@ func (p *Processor) runQueueWorkerLoop(ctx context.Context, initialDB repo.Datab
 			break
 		}
 		if !claimed {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
 			continue
 		}
 
@@ -277,6 +295,12 @@ func (p *Processor) runConversionAndFinalize(
 // and spawns background workers for them if concurrency limits allow.
 func (p *Processor) TriggerQueueWorkersIfPossible(ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		entry, db, found, err := p.findNextQueuedEntry(ctx)
 		if err != nil {
 			p.Logger.Error("TriggerQueueWorkers: Failed to scan for next queued entry", "error", err)
