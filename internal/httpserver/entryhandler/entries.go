@@ -3,7 +3,6 @@ package entryhandler
 import (
 	"archive/zip"
 	"context"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -263,12 +262,11 @@ func (h *EntryHandler) GetEntryFile(w http.ResponseWriter, r *http.Request) {
 			filemeta.FileName = fmt.Sprintf("%d", id)
 		}
 
-		resp, err := encodeReaderAsJSON(fileStream, filemeta.FileName, filemeta.MimeType)
-		if err != nil {
-			utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode file. Error: %v", err))
-			return
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := writeJSONFileResponseStream(w, filemeta.FileName, filemeta.MimeType, fileStream); err != nil {
+			h.Logger.Error("Failed to stream JSON file to client", "entry", id, "error", err)
 		}
-		utils.RespondWithJSON(w, http.StatusOK, resp)
 		return
 	}
 
@@ -441,25 +439,12 @@ func (h *EntryHandler) GetEntryPreview(w http.ResponseWriter, r *http.Request) {
 	// 3. Content Negotiation: Check if the client specifically requested JSON
 	acceptHeader := r.Header.Get("Accept")
 	if strings.Contains(acceptHeader, "application/json") {
-		// Read the binary data into memory
-		previewBytes, err := io.ReadAll(ioReader)
-		if err != nil {
-			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to read preview data")
-			return
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		filename := fmt.Sprintf("%d_preview.webp", id)
+		if err := writeJSONFileResponseStream(w, filename, "image/webp", ioReader); err != nil {
+			h.Logger.Error("Failed to stream JSON preview to client", "entry", id, "error", err)
 		}
-
-		// Convert to Base64 and format as a Data URI
-		base64Data := base64.StdEncoding.EncodeToString(previewBytes)
-		dataURI := "data:image/webp;base64," + base64Data
-
-		// Construct and return the JSON response
-		jsonResp := FileJSONResponse{
-			Filename: fmt.Sprintf("%d_preview.webp", id),
-			MimeType: "image/webp",
-			Data:     dataURI,
-		}
-
-		utils.RespondWithJSON(w, http.StatusOK, jsonResp)
 		return
 	}
 

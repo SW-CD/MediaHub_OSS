@@ -2,12 +2,46 @@ package entryhandler
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 )
+
+// writeJSONFileResponseStream streams a binary io.Reader as a Base64-encoded Data URI JSON response directly to w.
+// This eliminates buffering full files in memory.
+func writeJSONFileResponseStream(w io.Writer, filename, mimeType string, reader io.Reader) error {
+	fnBytes, err := json.Marshal(filename)
+	if err != nil {
+		return err
+	}
+	mtBytes, err := json.Marshal(mimeType)
+	if err != nil {
+		return err
+	}
+
+	prefix := fmt.Sprintf(`{"filename":%s,"mime_type":%s,"data":"data:%s;base64,`, string(fnBytes), string(mtBytes), mimeType)
+	if _, err := io.WriteString(w, prefix); err != nil {
+		return err
+	}
+
+	b64Writer := base64.NewEncoder(base64.StdEncoding, w)
+	if _, err := io.Copy(b64Writer, reader); err != nil {
+		b64Writer.Close()
+		return err
+	}
+	if err := b64Writer.Close(); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(w, `"}`); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // parseRange parses a standard HTTP Range header (e.g. "bytes=1000-2000")
 // and returns the offset and length relative to the fileSize.
