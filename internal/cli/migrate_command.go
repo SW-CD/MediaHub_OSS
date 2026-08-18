@@ -63,7 +63,7 @@ func runMigration(command string, globalOptions *GlobalOptions) error {
 	case "sqlite":
 		repo, err = sqlite.NewRepository(globalOptions.Conf.Database.Source)
 	case "postgres":
-		repo, err = postgres.NewRepository(globalOptions.Conf.Database.Source)
+		repo, err = postgres.NewRepository(globalOptions.Conf.Database.Source, globalOptions.Conf.Database.MaxOpenConns, globalOptions.Conf.Database.MaxIdleConns)
 	default:
 		return fmt.Errorf("unsupported database driver: %s", globalOptions.Conf.Database.Driver)
 	}

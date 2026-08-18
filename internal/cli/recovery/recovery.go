@@ -35,7 +35,7 @@ func NewRecoveryService(conf *config.Config, logger *slog.Logger, dryRun bool) (
 			return nil, fmt.Errorf("failed to initialize sqlite repository: %w", err)
 		}
 	case "postgres":
-		repo, err = postgres.NewRepository(conf.Database.Source)
+		repo, err = postgres.NewRepository(conf.Database.Source, conf.Database.MaxOpenConns, conf.Database.MaxIdleConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize postgres repository: %w", err)
 		}

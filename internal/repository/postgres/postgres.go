@@ -29,10 +29,17 @@ type MediaField struct {
 }
 
 // NewRepository initializes and returns a pointer to a new PostgresRepository.
-func NewRepository(source string) (*PostgresRepository, error) {
+func NewRepository(source string, maxOpenConns, maxIdleConns int) (*PostgresRepository, error) {
 	db, err := sql.Open("postgres", source)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres database pool: %w", err)
+	}
+
+	if maxOpenConns > 0 {
+		db.SetMaxOpenConns(maxOpenConns)
+	}
+	if maxIdleConns > 0 {
+		db.SetMaxIdleConns(maxIdleConns)
 	}
 
 	// Verify the connection

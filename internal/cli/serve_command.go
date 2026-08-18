@@ -350,7 +350,7 @@ func initRepository(dbCfg config.DatabaseConfig) (repository.Repository, error) 
 	case "sqlite":
 		return sqlite.NewRepository(dbCfg.Source)
 	case "postgres":
-		return postgres.NewRepository(dbCfg.Source)
+		return postgres.NewRepository(dbCfg.Source, dbCfg.MaxOpenConns, dbCfg.MaxIdleConns)
 	default:
 		return nil, fmt.Errorf("unsupported database driver, must be `sqlite` or `postgres`: %s", dbCfg.Driver)
 	}
