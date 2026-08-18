@@ -64,10 +64,7 @@ export class EntryGridComponent implements OnChanges {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     for (const entry of this.entries) {
-      const ts = entry.timestamp;
-      // Handle both seconds and milliseconds Unix epoch timestamps safely
-      const ms = ts < 10000000000 ? ts * 1000 : ts;
-      const date = new Date(ms);
+      const date = new Date(entry.timestamp);
 
       const dayName = weekdays[date.getDay()];
       const dayVal = date.getDate();
