@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"mediahub_oss/internal/shared/customerrors"
 	"os"
 	"strings"
@@ -40,7 +43,38 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
+	// 5. If JWT Secret is omitted, generate a cryptographically secure random secret and persist it
+	if strings.TrimSpace(config.Auth.JWT.Secret) == "" {
+		secret, err := generateRandomSecret(32)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate random JWT secret: %w", err)
+		}
+		config.Auth.JWT.Secret = secret
+		if config.Auth.JWT.AccessDuration == "" {
+			config.Auth.JWT.AccessDuration = "5min"
+		}
+		if config.Auth.JWT.RefreshDuration == "" {
+			config.Auth.JWT.RefreshDuration = "24h"
+		}
+
+		if path != "" {
+			if err := SaveConfig(path, &config); err != nil {
+				return nil, fmt.Errorf("failed to save generated JWT secret: %w", err)
+			}
+			slog.Info("Auto-generated and persisted JWT secret to config file", "path", path)
+		}
+	}
+
 	return &config, nil
+}
+
+// generateRandomSecret generates a cryptographically secure hex-encoded random string.
+func generateRandomSecret(numBytes int) (string, error) {
+	bytes := make([]byte, numBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // ValidateConfig ensures the application doesn't start in an inaccessible state.
