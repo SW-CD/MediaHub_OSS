@@ -49,3 +49,12 @@ Retrieves a paginated list of system audit log entries.
   }
 ]
 ```
+
+---
+
+## 🕒 Log Lifecycle & Retention
+
+When audit logs are stored in the database (`logging.audit.type = "database"`), retention is managed automatically:
+* **`logging.audit.retention > 0`** (e.g. `31d`, `7d`): Scheduled housekeeping periodically purges audit records older than the configured duration.
+* **`logging.audit.retention = 0`** (e.g. `"0"`, `"0d"`): Automated purging is disabled and all audit logs are retained indefinitely.
+

@@ -84,7 +84,7 @@ func (r *PostgresRepository) CreateDatabase(ctx context.Context, db repo.Databas
 	}
 
 	for _, cf := range db.CustomFields {
-		datatype := mapToPostgresType(strings.ToUpper(cf.Type))
+		datatype := strings.ToUpper(cf.Type)
 		cfQuery, cfArgs, err := r.Builder.Insert("database_custom_fields").
 			Columns("database_id", "field_id", "name", "type", "is_indexed").
 			Values(db.ID, cf.ID, cf.Name, datatype, cf.IsIndexed).

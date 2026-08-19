@@ -48,7 +48,7 @@ Any setting provided as a CLI flag takes precedence over environment variables, 
 | `--logging-level` | `MEDIAHUB_LOGGING_LEVEL` | `level` | Log level (`debug`, `info`, `warn`, `error`) | `info` |
 | `--logging-audit-type` | `MEDIAHUB_LOGGING_AUDIT_TYPE` | `logging.audit.type` | Audit destination (`stdio` or `database`) | `stdio` |
 | `--logging-audit-enabled` | `MEDIAHUB_LOGGING_AUDIT_ENABLED` | `logging.audit.enabled` | Enable audit log recording | `false` |
-| `--logging-audit-retention`| `MEDIAHUB_LOGGING_AUDIT_RETENTION`| `logging.audit.retention`| Retention duration for database audit logs | `31d` |
+| `--logging-audit-retention`| `MEDIAHUB_LOGGING_AUDIT_RETENTION`| `logging.audit.retention`| Retention duration for database audit logs ("0" to retain indefinitely) | `31d` |
 | **Media Settings** | | `[media]` | | |
 | `--media-ffmpeg-path` | `MEDIAHUB_MEDIA_FFMPEG_PATH` | `ffmpeg_path` | Custom path to FFmpeg binary | `""` |
 | `--media-ffprobe-path` | `MEDIAHUB_MEDIA_FFPROBE_PATH` | `ffprobe_path` | Custom path to FFprobe binary | `""` |
@@ -84,7 +84,7 @@ level = "info"
 [logging.audit]
 type = "stdio"
 enabled = false
-retention = "31d"
+retention = "31d" # Set to "0" (or "0d") to disable cleanup and retain indefinitely
 
 [media]
 ffmpeg_path = ""

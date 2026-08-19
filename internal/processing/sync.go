@@ -78,30 +78,40 @@ func (p *Processor) handleSmallFileSync(
 		if err != nil {
 			p.Logger.Error("Failed to read file into memory for preview generation", "entry", createdEntry.ID, "error", err)
 			createdEntry.Status = repo.EntryStatusReady
-		} else {
-			createdEntry.Status = repo.EntryStatusProcessing
-
-			go func(bgEntry repo.Entry) {
-				var err error
-				var previewSize uint64 = 0
-
-				reader := bytes.NewReader(fileBytes)
-				if previewSize, err = p.generateAndStorePreview(context.Background(), db, bgEntry.ID, reader, plan.TargetMimeType); err != nil {
-					p.Logger.Error("Async preview generation failed", "entry", bgEntry.ID, "error", err)
-				}
-
-				bgEntry.Status = repo.EntryStatusReady
-				bgEntry.PreviewSize = previewSize
-
-				if _, err := p.Repo.UpdateEntry(context.Background(), db.ID, bgEntry); err != nil {
-					p.Logger.Error("Failed to update status to ready after async preview", "entry", bgEntry.ID, "error", err)
-				}
-			}(createdEntry)
+			finalEntry, err := p.Repo.UpdateEntry(ctx, db.ID, createdEntry)
+			if err != nil {
+				return repo.Entry{}, fmt.Errorf("failed to finalize entry metadata: %w", err)
+			}
+			return finalEntry, nil
 		}
-	} else {
-		createdEntry.Status = repo.EntryStatusReady
+
+		createdEntry.Status = repo.EntryStatusProcessing
+		finalEntry, err := p.Repo.UpdateEntry(ctx, db.ID, createdEntry)
+		if err != nil {
+			return repo.Entry{}, fmt.Errorf("failed to finalize entry metadata: %w", err)
+		}
+
+		go func(bgEntry repo.Entry) {
+			var err error
+			var previewSize uint64 = 0
+
+			reader := bytes.NewReader(fileBytes)
+			if previewSize, err = p.generateAndStorePreview(context.Background(), db, bgEntry.ID, reader, plan.TargetMimeType); err != nil {
+				p.Logger.Error("Async preview generation failed", "entry", bgEntry.ID, "error", err)
+			}
+
+			bgEntry.Status = repo.EntryStatusReady
+			bgEntry.PreviewSize = previewSize
+
+			if _, err := p.Repo.UpdateEntry(context.Background(), db.ID, bgEntry); err != nil {
+				p.Logger.Error("Failed to update status to ready after async preview", "entry", bgEntry.ID, "error", err)
+			}
+		}(finalEntry)
+
+		return finalEntry, nil
 	}
 
+	createdEntry.Status = repo.EntryStatusReady
 	finalEntry, err := p.Repo.UpdateEntry(ctx, db.ID, createdEntry)
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to finalize entry metadata: %w", err)

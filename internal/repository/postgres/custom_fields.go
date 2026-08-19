@@ -74,7 +74,10 @@ func (r *PostgresRepository) AddCustomField(ctx context.Context, dbID repo.ULID,
 		return repo.CustomFieldDef{}, fmt.Errorf("%w: field name cannot be empty", customerrors.ErrValidation)
 	}
 
-	datatype := strings.ToUpper(field.Type)
+	datatype, err := repo.NormalizeCustomFieldType(field.Type)
+	if err != nil {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
+	}
 	pgDatatype := mapToPostgresType(datatype)
 	if pgDatatype == "" {
 		return repo.CustomFieldDef{}, fmt.Errorf("%w: unsupported custom field type '%s'", customerrors.ErrValidation, field.Type)

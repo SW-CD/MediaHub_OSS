@@ -107,6 +107,9 @@ func (r *PostgresRepository) GetLogs(ctx context.Context, opts repository.QueryO
 
 // DeleteLogs removes all audit logs older than the provided age.
 func (r *PostgresRepository) DeleteLogs(ctx context.Context, maxAge time.Duration) error {
+	if maxAge <= 0 {
+		return nil
+	}
 	now, err := r.GetDBTime(ctx)
 	if err != nil {
 		now = time.Now()

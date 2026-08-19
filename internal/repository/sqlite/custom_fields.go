@@ -87,9 +87,9 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID repo.ULID, f
 	}
 
 	// Validate type
-	datatype := strings.ToUpper(field.Type)
-	if datatype != "TEXT" && datatype != "INTEGER" && datatype != "REAL" && datatype != "BOOLEAN" {
-		return repo.CustomFieldDef{}, fmt.Errorf("%w: unsupported custom field type '%s'", customerrors.ErrValidation, field.Type)
+	datatype, err := repo.NormalizeCustomFieldType(field.Type)
+	if err != nil {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: %v", customerrors.ErrValidation, err)
 	}
 
 	// Load existing fields

@@ -106,10 +106,12 @@ func (s *HouseKeeper) runGlobalTasks(ctx context.Context) {
 	}
 
 	// 2. Clean up old audit logs
-	if err := s.Repo.DeleteLogs(ctx, s.AuditRetention); err != nil {
-		s.Logger.Error("Failed to clean up old audit logs", "error", err)
-	} else {
-		s.Logger.Debug("Audit log cleanup routine executed successfully")
+	if s.AuditRetention > 0 {
+		if err := s.Repo.DeleteLogs(ctx, s.AuditRetention); err != nil {
+			s.Logger.Error("Failed to clean up old audit logs", "error", err)
+		} else {
+			s.Logger.Debug("Audit log cleanup routine executed successfully")
+		}
 	}
 }
 

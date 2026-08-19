@@ -427,3 +427,97 @@ func TestS3StorageProviderOperations(t *testing.T) {
 		t.Errorf("StatPreview after DeleteDatabase expected ErrNotFound, got: %v", err)
 	}
 }
+
+func TestS3DeleteMultipleErrors(t *testing.T) {
+	// Mock server that returns custom DeleteResult XML with errors
+	var deleteXMLResponse string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/testbucket" || r.URL.Path == "/testbucket/" {
+			if r.Method == http.MethodHead {
+				w.Header().Set("x-amz-bucket-region", "us-east-1")
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			if r.URL.Query().Has("location") {
+				w.Header().Set("Content-Type", "application/xml")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">us-east-1</LocationConstraint>`))
+				return
+			}
+		}
+
+		if r.Method == http.MethodPost && r.URL.Query().Has("delete") {
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(deleteXMLResponse))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("failed to parse test server url: %v", err)
+	}
+
+	provider, err := NewS3StorageProvider(Config{
+		Endpoint:  u.Host,
+		Region:    "us-east-1",
+		Bucket:    "testbucket",
+		AccessKey: "mockaccesskey",
+		SecretKey: "mocksecretkey",
+		UseSSL:    false,
+	})
+	if err != nil {
+		t.Fatalf("NewS3StorageProvider failed: %v", err)
+	}
+
+	ctx := context.Background()
+	dbID := "01HGFB9Z5W7ABCDEFGHJKMNPQR"
+
+	// Case 1: Mapped error on ID 1
+	deleteXMLResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    <Error>
+        <Key>01HGFB9Z5W7ABCDEFGHJKMNPQR/0/1</Key>
+        <Code>AccessDenied</Code>
+        <Message>Access Denied</Message>
+    </Error>
+</DeleteResult>`
+
+	res, err := provider.DeleteMultiple(ctx, dbID, []int64{1, 2})
+	if err == nil {
+		t.Errorf("expected error for mapped deletion failure, got nil")
+	}
+	if len(res.Failed) != 1 || res.Failed[0] != 1 {
+		t.Errorf("expected Failed=[1], got: %v", res.Failed)
+	}
+	if len(res.Success) != 1 || res.Success[0] != 2 {
+		t.Errorf("expected Success=[2], got: %v", res.Success)
+	}
+
+	// Case 2: Unmapped / General error (no Key in Error element)
+	deleteXMLResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    <Error>
+        <Code>InternalError</Code>
+        <Message>General error</Message>
+    </Error>
+</DeleteResult>`
+
+	res, err = provider.DeleteMultiple(ctx, dbID, []int64{1, 2})
+	if err == nil {
+		t.Errorf("expected error for unmapped deletion failure, got nil")
+	}
+	if len(res.Failed) != 2 {
+		t.Errorf("expected Failed=[1, 2] for unmapped error, got: %v", res.Failed)
+	}
+	if len(res.Success) != 0 {
+		t.Errorf("expected Success=[] for unmapped error, got: %v", res.Success)
+	}
+}
+

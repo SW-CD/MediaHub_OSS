@@ -39,6 +39,11 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 
 			customFields := make([]repository.CustomFieldDef, len(dbInit.CustomFields))
 			for i, cf := range dbInit.CustomFields {
+				normType, err := repository.NormalizeCustomFieldType(cf.Type)
+				if err != nil {
+					logger.Error("Invalid custom field type in init config", "database", dbInit.Name, "field", cf.Name, "type", cf.Type, "error", err)
+					normType = cf.Type
+				}
 				isIndexed := true
 				if cf.IsIndexed != nil {
 					isIndexed = *cf.IsIndexed
@@ -46,7 +51,7 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 				customFields[i] = repository.CustomFieldDef{
 					ID:        i,
 					Name:      cf.Name,
-					Type:      cf.Type,
+					Type:      normType,
 					IsIndexed: isIndexed,
 				}
 			}

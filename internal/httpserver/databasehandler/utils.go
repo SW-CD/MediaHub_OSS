@@ -1,18 +1,24 @@
 package databasehandler
 
 import (
+	"fmt"
 	"mediahub_oss/internal/repository"
 	"mediahub_oss/internal/shared"
+	"strings"
 	"time"
 )
 
 // toModel parses the string-based API payload into the Repository model
-func (dbc DatabaseCreatePayload) toModel() repository.Database {
+func (dbc DatabaseCreatePayload) toModel() (repository.Database, error) {
 
 	// convert from package internal model to repository model
 	customFields := make([]repository.CustomFieldDef, len(dbc.CustomFields))
 	for i, cf := range dbc.CustomFields {
-		customFields[i] = cf.toModel()
+		modelCF, err := cf.toModel()
+		if err != nil {
+			return repository.Database{}, err
+		}
+		customFields[i] = modelCF
 	}
 
 	// create return object (ID will be generated automatically by the repository)
@@ -30,10 +36,20 @@ func (dbc DatabaseCreatePayload) toModel() repository.Database {
 			EntryCount:          0,
 			TotalDiskSpaceBytes: 0,
 		},
-	}
+	}, nil
 }
 
-func (cf DatabaseCustomField) toModel() repository.CustomFieldDef {
+func (cf DatabaseCustomField) toModel() (repository.CustomFieldDef, error) {
+	name := strings.TrimSpace(cf.Name)
+	if name == "" {
+		return repository.CustomFieldDef{}, fmt.Errorf("missing required field: name")
+	}
+
+	normType, err := repository.NormalizeCustomFieldType(cf.Type)
+	if err != nil {
+		return repository.CustomFieldDef{}, err
+	}
+
 	id := 0
 	if cf.ID != nil {
 		id = *cf.ID
@@ -44,10 +60,10 @@ func (cf DatabaseCustomField) toModel() repository.CustomFieldDef {
 	}
 	return repository.CustomFieldDef{
 		ID:        id,
-		Name:      cf.Name,
-		Type:      cf.Type,
+		Name:      name,
+		Type:      normType,
 		IsIndexed: isIndexed,
-	}
+	}, nil
 }
 
 // Extract the config part from the payload and return the repository type

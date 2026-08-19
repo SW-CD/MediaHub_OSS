@@ -71,7 +71,11 @@ func (h *DatabaseHandler) AddField(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelField := payload.toModel()
+	modelField, err := payload.toModel()
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	added, err := h.Repo.AddCustomField(ctx, repository.ULID(dbID), modelField)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrNotFound) {

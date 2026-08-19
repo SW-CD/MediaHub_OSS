@@ -62,11 +62,18 @@ func (s *S3StorageProvider) deleteMultipleKeys(ctx context.Context, ids []int64,
 
 	var successIDs []int64
 	var failedIDs []int64
-	for _, id := range ids {
-		if _, failed := failedMap[id]; failed {
-			failedIDs = append(failedIDs, id)
-		} else {
-			successIDs = append(successIDs, id)
+
+	if len(errs) > len(failedMap) {
+		// There are unmapped or general errors from MinIO: treat all IDs as failed
+		// to prevent deleting database records while files remain on S3.
+		failedIDs = ids
+	} else {
+		for _, id := range ids {
+			if _, failed := failedMap[id]; failed {
+				failedIDs = append(failedIDs, id)
+			} else {
+				successIDs = append(successIDs, id)
+			}
 		}
 	}
 

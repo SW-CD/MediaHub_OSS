@@ -116,6 +116,9 @@ func (r *SQLiteRepository) GetLogs(ctx context.Context, opts repository.QueryOpt
 
 // DeleteLogs removes all audit logs older than the provided age.
 func (r *SQLiteRepository) DeleteLogs(ctx context.Context, maxAge time.Duration) error {
+	if maxAge <= 0 {
+		return nil
+	}
 
 	// For SQLite it is ok to calculate the cutoff timestamp in Go and pass it as a parameter,
 	// For Postgres, we would want to use a SQL function like NOW() - INTERVAL '1 month' to ensure the cutoff

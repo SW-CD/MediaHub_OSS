@@ -32,6 +32,8 @@ func TestBuildDynamicTableSchema(t *testing.T) {
 	customFields := []repo.CustomFieldDef{
 		{ID: 0, Name: "artist", Type: "TEXT", IsIndexed: true},
 		{ID: 1, Name: "year", Type: "INTEGER", IsIndexed: false},
+		{ID: 2, Name: "rating", Type: "REAL", IsIndexed: true},
+		{ID: 3, Name: "is_favorite", Type: "BOOLEAN", IsIndexed: false},
 	}
 
 	sql, err := r.BuildDynamicTableSchema("01HGFB9Z5W7ABCDEFGHJKMNPQR", "image", customFields)
@@ -44,6 +46,15 @@ func TestBuildDynamicTableSchema(t *testing.T) {
 	}
 	if !strings.Contains(sql, `"cf_0" TEXT`) {
 		t.Errorf("expected cf_0 column in SQL, got: %s", sql)
+	}
+	if !strings.Contains(sql, `"cf_1" INTEGER`) {
+		t.Errorf("expected cf_1 column in SQL, got: %s", sql)
+	}
+	if !strings.Contains(sql, `"cf_2" DOUBLE PRECISION`) {
+		t.Errorf("expected cf_2 column in SQL, got: %s", sql)
+	}
+	if !strings.Contains(sql, `"cf_3" BOOLEAN`) {
+		t.Errorf("expected cf_3 column in SQL, got: %s", sql)
 	}
 	if !strings.Contains(sql, `id SERIAL PRIMARY KEY`) {
 		t.Errorf("expected SERIAL id column in SQL, got: %s", sql)

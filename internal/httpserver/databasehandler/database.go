@@ -146,13 +146,17 @@ func (h *DatabaseHandler) CreateDatabase(w http.ResponseWriter, r *http.Request)
 	user := utils.GetUserFromContext(ctx)
 
 	// Create the database
-	var database = payload.toModel()
+	database, err := payload.toModel()
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	createdDB, err := h.Repo.CreateDatabase(ctx, database)
 	if err != nil {
 		if errors.Is(err, customerrors.ErrDatabaseExists) {
 			utils.RespondWithError(w, http.StatusConflict, "Database name already in use.")
-		} else if errors.Is(err, customerrors.ErrInvalidName) {
+		} else if errors.Is(err, customerrors.ErrInvalidName) || errors.Is(err, customerrors.ErrValidation) {
 			utils.RespondWithError(w, http.StatusBadRequest, err.Error())
 		} else {
 			h.Logger.Error("Failed to create database.", "error", err)

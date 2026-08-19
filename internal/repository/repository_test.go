@@ -71,3 +71,42 @@ func TestUserExists(t *testing.T) {
 		}
 	})
 }
+
+func TestNormalizeCustomFieldType(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+		wantErr  bool
+	}{
+		{"text", "TEXT", false},
+		{"TEXT", "TEXT", false},
+		{"string", "TEXT", false},
+		{"VARCHAR", "TEXT", false},
+		{"integer", "INTEGER", false},
+		{"int", "INTEGER", false},
+		{"int64", "INTEGER", false},
+		{"uint64", "INTEGER", false},
+		{"real", "REAL", false},
+		{"float", "REAL", false},
+		{"float64", "REAL", false},
+		{"double", "REAL", false},
+		{"boolean", "BOOLEAN", false},
+		{"bool", "BOOLEAN", false},
+		{"BOOL", "BOOLEAN", false},
+		{"invalid", "", true},
+		{"", "", true},
+	}
+
+	for _, tt := range tests {
+		got, err := repo.NormalizeCustomFieldType(tt.input)
+		if tt.wantErr && err == nil {
+			t.Errorf("NormalizeCustomFieldType(%q) expected error, got nil", tt.input)
+		}
+		if !tt.wantErr && err != nil {
+			t.Errorf("NormalizeCustomFieldType(%q) unexpected error: %v", tt.input, err)
+		}
+		if got != tt.expected {
+			t.Errorf("NormalizeCustomFieldType(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
