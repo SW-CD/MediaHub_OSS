@@ -182,7 +182,11 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 	defer os.Remove(tempFilePath) // Ensure it is cleaned up when this row finishes
 
 	// Spool the zipped content into the temp file
-	srcZipStream, _ := mainFileZipped.Open()
+	srcZipStream, err := mainFileZipped.Open()
+	if err != nil {
+		tempMediaFile.Close()
+		return false, fmt.Errorf("failed to open zip entry %s: %w", mainZipPath, err)
+	}
 	if _, err := io.Copy(tempMediaFile, srcZipStream); err != nil {
 		srcZipStream.Close()
 		tempMediaFile.Close()
@@ -222,11 +226,15 @@ func (h *EntryHandler) processImportRow(ctx context.Context, db repo.Database, r
 
 	// 8. Write Preview to Storage (if it exists in the archive)
 	if previewZipped, exists := zipFiles[previewZipPath]; exists {
-		pSrcFile, _ := previewZipped.Open()
-		_, err = h.Storage.WritePreview(ctx, db.ID.String(), savedEntry.ID, pSrcFile)
-		pSrcFile.Close()
+		pSrcFile, err := previewZipped.Open()
 		if err != nil {
-			h.Logger.Warn("Import warning: Failed to write preview file to storage", "row", rowNum, "error", err)
+			h.Logger.Warn("Import warning: Failed to open preview zip entry", "row", rowNum, "path", previewZipPath, "error", err)
+		} else {
+			_, err = h.Storage.WritePreview(ctx, db.ID.String(), savedEntry.ID, pSrcFile)
+			pSrcFile.Close()
+			if err != nil {
+				h.Logger.Warn("Import warning: Failed to write preview file to storage", "row", rowNum, "error", err)
+			}
 		}
 	}
 

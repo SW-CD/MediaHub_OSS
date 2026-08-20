@@ -87,3 +87,96 @@ func TestCreateEntry_ZeroTimestamp(t *testing.T) {
 		t.Errorf("expected fetchedEntry.Timestamp to be around now, got %v (unix milli: %d)", fetchedEntry.Timestamp, fetchedEntry.Timestamp.UnixMilli())
 	}
 }
+
+func TestGetEntries_TimeFilterEpochAndHistorical(t *testing.T) {
+	ctx := context.Background()
+
+	r, err := sqlite.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("failed to set goose dialect: %v", err)
+	}
+	goose.SetBaseFS(migrations.EmbedFS)
+	if err := goose.Up(r.DB, "sqlite"); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
+	}
+
+	dbModel := repo.Database{
+		Name:        "historical_archive",
+		ContentType: "image",
+	}
+	createdDB, err := r.CreateDatabase(ctx, dbModel)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	t1950 := time.Date(1950, 1, 1, 12, 0, 0, 0, time.UTC)
+	t1970 := time.Unix(0, 0).UTC() // Epoch = 0
+	t2025 := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+
+	// Create 3 entries with specific timestamps
+	_, err = r.CreateEntry(ctx, createdDB, repo.Entry{
+		FileName:    "photo_1950.jpg",
+		MimeType:    "image/jpeg",
+		Size:        1000,
+		Status:      repo.EntryStatusReady,
+		Timestamp:   t1950,
+		MediaFields: map[string]any{"width": 800, "height": 600},
+	})
+	if err != nil {
+		t.Fatalf("failed to create 1950 entry: %v", err)
+	}
+
+	_, err = r.CreateEntry(ctx, createdDB, repo.Entry{
+		FileName:    "photo_1970.jpg",
+		MimeType:    "image/jpeg",
+		Size:        2000,
+		Status:      repo.EntryStatusReady,
+		Timestamp:   t1970,
+		MediaFields: map[string]any{"width": 800, "height": 600},
+	})
+	if err != nil {
+		t.Fatalf("failed to create 1970 entry: %v", err)
+	}
+
+	_, err = r.CreateEntry(ctx, createdDB, repo.Entry{
+		FileName:    "photo_2025.jpg",
+		MimeType:    "image/jpeg",
+		Size:        3000,
+		Status:      repo.EntryStatusReady,
+		Timestamp:   t2025,
+		MediaFields: map[string]any{"width": 800, "height": 600},
+	})
+	if err != nil {
+		t.Fatalf("failed to create 2025 entry: %v", err)
+	}
+
+	// 1. Filter with TStart = 1940 and TEnd = 1970 (Epoch 0) -> Should return 1950 and 1970 entries
+	t1940 := time.Date(1940, 1, 1, 0, 0, 0, 0, time.UTC)
+	results, err := r.GetEntries(ctx, createdDB.ID, repo.QueryOptions{
+		TStart: t1940,
+		TEnd:   t1970,
+	})
+	if err != nil {
+		t.Fatalf("GetEntries failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 entries for range [1940, 1970], got %d", len(results))
+	}
+
+	// 2. Filter with exact epoch timestamp TStart = 1970, TEnd = 1970 -> Should return only 1970 entry
+	resultsEpoch, err := r.GetEntries(ctx, createdDB.ID, repo.QueryOptions{
+		TStart: t1970,
+		TEnd:   t1970,
+	})
+	if err != nil {
+		t.Fatalf("GetEntries for epoch failed: %v", err)
+	}
+	if len(resultsEpoch) != 1 || resultsEpoch[0].FileName != "photo_1970.jpg" {
+		t.Fatalf("expected only photo_1970.jpg, got %v", resultsEpoch)
+	}
+}

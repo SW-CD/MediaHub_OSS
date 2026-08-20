@@ -45,11 +45,11 @@ func (r *SQLiteRepository) GetLogs(ctx context.Context, opts repository.QueryOpt
 	builder := r.Builder.Select("id", "timestamp", "action", "actor", "resource", "details").
 		From("audit_logs")
 
-	// Apply time filters (converting unix milliseconds to time.Time for the SQLite timestamp column)
-	if !opts.TStart.IsZero() && opts.TStart.After(time.Unix(0, 0)) {
+	// Apply time filters
+	if !opts.TStart.IsZero() {
 		builder = builder.Where(squirrel.GtOrEq{"timestamp": opts.TStart.UnixMilli()})
 	}
-	if !opts.TEnd.IsZero() && opts.TEnd.After(time.Unix(0, 0)) {
+	if !opts.TEnd.IsZero() {
 		builder = builder.Where(squirrel.LtOrEq{"timestamp": opts.TEnd.UnixMilli()})
 	}
 

@@ -33,10 +33,8 @@ import (
 	// Aliased imports for your sub-handlers
 
 	"net/http"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -108,11 +106,49 @@ func registerFlags(cmd *cobra.Command) {
 	cmd.Flags().String("auth-oidc-client-secret", "", "OIDC Client Secret.")
 	cmd.Flags().String("auth-oidc-redirect-url", "", "OIDC Redirect callback URL.")
 
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		// Convert standard flag "server-port" into Viper's nested format "server.port"
-		viperKey := strings.ReplaceAll(f.Name, "-", ".")
-		viper.BindPFlag(viperKey, f)
-	})
+	flagToViperKey := map[string]string{
+		"server-host":                      "server.host",
+		"server-port":                      "server.port",
+		"server-basepath":                  "server.basepath",
+		"server-max-sync-upload":           "server.max_sync_upload_size",
+		"server-cors-origins":              "server.cors_allowed_origins",
+		"server-processing-n-ffmpeg-async": "server.processing.n_ffmpeg_async",
+		"server-processing-n-ffmpeg-total": "server.processing.n_ffmpeg_total",
+		"database-driver":                  "database.driver",
+		"database-source":                  "database.source",
+		"database-max-open-conns":          "database.max_open_conns",
+		"database-max-idle-conns":          "database.max_idle_conns",
+		"storage-type":                     "storage.type",
+		"storage-local-root":               "storage.local.root",
+		"storage-s3-endpoint":              "storage.s3.endpoint",
+		"storage-s3-region":                "storage.s3.region",
+		"storage-s3-bucket":                "storage.s3.bucket",
+		"storage-s3-access-key":            "storage.s3.access_key",
+		"storage-s3-secret-key":            "storage.s3.secret_key",
+		"storage-s3-use-ssl":               "storage.s3.use_ssl",
+		"logging-level":                    "logging.level",
+		"logging-audit-type":               "logging.audit.type",
+		"logging-audit-enabled":            "logging.audit.enabled",
+		"logging-audit-retention":          "logging.audit.retention",
+		"media-ffmpeg-path":                "media.ffmpeg_path",
+		"media-ffprobe-path":               "media.ffprobe_path",
+		"auth-jwt-access-duration":         "auth.jwt.access_duration",
+		"auth-jwt-refresh-duration":        "auth.jwt.refresh_duration",
+		"auth-jwt-secret":                  "auth.jwt.secret",
+		"auth-oidc-enabled":                "auth.oidc.enabled",
+		"auth-oidc-disable-local-login":    "auth.oidc.disable_login_page",
+		"auth-oidc-default-user-rights":    "auth.oidc.default_user_rights",
+		"auth-oidc-issuer-url":             "auth.oidc.issuer_url",
+		"auth-oidc-client-id":              "auth.oidc.client_id",
+		"auth-oidc-client-secret":          "auth.oidc.client_secret",
+		"auth-oidc-redirect-url":           "auth.oidc.redirect_url",
+	}
+
+	for flagName, viperKey := range flagToViperKey {
+		if f := cmd.Flags().Lookup(flagName); f != nil {
+			_ = viper.BindPFlag(viperKey, f)
+		}
+	}
 }
 
 // backgroundServices holds the initialized instances of all running background components.

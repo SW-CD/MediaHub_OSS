@@ -155,10 +155,10 @@ func (r *PostgresRepository) GetEntries(ctx context.Context, dbID repo.ULID, opt
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	builder := r.Builder.Select("*").From(tableName)
 
-	if !opts.TStart.IsZero() && opts.TStart.After(time.Unix(0, 0)) {
+	if !opts.TStart.IsZero() {
 		builder = builder.Where(squirrel.GtOrEq{opts.TimeField: opts.TStart.UnixMilli()})
 	}
-	if !opts.TEnd.IsZero() && opts.TEnd.After(time.Unix(0, 0)) {
+	if !opts.TEnd.IsZero() {
 		builder = builder.Where(squirrel.LtOrEq{opts.TimeField: opts.TEnd.UnixMilli()})
 	}
 

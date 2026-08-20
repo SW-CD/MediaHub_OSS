@@ -76,6 +76,13 @@ func (h *EntryHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusBadRequest, "Failed to parse multipart form.")
 		return
 	}
+	defer func() {
+		// if everyhting goes well, an appended large file is moved to a different folder for async processing
+		// and this cleanup is not necessary. But in case of an issue, we need this.
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -983,6 +990,11 @@ func (h *EntryHandler) ImportEntries(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusBadRequest, "Failed to parse multipart form.")
 		return
 	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	// 3. Extract and Parse Config (with safe defaults)
 	configStr := r.FormValue("config")

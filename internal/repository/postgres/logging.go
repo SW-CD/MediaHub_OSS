@@ -48,10 +48,10 @@ func (r *PostgresRepository) GetLogs(ctx context.Context, opts repository.QueryO
 	builder := r.Builder.Select("id", "timestamp", "action", "actor", "resource", "details").
 		From("audit_logs")
 
-	if !opts.TStart.IsZero() && opts.TStart.After(time.Unix(0, 0)) {
+	if !opts.TStart.IsZero() {
 		builder = builder.Where(squirrel.GtOrEq{"timestamp": opts.TStart.UnixMilli()})
 	}
-	if !opts.TEnd.IsZero() && opts.TEnd.After(time.Unix(0, 0)) {
+	if !opts.TEnd.IsZero() {
 		builder = builder.Where(squirrel.LtOrEq{"timestamp": opts.TEnd.UnixMilli()})
 	}
 

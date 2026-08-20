@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
@@ -377,3 +378,78 @@ func TestDynamicTimestampQueries(t *testing.T) {
 		}
 	})
 }
+
+func TestPostgres_TimeFilterQueryBuilder(t *testing.T) {
+	r := &PostgresRepository{
+		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+
+	t.Run("GetEntries with epoch 0 and pre-1970 timestamp builds WHERE clauses", func(t *testing.T) {
+		tStart := time.Date(1950, 1, 1, 0, 0, 0, 0, time.UTC)
+		tEnd := time.Unix(0, 0).UTC() // Epoch = 0
+
+		opts := repo.QueryOptions{
+			TStart:    tStart,
+			TEnd:      tEnd,
+			TimeField: "timestamp",
+		}
+		if err := opts.Validate(); err != nil {
+			t.Fatalf("opts validate failed: %v", err)
+		}
+
+		builder := r.Builder.Select("*").From(`"entries_01HGFB9Z5W7ABCDEFGHJKMNPQR"`)
+		if !opts.TStart.IsZero() {
+			builder = builder.Where(squirrel.GtOrEq{opts.TimeField: opts.TStart.UnixMilli()})
+		}
+		if !opts.TEnd.IsZero() {
+			builder = builder.Where(squirrel.LtOrEq{opts.TimeField: opts.TEnd.UnixMilli()})
+		}
+
+		query, args, err := builder.ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+
+		if !strings.Contains(query, "timestamp >=") || !strings.Contains(query, "timestamp <=") {
+			t.Errorf("expected timestamp >= and <= in query, got: %s", query)
+		}
+		if len(args) != 2 {
+			t.Fatalf("expected 2 args, got %d (%v)", len(args), args)
+		}
+		if args[0] != tStart.UnixMilli() || args[1] != int64(0) {
+			t.Errorf("expected args [%d, 0], got %v", tStart.UnixMilli(), args)
+		}
+	})
+
+	t.Run("GetLogs with epoch 0 builds WHERE clauses", func(t *testing.T) {
+		tEpoch := time.Unix(0, 0).UTC()
+		opts := repo.QueryOptions{
+			TStart: tEpoch,
+			TEnd:   tEpoch,
+		}
+		if err := opts.Validate(); err != nil {
+			t.Fatalf("opts validate failed: %v", err)
+		}
+
+		builder := r.Builder.Select("id", "timestamp", "action", "actor", "resource", "details").From("audit_logs")
+		if !opts.TStart.IsZero() {
+			builder = builder.Where(squirrel.GtOrEq{"timestamp": opts.TStart.UnixMilli()})
+		}
+		if !opts.TEnd.IsZero() {
+			builder = builder.Where(squirrel.LtOrEq{"timestamp": opts.TEnd.UnixMilli()})
+		}
+
+		query, args, err := builder.ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+
+		if !strings.Contains(query, "timestamp >=") || !strings.Contains(query, "timestamp <=") {
+			t.Errorf("expected timestamp >= and <= in query, got: %s", query)
+		}
+		if len(args) != 2 || args[0] != int64(0) || args[1] != int64(0) {
+			t.Errorf("expected args [0, 0], got %v", args)
+		}
+	})
+}
+

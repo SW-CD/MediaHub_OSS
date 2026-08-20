@@ -20,36 +20,41 @@ func CORSMiddleware(allowedOrigins []string) Middleware {
 			}
 
 			// Check if the request's origin matches our allowed list
-			isAllowed := false
+			isExactMatch := false
+			isWildcard := false
 			for _, o := range allowedOrigins {
 				o = strings.TrimSpace(o)
-				if o == origin || o == "*" {
-					isAllowed = true
+				if o == origin {
+					isExactMatch = true
 					break
+				}
+				if o == "*" {
+					isWildcard = true
 				}
 			}
 
 			// If the origin is allowed, append the required CORS headers
-			if isAllowed {
-				// We echo back the specific origin rather than "*" to support credentials
+			if isExactMatch {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-
-				// Allow headers necessary for JSON APIs, Auth, and Media Streaming
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, Range")
-
-				// Expose headers so the frontend JavaScript can read them (Crucial for streaming/chunking)
 				w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Disposition")
-
-				// Allow credentials (like cookies or Authorization headers) to be sent cross-origin
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			} else if isWildcard {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, Range")
+				w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, Content-Disposition")
 			}
 
 			// Handle preflight requests (OPTIONS method)
 			// The browser sends this before the actual request to verify permissions.
 			if r.Method == http.MethodOptions {
-				// If it's a preflight, we answer successfully and stop the chain here.
-				w.WriteHeader(http.StatusOK)
+				if isExactMatch || isWildcard {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 

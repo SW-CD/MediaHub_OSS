@@ -26,22 +26,21 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 			continue
 		}
 
-		totalEntries := stats.EntryCount
-		if totalEntries == 0 {
-			fmt.Printf("- Step 1: Entry Status Corrections: 100%% (0 entries)\n")
-			continue
-		}
-
 		// Slices to hold IDs for bulk operations
 		var markReadyIDs []int64
 		var deleteZombiesIDs []int64
 		var deleteStuckIDs []int64
 
+		expectedEntries := stats.EntryCount
+		if expectedEntries == 0 {
+			expectedEntries = 1
+		}
+
 		limit := 1000
 		processed := uint64(0)
 
 		// --- PHASE 1: Scanning ---
-		for offset := 0; uint64(offset) < totalEntries; offset += limit {
+		for offset := 0; true; offset += limit {
 			entries, err := s.repo.GetEntries(ctx, db.ID, repository.QueryOptions{
 				Limit:  limit,
 				Offset: offset,
@@ -52,7 +51,6 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 				return fmt.Errorf("failed to fetch entries for %s: %w", db.Name, err)
 			}
 
-			// Failsafe if totalEntries drifted during run
 			if len(entries) == 0 {
 				break
 			}
@@ -61,7 +59,10 @@ func (s *RecoveryService) EntryStatusCorrection(ctx context.Context) error {
 				processed++
 
 				// Update console with carriage return (\r) to overwrite the line
-				percent := (processed * 100) / totalEntries
+				percent := (processed * 100) / expectedEntries
+				if percent > 99 {
+					percent = 99
+				}
 				fmt.Printf("\r- Step 1: Entry Status Corrections: %d%% (Scanning...)", percent)
 
 				if entry.Status == repository.EntryStatusProcessing {

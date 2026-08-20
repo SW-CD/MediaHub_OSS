@@ -24,6 +24,11 @@ func LoadConfig(path string) (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
+	// Explicitly bind environment variable aliases where concept doc names differ from struct mapstructure keys
+	_ = viper.BindEnv("server.max_sync_upload_size", "MEDIAHUB_SERVER_MAX_SYNC_UPLOAD", "MEDIAHUB_SERVER_MAX_SYNC_UPLOAD_SIZE")
+	_ = viper.BindEnv("server.cors_allowed_origins", "MEDIAHUB_SERVER_CORS_ORIGINS", "MEDIAHUB_SERVER_CORS_ALLOWED_ORIGINS")
+	_ = viper.BindEnv("auth.oidc.disable_login_page", "MEDIAHUB_AUTH_OIDC_DISABLE_LOCAL_LOGIN", "MEDIAHUB_AUTH_OIDC_DISABLE_LOGIN_PAGE")
+
 	// 3. Read the TOML file
 	if err := viper.ReadInConfig(); err != nil {
 		// If the file simply isn't there, that's fine. But if it's malformed, we should panic/return.
