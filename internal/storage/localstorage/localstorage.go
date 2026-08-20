@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
+	"mediahub_oss/internal/shared/customerrors"
 	"mediahub_oss/internal/storage"
 	"os"
 	"path/filepath"
@@ -54,6 +56,9 @@ func (ds *LocalStorage) Read(ctx context.Context, dbID string, id int64, offset 
 
 	f, err := os.Open(fullPath)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, customerrors.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -85,6 +90,9 @@ func (ds *LocalStorage) ReadPreview(ctx context.Context, dbID string, id int64) 
 
 	f, err := os.Open(fullPath)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, customerrors.ErrNotFound
+		}
 		return nil, err
 	}
 

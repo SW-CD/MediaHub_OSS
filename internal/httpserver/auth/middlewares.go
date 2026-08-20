@@ -20,6 +20,8 @@ type AuthMiddleware struct {
 	Repo             repository.Repository
 	JWTSecret        []byte
 	apiKeyUpdateChan chan APIKeyUpdateRequest // Buffered channel for debouncing and precision timing
+	stopChan         chan struct{}
+	doneChan         chan struct{}
 }
 
 // APIKeyUpdateRequest holds the exact timestamp the key was used for precise tracking.
@@ -34,12 +36,26 @@ func NewAuthMiddleware(repo repository.Repository, secret string) *AuthMiddlewar
 		Repo:             repo,
 		JWTSecret:        []byte(secret),
 		apiKeyUpdateChan: make(chan APIKeyUpdateRequest, 5000), // Generous buffer
+		stopChan:         make(chan struct{}),
+		doneChan:         make(chan struct{}),
 	}
 
 	// Start the background worker for API key debouncing
 	go am.apiKeyUpdateWorker()
 
 	return am
+}
+
+// Close stops the background API key update worker and flushes pending updates.
+func (am *AuthMiddleware) Close() {
+	select {
+	case <-am.stopChan:
+		// already closed
+		return
+	default:
+		close(am.stopChan)
+		<-am.doneChan
+	}
 }
 
 // ---------------------------------------------------------------------

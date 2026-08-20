@@ -41,17 +41,30 @@ func writeFileStream(fullPath string, stream io.Reader) (int64, error) {
 		return 0, fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	// Create the actual file
-	f, err := os.Create(fullPath)
+	// Write to a temporary file in the same directory to ensure atomic replacement
+	tempFile, err := os.CreateTemp(dir, ".upload-tmp-*")
 	if err != nil {
-		return 0, fmt.Errorf("failed to create file %s: %w", fullPath, err)
+		return 0, fmt.Errorf("failed to create temp file in %s: %w", dir, err)
 	}
-	defer f.Close()
+	tempPath := tempFile.Name()
 
-	// Stream the data from the reader directly to the file on disk
-	written, err := io.Copy(f, stream)
-	if err != nil {
-		return written, fmt.Errorf("failed to stream data to file: %w", err)
+	// Stream the data from the reader directly to the temp file
+	written, copyErr := io.Copy(tempFile, stream)
+	closeErr := tempFile.Close()
+
+	if copyErr != nil {
+		os.Remove(tempPath)
+		return written, fmt.Errorf("failed to stream data to file: %w", copyErr)
+	}
+	if closeErr != nil {
+		os.Remove(tempPath)
+		return written, fmt.Errorf("failed to close temp file %s: %w", tempPath, closeErr)
+	}
+
+	// Atomically rename temp file to final destination
+	if err := os.Rename(tempPath, fullPath); err != nil {
+		os.Remove(tempPath)
+		return written, fmt.Errorf("failed to move temp file to destination %s: %w", fullPath, err)
 	}
 
 	return written, nil

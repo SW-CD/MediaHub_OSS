@@ -30,10 +30,12 @@ func (am *AuthMiddleware) validateJWT(tokenString string) (repository.User, erro
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		// Check expiration
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Unix(int64(exp), 0).Before(time.Now()) {
-				return repository.User{}, errors.New("token expired")
-			}
+		exp, err := claims.GetExpirationTime()
+		if err != nil || exp == nil {
+			return repository.User{}, errors.New("missing or invalid expiration claim")
+		}
+		if exp.Before(time.Now()) {
+			return repository.User{}, errors.New("token expired")
 		}
 
 		// Extract User ID (ULID string)

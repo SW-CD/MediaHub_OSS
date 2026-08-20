@@ -75,34 +75,31 @@ func (s *S3StorageProvider) StatPreview(ctx context.Context, dbID string, id int
 func (s *S3StorageProvider) Read(ctx context.Context, dbID string, id int64, offset int64, length int64) (io.ReadCloser, error) {
 	objectKey := getObjectKey(dbID, id)
 
-	obj, err := s.client.GetObject(ctx, s.bucket, objectKey, minio.GetObjectOptions{})
+	// Verify object exists before returning reader
+	if _, err := s.client.StatObject(ctx, s.bucket, objectKey, minio.StatObjectOptions{}); err != nil {
+		if isNotFoundError(err) {
+			return nil, customerrors.ErrNotFound
+		}
+		return nil, err
+	}
+
+	opts := minio.GetObjectOptions{}
+	if offset > 0 || length >= 0 {
+		var end int64
+		if length >= 0 {
+			end = offset + length - 1
+		}
+		if err := opts.SetRange(offset, end); err != nil {
+			return nil, err
+		}
+	}
+
+	obj, err := s.client.GetObject(ctx, s.bucket, objectKey, opts)
 	if err != nil {
 		if isNotFoundError(err) {
 			return nil, customerrors.ErrNotFound
 		}
 		return nil, err
-	}
-
-	if _, err := obj.Stat(); err != nil {
-		obj.Close()
-		if isNotFoundError(err) {
-			return nil, customerrors.ErrNotFound
-		}
-		return nil, err
-	}
-
-	if offset > 0 {
-		if _, err := obj.Seek(offset, io.SeekStart); err != nil {
-			obj.Close()
-			return nil, err
-		}
-	}
-
-	if length >= 0 {
-		return &limitedReadCloser{
-			Reader: io.LimitReader(obj, length),
-			Closer: obj,
-		}, nil
 	}
 
 	return obj, nil

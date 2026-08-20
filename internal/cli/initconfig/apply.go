@@ -127,19 +127,21 @@ func Apply(ctx context.Context, config *InitConfig, repo repository.Repository, 
 				}
 			}
 
-			// Clear the plaintext password in memory
-			config.Users[i].Password = ""
-			passwordsRedacted = true
-
 		} else if err != nil {
 			logger.Error("Error checking user existence", "user", userInit.Name, "error", err)
 		} else {
 			logger.Debug("User from init config already exists, skipping", "user", userInit.Name)
 		}
+
+		// Clear the plaintext password in memory for all users
+		if userInit.Password != "" {
+			config.Users[i].Password = ""
+			passwordsRedacted = true
+		}
 	}
 
-	// 3. Redact passwords in the TOML file if any new users were created
-	if passwordsRedacted {
+	// 3. Redact passwords in the TOML file if any passwords were present
+	if passwordsRedacted && filePath != "" {
 		if err := redactPasswordsInFile(filePath, config); err != nil {
 			logger.Warn("Failed to overwrite init config file to remove passwords", "path", filePath, "error", err)
 		} else {

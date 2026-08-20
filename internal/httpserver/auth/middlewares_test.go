@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"mediahub_oss/internal/httpserver/auth"
 	"mediahub_oss/internal/httpserver/utils"
 	repo "mediahub_oss/internal/repository"
@@ -172,4 +174,160 @@ func TestRequireDatabasePermission_JSONErrorResponse(t *testing.T) {
 			t.Fatalf("expected non-empty error message")
 		}
 	})
+}
+
+type mockAuthRepo struct {
+	repo.Repository
+	user              repo.User
+	apiKey            repo.APIKey
+	updatedAPIKeyID   repo.ULID
+	updatedAPIKeyDur  time.Duration
+	updateAPIKeyCount int
+}
+
+func (m *mockAuthRepo) GetUserByID(ctx context.Context, id repo.ULID) (repo.User, error) {
+	return m.user, nil
+}
+
+func (m *mockAuthRepo) GetAPIKeyWithOwnerByHash(ctx context.Context, hash string) (repo.APIKey, repo.User, error) {
+	return m.apiKey, m.user, nil
+}
+
+func (m *mockAuthRepo) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, dur time.Duration) error {
+	m.updatedAPIKeyID = id
+	m.updatedAPIKeyDur = dur
+	m.updateAPIKeyCount++
+	return nil
+}
+
+func (m *mockAuthRepo) GetUserPermissions(ctx context.Context, userID repo.ULID, dbID repo.ULID) (repo.UserPermissions, error) {
+	return repo.UserPermissions{}, nil
+}
+
+func (m *mockAuthRepo) GetAllUserPermissions(ctx context.Context, userID repo.ULID) ([]repo.UserPermissions, error) {
+	return nil, nil
+}
+
+func TestJWT_ExpClaimEnforcement(t *testing.T) {
+	secret := "test_jwt_secret_key_123456789012"
+	mockRepo := &mockAuthRepo{
+		user: repo.User{
+			ID:       "01HGFB9Z5W7ABCDEFGHJKMNPQR",
+			Username: "testuser",
+		},
+	}
+	am := auth.NewAuthMiddleware(mockRepo, secret)
+	defer am.Close()
+
+	handler := am.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	t.Run("token without exp claim is rejected", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"sub": "01HGFB9Z5W7ABCDEFGHJKMNPQR",
+			"iat": time.Now().Unix(),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenStr, err := token.SignedString([]byte(secret))
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenStr)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status 401 for token without exp claim, got %d", rec.Code)
+		}
+	})
+
+	t.Run("expired token is rejected", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"sub": "01HGFB9Z5W7ABCDEFGHJKMNPQR",
+			"exp": time.Now().Add(-1 * time.Hour).Unix(),
+			"iat": time.Now().Add(-2 * time.Hour).Unix(),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenStr, err := token.SignedString([]byte(secret))
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenStr)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status 401 for expired token, got %d", rec.Code)
+		}
+	})
+
+	t.Run("valid token with exp is accepted", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"sub": "01HGFB9Z5W7ABCDEFGHJKMNPQR",
+			"exp": time.Now().Add(1 * time.Hour).Unix(),
+			"iat": time.Now().Unix(),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenStr, err := token.SignedString([]byte(secret))
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenStr)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200 for valid token, got %d", rec.Code)
+		}
+	})
+}
+
+func TestAPIKeyWorker_CloseFlushesUpdates(t *testing.T) {
+	secret := "test_jwt_secret_key_123456789012"
+	keyID := repo.ULID("01HGFB9Z5W7ABCDEFGHJKMNPQR")
+	mockRepo := &mockAuthRepo{
+		user: repo.User{
+			ID:       "01HGFB9Z5W7ABCDEFGHJKMNPQR",
+			Username: "apikeyuser",
+		},
+		apiKey: repo.APIKey{
+			ID:        keyID,
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	am := auth.NewAuthMiddleware(mockRepo, secret)
+
+	handler := am.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer srv_validapikey12345")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	// Close immediately, which should trigger flush before worker exits
+	am.Close()
+
+	if mockRepo.updateAPIKeyCount != 1 {
+		t.Fatalf("expected 1 update to repo on Close, got %d", mockRepo.updateAPIKeyCount)
+	}
+	if mockRepo.updatedAPIKeyID != keyID {
+		t.Fatalf("expected keyID %s, got %s", keyID, mockRepo.updatedAPIKeyID)
+	}
 }
