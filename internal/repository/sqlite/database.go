@@ -131,7 +131,7 @@ func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID repo.ULID) (rep
 	}
 
 	// Load custom fields
-	cfs, err := r.getCustomFields(ctx, r.DB, db.ID)
+	cfs, err := r.getCustomFields(ctx, db.ID)
 	if err != nil {
 		return repo.Database{}, err
 	}
@@ -283,6 +283,9 @@ func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID repo.ULID) e
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	// Invalidate custom fields cache for the deleted database
+	r.Cache.Delete("cf:" + dbID.String())
 
 	return nil
 }

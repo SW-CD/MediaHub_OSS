@@ -20,13 +20,13 @@ import (
 //
 // HOW TO USE:
 // 1. Define query helper functions to accept Queryer:
-//    func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID string)
+//    func (r *SQLiteRepository) queryCustomFields(ctx context.Context, q Queryer, dbID repo.ULID) ([]repo.CustomFieldDef, error)
 //
 // 2. Call the helper passing r.DB when outside a transaction:
-//    r.getCustomFields(ctx, r.DB, dbID)
+//    r.queryCustomFields(ctx, r.DB, dbID)
 //
 // 3. Call the helper passing tx when inside a transaction:
-//    r.getCustomFields(ctx, tx, dbID)
+//    r.queryCustomFields(ctx, tx, dbID)
 type Queryer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row

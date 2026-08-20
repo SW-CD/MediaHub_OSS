@@ -128,7 +128,7 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
 func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.Entry, error) {
-	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	customFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return repo.Entry{}, err
 	}
@@ -179,7 +179,7 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts 
 		builder = builder.Offset(uint64(opts.Offset))
 	}
 
-	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	customFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return nil, err
 	}
@@ -212,17 +212,17 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entr
 		entryTime = entry.Timestamp
 	}
 
+	customFields, err := r.getCustomFields(ctx, dbID)
+	if err != nil {
+		return repo.Entry{}, err
+	}
+
 	// 1. Begin SQL Transaction
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-
-	customFields, err := r.getCustomFields(ctx, tx, dbID)
-	if err != nil {
-		return repo.Entry{}, err
-	}
 
 	// 2. Query the current size of the entry before updating
 	var oldSize, oldPreviewSize uint64
@@ -569,7 +569,7 @@ func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID,
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
 func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) ([]repo.Entry, error) {
-	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	customFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return nil, err
 	}

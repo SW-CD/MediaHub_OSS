@@ -35,7 +35,9 @@ func (r *PostgresRepository) LogAudit(ctx context.Context, log repository.AuditL
 		return err
 	}
 
-	_, _ = r.DB.ExecContext(ctx, query, args...)
+	if _, err := r.DB.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("failed to insert audit log: %w", err)
+	}
 	return nil
 }
 

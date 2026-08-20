@@ -32,7 +32,9 @@ func (r *SQLiteRepository) LogAudit(ctx context.Context, log repository.AuditLog
 	}
 
 	// 3. Execute the insert
-	_, _ = r.DB.ExecContext(ctx, query, args...)
+	if _, err := r.DB.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("failed to insert audit log: %w", err)
+	}
 	return nil
 }
 

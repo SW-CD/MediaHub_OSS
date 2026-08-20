@@ -180,3 +180,64 @@ func TestGetEntries_TimeFilterEpochAndHistorical(t *testing.T) {
 		t.Fatalf("expected only photo_1970.jpg, got %v", resultsEpoch)
 	}
 }
+
+func TestDeleteDatabase_InvalidatesCustomFieldsCache(t *testing.T) {
+	ctx := context.Background()
+
+	r, err := sqlite.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("failed to set goose dialect: %v", err)
+	}
+	goose.SetBaseFS(migrations.EmbedFS)
+	if err := goose.Up(r.DB, "sqlite"); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
+	}
+
+	dbModel := repo.Database{
+		Name:        "test_cf_db",
+		ContentType: "image",
+	}
+	createdDB, err := r.CreateDatabase(ctx, dbModel)
+	if err != nil {
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	// Add custom field
+	_, err = r.AddCustomField(ctx, createdDB.ID, repo.CustomFieldDef{
+		Name: "photographer",
+		Type: "string",
+	})
+	if err != nil {
+		t.Fatalf("failed to add custom field: %v", err)
+	}
+
+	// Fetch custom fields to populate cache
+	fields, err := r.GetCustomFields(ctx, createdDB.ID)
+	if err != nil {
+		t.Fatalf("failed to get custom fields: %v", err)
+	}
+	if len(fields) != 1 {
+		t.Fatalf("expected 1 custom field, got %d", len(fields))
+	}
+
+	// Verify cache has the key
+	cacheKey := "cf:" + createdDB.ID.String()
+	if _, found := r.Cache.Get(cacheKey); !found {
+		t.Fatalf("expected cache key %s to be populated", cacheKey)
+	}
+
+	// Delete database
+	if err := r.DeleteDatabase(ctx, createdDB.ID); err != nil {
+		t.Fatalf("failed to delete database: %v", err)
+	}
+
+	// Verify cache key was evicted
+	if _, found := r.Cache.Get(cacheKey); found {
+		t.Fatalf("expected cache key %s to be deleted after DeleteDatabase", cacheKey)
+	}
+}

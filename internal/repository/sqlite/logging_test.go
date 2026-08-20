@@ -84,3 +84,55 @@ func TestGetLogs_TimeFilterEpochAndHistorical(t *testing.T) {
 		t.Fatalf("expected only epoch 1970 log, got %v", logsEpoch)
 	}
 }
+
+func TestLogAudit_SuccessAndError(t *testing.T) {
+	ctx := context.Background()
+
+	r, err := sqlite.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+
+	// Before migrations, audit_logs table does not exist. LogAudit must return an error.
+	err = r.LogAudit(ctx, repo.AuditLog{
+		Action:   "TEST_ACTION",
+		Actor:    "admin",
+		Resource: "system",
+		Details:  map[string]any{"test": "val"},
+	})
+	if err == nil {
+		t.Fatalf("expected LogAudit to return error when audit_logs table does not exist, got nil")
+	}
+
+	// Apply migrations
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("failed to set goose dialect: %v", err)
+	}
+	goose.SetBaseFS(migrations.EmbedFS)
+	if err := goose.Up(r.DB, "sqlite"); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
+	}
+
+	// After migrations, LogAudit must succeed
+	err = r.LogAudit(ctx, repo.AuditLog{
+		Action:   "TEST_ACTION",
+		Actor:    "admin",
+		Resource: "system",
+		Details:  map[string]any{"test": "val"},
+	})
+	if err != nil {
+		t.Fatalf("expected LogAudit to succeed, got: %v", err)
+	}
+
+	// Close repo DB. Subsequent LogAudit must return error.
+	r.Close()
+	err = r.LogAudit(ctx, repo.AuditLog{
+		Action:   "TEST_ACTION",
+		Actor:    "admin",
+		Resource: "system",
+		Details:  map[string]any{"test": "val"},
+	})
+	if err == nil {
+		t.Fatalf("expected LogAudit to return error on closed DB, got nil")
+	}
+}

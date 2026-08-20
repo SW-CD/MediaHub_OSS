@@ -23,16 +23,28 @@ func (r *SQLiteRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) 
 	if !exists {
 		return nil, customerrors.ErrNotFound
 	}
-	return r.getCustomFields(ctx, r.DB, dbID)
+	return r.getCustomFields(ctx, dbID)
 }
 
-// getCustomFields retrieves all custom fields for a specific database with cache backing.
-func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
+// getCustomFields retrieves all custom fields for a specific database backed by in-memory cache.
+func (r *SQLiteRepository) getCustomFields(ctx context.Context, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
 	cacheKey := "cf:" + dbID.String()
 	if val, found := r.Cache.Get(cacheKey); found {
 		return val.([]repo.CustomFieldDef), nil
 	}
 
+	fields, err := r.queryCustomFields(ctx, r.DB, dbID)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Cache.Set(cacheKey, fields, 5*time.Minute)
+	return fields, nil
+}
+
+// queryCustomFields executes a raw SQL query to retrieve custom fields from the database.
+// It is a pure database helper that executes on any Queryer (*sql.DB or *sql.Tx) without touching cache.
+func (r *SQLiteRepository) queryCustomFields(ctx context.Context, q Queryer, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
 	query, args, err := r.Builder.Select("field_id", "name", "type", "is_indexed").
 		From("database_custom_fields").
 		Where(squirrel.Eq{"database_id": dbID.String()}).
@@ -65,7 +77,6 @@ func (r *SQLiteRepository) getCustomFields(ctx context.Context, q Queryer, dbID 
 		fields = []repo.CustomFieldDef{}
 	}
 
-	r.Cache.Set(cacheKey, fields, 5*time.Minute)
 	return fields, nil
 }
 
@@ -93,7 +104,7 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID repo.ULID, f
 	}
 
 	// Load existing fields
-	existingFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	existingFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return repo.CustomFieldDef{}, err
 	}
@@ -183,7 +194,7 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID
 	}
 
 	// Load existing fields
-	existingFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	existingFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return repo.CustomFieldDef{}, err
 	}
@@ -298,7 +309,7 @@ func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID repo.ULID
 	}
 
 	// Load existing fields to check if this one exists
-	existingFields, err := r.getCustomFields(ctx, r.DB, dbID)
+	existingFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return err
 	}

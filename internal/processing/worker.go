@@ -194,7 +194,6 @@ func (p *Processor) runConversionAndFinalize(
 	p.Logger.Debug("Worker: Starting conversion and finalize", "entry", entry.ID)
 
 	var processErr error
-	var meta map[string]any = map[string]any{}
 	var fileSize int64 = 0
 
 	currentPath := originalTempPath
@@ -238,8 +237,9 @@ func (p *Processor) runConversionAndFinalize(
 	}
 
 	if mf, err := media.GetMetadataFields(db.ContentType); err == nil && len(mf) > 0 {
-		meta, err = p.MediaConverter.ReadMediaFieldsFromFile(ctx, currentPath, db.ContentType)
-		if err != nil {
+		if extractedMeta, err := p.MediaConverter.ReadMediaFieldsFromFile(ctx, currentPath, db.ContentType); err == nil {
+			entry.MediaFields = extractedMeta
+		} else {
 			p.Logger.Warn("Worker: Failed to extract metadata", "entry", entry.ID, "error", err)
 		}
 	}
@@ -255,7 +255,9 @@ func (p *Processor) runConversionAndFinalize(
 		}()
 
 		if previewSize, err := p.Storage.WritePreview(ctx, db.ID.String(), entry.ID, pr); err != nil {
+			pr.CloseWithError(err)
 			p.Logger.Error("Worker: Failed to save preview to storage", "entry", entry.ID, "error", err)
+			<-errChan
 		} else if genErr := <-errChan; genErr != nil {
 			p.Logger.Error("Worker: Failed to generate preview", "entry", entry.ID, "error", genErr)
 		} else {
@@ -281,7 +283,6 @@ func (p *Processor) runConversionAndFinalize(
 	entry.Size = uint64(fileSize)
 	entry.MimeType = plan.ResultMimeType
 	entry.FileName = plan.FinalFileName
-	entry.MediaFields = meta
 
 	if _, err := p.Repo.UpdateEntry(ctx, db.ID, entry); err != nil {
 		processErr = fmt.Errorf("failed to update final database stats: %w", err)

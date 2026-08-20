@@ -42,7 +42,9 @@ func (p *Processor) handleSmallFileSync(
 	var streamToUpload io.ReadSeeker = file
 	if plan.WantsConversion && plan.NeedsConversion {
 		if !plan.CanConvert {
-			return repo.Entry{}, fmt.Errorf("cannot convert %v to the database mime type %v", plan.InitMimeType, db.Config.AutoConversion)
+			err := fmt.Errorf("cannot convert %v to the database mime type %v", plan.InitMimeType, db.Config.AutoConversion)
+			cleanupOnError(err)
+			return repo.Entry{}, err
 		}
 
 		if _, err := streamToUpload.Seek(0, io.SeekStart); err != nil {

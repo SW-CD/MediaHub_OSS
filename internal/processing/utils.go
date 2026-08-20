@@ -68,6 +68,8 @@ func (p *Processor) generateAndStorePreview(
 
 	previewSize, err := p.Storage.WritePreview(ctx, db.ID.String(), entryID, pr)
 	if err != nil {
+		pr.CloseWithError(err)
+		<-errChan
 		return 0, fmt.Errorf("failed to save preview to storage: %w", err)
 	}
 
