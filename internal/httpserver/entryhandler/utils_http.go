@@ -137,22 +137,26 @@ func encodeReaderAsJSON(reader io.Reader, filename, mimeType string) (FileJSONRe
 	return resp, nil
 }
 
-// parseQueryInt safely parses an integer from query parameters, falling back to a default value.
-func parseQueryInt(r *http.Request, key string, defaultValue int) int {
+// parseQueryInt safely parses an integer from query parameters, falling back to a default value if omitted.
+func parseQueryInt(r *http.Request, key string, defaultValue int) (int, error) {
 	if val := r.URL.Query().Get(key); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			return parsed
+		parsed, err := strconv.Atoi(val)
+		if err != nil {
+			return 0, fmt.Errorf("invalid value for parameter '%s': must be an integer", key)
 		}
+		return parsed, nil
 	}
-	return defaultValue
+	return defaultValue, nil
 }
 
-// parseQueryInt64 safely parses a 64-bit integer from query parameters, falling back to a default value.
-func parseQueryInt64(r *http.Request, key string, defaultValue int64) int64 {
+// parseQueryInt64 safely parses a 64-bit integer from query parameters, falling back to a default value if omitted.
+func parseQueryInt64(r *http.Request, key string, defaultValue int64) (int64, error) {
 	if val := r.URL.Query().Get(key); val != "" {
-		if parsed, err := strconv.ParseInt(val, 10, 64); err == nil {
-			return parsed
+		parsed, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid value for parameter '%s': must be an integer", key)
 		}
+		return parsed, nil
 	}
-	return defaultValue
+	return defaultValue, nil
 }

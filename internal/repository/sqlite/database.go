@@ -26,6 +26,8 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 	// Generate ULID if not provided by the handler
 	if db.ID == "" {
 		db.ID = repo.ULID(shared.GenerateULID())
+	} else if !shared.IsValidULID(db.ID.String()) {
+		return repo.Database{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
 	}
 
 	var hkLastRunMs int64 = 0
@@ -116,6 +118,10 @@ func (r *SQLiteRepository) CreateDatabase(ctx context.Context, db repo.Database)
 
 // GetDatabase retrieves a single database configuration by its ULID.
 func (r *SQLiteRepository) GetDatabase(ctx context.Context, dbID repo.ULID) (repo.Database, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.Database{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	query, args, err := r.Builder.Select("id", "name", "content_type", "hk_interval", "hk_disk_space", "hk_max_age", "create_preview", "auto_conversion", "n_max_queued", "hk_last_run", "entry_count", "total_disk_space_bytes").
 		From("databases").
 		Where(squirrel.Eq{"id": dbID.String()}).
@@ -214,6 +220,9 @@ func (r *SQLiteRepository) GetDatabases(ctx context.Context) ([]repo.Database, e
 
 // UpdateDatabase updates the mutable configuration fields of a database, including its name.
 func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database) (repo.Database, error) {
+	if !shared.IsValidULID(db.ID.String()) {
+		return repo.Database{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
 
 	var hkLastRunMs int64 = 0
 	if !db.Housekeeping.LastHkRun.IsZero() {
@@ -252,6 +261,10 @@ func (r *SQLiteRepository) UpdateDatabase(ctx context.Context, db repo.Database)
 
 // DeleteDatabase permanently removes a database, its entries table, and cascades to permissions.
 func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID repo.ULID) error {
+	if !shared.IsValidULID(dbID.String()) {
+		return fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -292,6 +305,10 @@ func (r *SQLiteRepository) DeleteDatabase(ctx context.Context, dbID repo.ULID) e
 
 // GetDatabaseStats retrieves live statistics for a specific database by its ID.
 func (r *SQLiteRepository) GetDatabaseStats(ctx context.Context, dbID repo.ULID) (repo.DatabaseStats, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.DatabaseStats{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	query, args, err := r.Builder.Select("entry_count", "total_disk_space_bytes").
 		From("databases").
 		Where(squirrel.Eq{"id": dbID.String()}).

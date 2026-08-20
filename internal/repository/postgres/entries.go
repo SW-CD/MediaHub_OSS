@@ -12,11 +12,16 @@ import (
 
 	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
 // CreateEntry inserts a new entry into the database's specific table and updates global stats.
 func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, entry repo.Entry) (repo.Entry, error) {
+	if !shared.IsValidULID(db.ID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	isValidMime, err := media.IsMimeOfType(db.ContentType, entry.MimeType)
 	if !isValidMime {
 		return repo.Entry{}, customerrors.ErrBadMimeType
@@ -121,6 +126,10 @@ func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, 
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
 func (r *PostgresRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
 	if err != nil {
 		return repo.Entry{}, err
@@ -148,6 +157,10 @@ func (r *PostgresRepository) GetEntry(ctx context.Context, dbID repo.ULID, id in
 
 // GetEntries retrieves a paginated list of entries, optionally filtered by a time range.
 func (r *PostgresRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts repo.QueryOptions) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
@@ -197,6 +210,10 @@ func (r *PostgresRepository) GetEntries(ctx context.Context, dbID repo.ULID, opt
 
 // UpdateEntry modifies an existing entry's metadata and safely adjusts the parent database's size statistics.
 func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entry repo.Entry) (repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	var entryTime time.Time
@@ -300,6 +317,10 @@ func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, en
 
 // UpdateEntriesStatus modifies the status of multiple entries at once using ANY($1).
 func (r *PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.ULID, entryIDs []int64, status repo.EntryStatus) error {
+	if !shared.IsValidULID(dbID.String()) {
+		return fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if len(entryIDs) == 0 {
 		return nil
 	}
@@ -330,6 +351,10 @@ func (r *PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.
 
 // DeleteEntry removes a single entry and atomically decrements parent database stats.
 func (r *PostgresRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.DeletedEntryMeta, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.DeletedEntryMeta{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -378,6 +403,10 @@ func (r *PostgresRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id
 
 // DeleteEntries removes multiple entries in a single transaction and updates stats once.
 func (r *PostgresRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if len(entryIDs) == 0 {
 		return nil, customerrors.ErrNotFound
 	}
@@ -452,6 +481,10 @@ func (r *PostgresRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, 
 
 // SearchEntries retrieves entries matching complex nested filter criteria.
 func (r *PostgresRepository) SearchEntries(ctx context.Context, dbID repo.ULID, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	builder := r.Builder.Select("*").From(tableName)
 
@@ -531,6 +564,10 @@ func (r *PostgresRepository) SearchEntries(ctx context.Context, dbID repo.ULID, 
 // In a multi-node / multi-pod deployment, if multiple background worker routines attempt to claim the same queued file simultaneously,
 // only the worker receiving RowsAffected == 1 claims the task; other workers silently back off.
 func (r *PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID, entryID int64) (bool, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return false, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Update(tableName).
 		Set("status", repo.EntryStatusProcessing).
@@ -554,6 +591,10 @@ func (r *PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULI
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
 func (r *PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	customFields, err := r.getCustomFields(ctx, r.DB, dbID)
 	if err != nil {
 		return nil, err
@@ -581,6 +622,10 @@ func (r *PostgresRepository) GetEntriesByStatus(ctx context.Context, dbID repo.U
 
 // CountEntriesByStatus counts the number of entries with the specified status.
 func (r *PostgresRepository) CountEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) (int64, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return 0, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Select("COUNT(*)").From(tableName).Where(squirrel.Eq{"status": status}).ToSql()
 	if err != nil {

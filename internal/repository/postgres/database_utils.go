@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 	"regexp"
 	"strings"
@@ -57,6 +58,10 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 // Optimization: Uses SMALLINT (2 bytes) for entry status instead of 4-byte INTEGER to optimize storage on millions of rows.
 // CHECK constraints are preferred over native PG ENUMs for transactional migration safety and driver compatibility.
 func (r *PostgresRepository) BuildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomFieldDef) (string, error) {
+	if !shared.IsValidULID(dbID) {
+		return "", fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var sb strings.Builder

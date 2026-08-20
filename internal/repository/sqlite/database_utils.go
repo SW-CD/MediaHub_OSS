@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 	"strings"
 	"time"
@@ -55,6 +56,10 @@ func scanDatabaseRow(s scanner) (repo.Database, error) {
 
 // BuildDynamicTableSchema generates the CREATE TABLE statement using the database ID.
 func (r *SQLiteRepository) BuildDynamicTableSchema(dbID, contentType string, customFields []repo.CustomFieldDef) (string, error) {
+	if !shared.IsValidULID(dbID) {
+		return "", fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID)
 
 	var sb strings.Builder

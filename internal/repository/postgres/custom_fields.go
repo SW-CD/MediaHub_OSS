@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 
 	"github.com/Masterminds/squirrel"
@@ -13,6 +14,10 @@ import (
 
 // GetCustomFields retrieves all custom fields for a specific database.
 func (r *PostgresRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = $1)", dbID.String()).Scan(&exists)
 	if err != nil {
@@ -61,6 +66,10 @@ func (r *PostgresRepository) getCustomFields(ctx context.Context, q Queryer, dbI
 
 // AddCustomField adds a new custom field to an existing database.
 func (r *PostgresRepository) AddCustomField(ctx context.Context, dbID repo.ULID, field repo.CustomFieldDef) (repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = $1)", dbID.String()).Scan(&exists)
 	if err != nil {
@@ -153,6 +162,10 @@ func (r *PostgresRepository) AddCustomField(ctx context.Context, dbID repo.ULID,
 
 // UpdateCustomField updates an existing custom field.
 func (r *PostgresRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID, fieldID int, name *string, isIndexed *bool) (repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = $1)", dbID.String()).Scan(&exists)
 	if err != nil {
@@ -254,6 +267,10 @@ func (r *PostgresRepository) UpdateCustomField(ctx context.Context, dbID repo.UL
 
 // DeleteCustomField deletes a custom field.
 func (r *PostgresRepository) DeleteCustomField(ctx context.Context, dbID repo.ULID, fieldID int) error {
+	if !shared.IsValidULID(dbID.String()) {
+		return fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = $1)", dbID.String()).Scan(&exists)
 	if err != nil {

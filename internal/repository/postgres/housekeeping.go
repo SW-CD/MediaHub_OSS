@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/squirrel"
 
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
@@ -50,6 +51,10 @@ func (r *PostgresRepository) HouseKeepingRequired(ctx context.Context) ([]repo.D
 
 // HouseKeepingWasCalled sets the LastHkRun to now (server timestamp).
 func (r *PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbID repo.ULID) (time.Time, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return time.Time{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	query, args, err := r.Builder.Update("databases").
 		Set("hk_last_run", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
 		Where(squirrel.Eq{"id": dbID.String()}).

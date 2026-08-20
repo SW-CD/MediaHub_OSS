@@ -159,3 +159,30 @@ password = "BobPassword"
 		}
 	})
 }
+
+func TestParseInitConfig_CreatePreview(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "init_preview.toml")
+	tomlData := `
+[[database]]
+name = "ImageDB"
+content_type = "image"
+config = { create_preview = true, auto_conversion = "jpeg" }
+`
+	if err := os.WriteFile(configFile, []byte(tomlData), 0644); err != nil {
+		t.Fatalf("failed to write test toml: %v", err)
+	}
+
+	cfg, err := initconfig.ParseInitConfig(configFile)
+	if err != nil {
+		t.Fatalf("ParseInitConfig failed: %v", err)
+	}
+
+	if len(cfg.Databases) != 1 {
+		t.Fatalf("expected 1 database, got %d", len(cfg.Databases))
+	}
+
+	if !cfg.Databases[0].Config.CreatePreview {
+		t.Errorf("expected CreatePreview to be true, got false")
+	}
+}

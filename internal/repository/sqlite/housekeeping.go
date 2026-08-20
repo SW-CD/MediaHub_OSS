@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/squirrel"
 
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
@@ -55,6 +56,10 @@ func (r *SQLiteRepository) HouseKeepingRequired(ctx context.Context) ([]repo.Dat
 // HouseKeepingWasCalled sets the LastHkRun to now (server timestamp),
 // used by housekeeping to track when the last run was.
 func (r *SQLiteRepository) HouseKeepingWasCalled(ctx context.Context, dbID repo.ULID) (time.Time, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return time.Time{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// Get current server time in milliseconds
 	now := time.Now()
 

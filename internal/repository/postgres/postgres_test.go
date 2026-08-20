@@ -8,6 +8,7 @@ import (
 
 	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared/customerrors"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
@@ -452,4 +453,46 @@ func TestPostgres_TimeFilterQueryBuilder(t *testing.T) {
 		}
 	})
 }
+
+func TestPostgresRepository_InvalidULIDValidation(t *testing.T) {
+	r := &PostgresRepository{
+		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+	ctx := t.Context()
+
+	invalidID := repo.ULID("invalid-ulid")
+
+	if _, err := r.BuildDynamicTableSchema("invalid-ulid", "image", nil); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from BuildDynamicTableSchema, got: %v", err)
+	}
+
+	if _, err := r.GetDatabase(ctx, invalidID); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from GetDatabase, got: %v", err)
+	}
+
+	if err := r.DeleteDatabase(ctx, invalidID); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from DeleteDatabase, got: %v", err)
+	}
+
+	if _, err := r.GetDatabaseStats(ctx, invalidID); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from GetDatabaseStats, got: %v", err)
+	}
+
+	if _, err := r.GetCustomFields(ctx, invalidID); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from GetCustomFields, got: %v", err)
+	}
+
+	if _, err := r.GetEntries(ctx, invalidID, repo.QueryOptions{Limit: 10}); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from GetEntries, got: %v", err)
+	}
+
+	if _, err := r.CreateEntry(ctx, repo.Database{ID: invalidID, ContentType: "image"}, repo.Entry{MimeType: "image/jpeg"}); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from CreateEntry, got: %v", err)
+	}
+
+	if _, err := r.HouseKeepingWasCalled(ctx, invalidID); !errors.Is(err, customerrors.ErrValidation) {
+		t.Errorf("expected ErrValidation from HouseKeepingWasCalled, got: %v", err)
+	}
+}
+
 

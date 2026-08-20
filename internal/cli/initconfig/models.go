@@ -47,7 +47,7 @@ type InitDatabase struct {
 
 // InitDatabaseConfig maps to the repository.DatabaseConfig.
 type InitDatabaseConfig struct {
-	CreatePreview  bool   `toml:"create_previews"` // Maps to "create_previews" or "create_preview" in TOML
+	CreatePreview  bool   `toml:"create_preview"`
 	AutoConversion string `toml:"auto_conversion"`
 }
 

@@ -12,11 +12,16 @@ import (
 
 	"mediahub_oss/internal/media"
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 )
 
 // CreateEntry inserts a new entry into the database's specific table and updates global stats.
 func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, entry repo.Entry) (repo.Entry, error) {
+	if !shared.IsValidULID(db.ID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// Verify mime type matching DB's content type
 	isValidMime, err := media.IsMimeOfType(db.ContentType, entry.MimeType)
 	if !isValidMime {
@@ -128,6 +133,10 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 // GetEntry retrieves a single entry by its ID using a dynamic row scanner.
 func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	customFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return repo.Entry{}, err
@@ -155,6 +164,10 @@ func (r *SQLiteRepository) GetEntry(ctx context.Context, dbID repo.ULID, id int6
 
 // GetEntries retrieves a paginated list of entries, optionally filtered by a time range.
 func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts repo.QueryOptions) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
@@ -205,6 +218,10 @@ func (r *SQLiteRepository) GetEntries(ctx context.Context, dbID repo.ULID, opts 
 
 // UpdateEntry modifies an existing entry's metadata and safely adjusts the parent database's size statistics.
 func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entry repo.Entry) (repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.Entry{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	var entryTime time.Time
@@ -310,6 +327,10 @@ func (r *SQLiteRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, entr
 
 // UpdateEntriesStatus efficiently modifies the async processing status of multiple entries at once.
 func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.ULID, entryIDs []int64, status repo.EntryStatus) error {
+	if !shared.IsValidULID(dbID.String()) {
+		return fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if len(entryIDs) == 0 {
 		return nil
 	}
@@ -342,6 +363,10 @@ func (r *SQLiteRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.UL
 
 // DeleteEntry removes a single entry and atomically decrements the parent database's statistics.
 func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id int64) (repo.DeletedEntryMeta, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.DeletedEntryMeta{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 
 	// 1. Begin SQL Transaction
@@ -394,6 +419,10 @@ func (r *SQLiteRepository) DeleteEntry(ctx context.Context, dbID repo.ULID, id i
 
 // DeleteEntries removes multiple entries in a single transaction and updates the database statistics once.
 func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, entryIDs []int64) ([]repo.DeletedEntryMeta, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	if len(entryIDs) == 0 {
 		return nil, customerrors.ErrNotFound
 	}
@@ -473,6 +502,10 @@ func (r *SQLiteRepository) DeleteEntries(ctx context.Context, dbID repo.ULID, en
 
 // SearchEntries retrieves entries matching complex nested filter criteria.
 func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID repo.ULID, req repo.SearchRequest, customFields []repo.CustomFieldDef) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	builder := r.Builder.Select("*").From(tableName)
 
@@ -553,6 +586,10 @@ func (r *SQLiteRepository) SearchEntries(ctx context.Context, dbID repo.ULID, re
 
 // ClaimQueuedEntry atomically claims a queued entry by changing its status to processing.
 func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID, entryID int64) (bool, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return false, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query := fmt.Sprintf(`UPDATE %s SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, tableName)
 	now := time.Now().UnixMilli()
@@ -569,6 +606,10 @@ func (r *SQLiteRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULID,
 
 // GetEntriesByStatus retrieves entries matching a status, ordered by ID ascending (oldest first).
 func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) ([]repo.Entry, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	customFields, err := r.getCustomFields(ctx, dbID)
 	if err != nil {
 		return nil, err
@@ -596,6 +637,10 @@ func (r *SQLiteRepository) GetEntriesByStatus(ctx context.Context, dbID repo.ULI
 
 // CountEntriesByStatus counts the number of entries with the specified status.
 func (r *SQLiteRepository) CountEntriesByStatus(ctx context.Context, dbID repo.ULID, status repo.EntryStatus) (int64, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return 0, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Select("COUNT(*)").From(tableName).Where(squirrel.Eq{"status": status}).ToSql()
 	if err != nil {

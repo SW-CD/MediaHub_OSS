@@ -435,9 +435,18 @@ func (r *PostgresRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.U
 		return fmt.Errorf("failed to build update last_used query: %w", err)
 	}
 
-	_, err = r.DB.ExecContext(ctx, query, args...)
+	res, err := r.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to execute update last_used: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return customerrors.ErrNotFound
 	}
 
 	return nil

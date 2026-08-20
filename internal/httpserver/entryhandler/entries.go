@@ -635,13 +635,10 @@ func (h *EntryHandler) DeleteEntries(w http.ResponseWriter, r *http.Request) {
 
 	// check for internal status or user errors
 	status := http.StatusOK
-	if err != nil {
-		if errors.Is(err, customerrors.ErrRepoUnavailable) || errors.Is(err, customerrors.ErrStorageUnavailable) {
-			status = http.StatusInternalServerError
-		} else if errors.Is(err, customerrors.ErrNotFound) {
+	if deletedCount == 0 && err != nil {
+		if errors.Is(err, customerrors.ErrNotFound) {
 			status = http.StatusNotFound
 		} else {
-			// Optional: Fallback status for any other unexpected errors
 			status = http.StatusInternalServerError
 		}
 	}
@@ -675,19 +672,35 @@ func (h *EntryHandler) QueryEntries(w http.ResponseWriter, r *http.Request) {
 
 	user := utils.GetUserFromContext(r.Context())
 
-	limit := parseQueryInt(r, "limit", 30)
-	offset := parseQueryInt(r, "offset", 0)
+	limit, err := parseQueryInt(r, "limit", 30)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	offset, err := parseQueryInt(r, "offset", 0)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	order := r.URL.Query().Get("order")
 	sortBy := r.URL.Query().Get("sort_by")
 	timeField := r.URL.Query().Get("time_field")
 
 	var tStart, tEnd time.Time
-	tStartQuery := parseQueryInt64(r, "tstart", math.MinInt64)
+	tStartQuery, err := parseQueryInt64(r, "tstart", math.MinInt64)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if tStartQuery != math.MinInt64 {
 		tStart = time.UnixMilli(tStartQuery)
 	}
-	tEndQuery := parseQueryInt64(r, "tend", math.MaxInt64)
+	tEndQuery, err := parseQueryInt64(r, "tend", math.MaxInt64)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if tEndQuery != math.MaxInt64 {
 		tEnd = time.UnixMilli(tEndQuery)
 	}
@@ -760,6 +773,10 @@ func (h *EntryHandler) SearchEntries(w http.ResponseWriter, r *http.Request) {
 	searchReq := searchPayload.toModel()
 	entries, err := h.Repo.SearchEntries(r.Context(), repo.ULID(dbID), searchReq, db.CustomFields)
 	if err != nil {
+		if errors.Is(err, customerrors.ErrValidation) {
+			utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		h.Logger.Error("Search failed", "error", err)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return

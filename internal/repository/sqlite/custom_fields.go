@@ -7,6 +7,7 @@ import (
 	"time"
 
 	repo "mediahub_oss/internal/repository"
+	"mediahub_oss/internal/shared"
 	"mediahub_oss/internal/shared/customerrors"
 
 	"github.com/Masterminds/squirrel"
@@ -14,6 +15,10 @@ import (
 
 // GetCustomFields retrieves all custom fields for a specific database.
 func (r *SQLiteRepository) GetCustomFields(ctx context.Context, dbID repo.ULID) ([]repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return nil, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// First check if database exists to return 404 if not found
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
@@ -82,6 +87,10 @@ func (r *SQLiteRepository) queryCustomFields(ctx context.Context, q Queryer, dbI
 
 // AddCustomField adds a new custom field to an existing database.
 func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID repo.ULID, field repo.CustomFieldDef) (repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// Check if database exists
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
@@ -183,6 +192,10 @@ func (r *SQLiteRepository) AddCustomField(ctx context.Context, dbID repo.ULID, f
 
 // UpdateCustomField updates an existing custom field.
 func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID, fieldID int, name *string, isIndexed *bool) (repo.CustomFieldDef, error) {
+	if !shared.IsValidULID(dbID.String()) {
+		return repo.CustomFieldDef{}, fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// Check if database exists
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)
@@ -298,6 +311,10 @@ func (r *SQLiteRepository) UpdateCustomField(ctx context.Context, dbID repo.ULID
 
 // DeleteCustomField deletes a custom field.
 func (r *SQLiteRepository) DeleteCustomField(ctx context.Context, dbID repo.ULID, fieldID int) error {
+	if !shared.IsValidULID(dbID.String()) {
+		return fmt.Errorf("%w: invalid database id", customerrors.ErrValidation)
+	}
+
 	// Check if database exists
 	var exists bool
 	err := r.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM databases WHERE id = ?)", dbID.String()).Scan(&exists)

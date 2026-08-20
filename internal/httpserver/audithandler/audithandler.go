@@ -1,6 +1,7 @@
 package audithandler
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -34,8 +35,16 @@ func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	_ = utils.GetUserFromContext(ctx)
 
 	// 2. Parse query parameters safely
-	limit := parseQueryInt(r, "limit", 30)
-	offset := parseQueryInt(r, "offset", 0)
+	limit, err := parseQueryInt(r, "limit", 30)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	offset, err := parseQueryInt(r, "offset", 0)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	order := r.URL.Query().Get("order")
 	if order == "" {
@@ -43,11 +52,19 @@ func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tStart, tEnd time.Time
-	tStartInt := parseQueryInt64(r, "tstart", math.MinInt64)
+	tStartInt, err := parseQueryInt64(r, "tstart", math.MinInt64)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if tStartInt != math.MinInt64 {
 		tStart = time.UnixMilli(tStartInt)
 	}
-	tEndInt := parseQueryInt64(r, "tend", math.MaxInt64)
+	tEndInt, err := parseQueryInt64(r, "tend", math.MaxInt64)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if tEndInt != math.MaxInt64 {
 		tEnd = time.UnixMilli(tEndInt)
 	}
@@ -95,26 +112,26 @@ func newAuditLogResponse(log repository.AuditLog) AuditLogResponse {
 	}
 }
 
-func parseQueryInt(r *http.Request, key string, defaultValue int) int {
+func parseQueryInt(r *http.Request, key string, defaultValue int) (int, error) {
 	valStr := r.URL.Query().Get(key)
 	if valStr == "" {
-		return defaultValue
+		return defaultValue, nil
 	}
 	val, err := strconv.Atoi(valStr)
 	if err != nil {
-		return defaultValue // Return default if parsing fails instead of throwing a 400
+		return 0, fmt.Errorf("invalid value for parameter '%s': must be an integer", key)
 	}
-	return val
+	return val, nil
 }
 
-func parseQueryInt64(r *http.Request, key string, defaultValue int64) int64 {
+func parseQueryInt64(r *http.Request, key string, defaultValue int64) (int64, error) {
 	valStr := r.URL.Query().Get(key)
 	if valStr == "" {
-		return defaultValue
+		return defaultValue, nil
 	}
 	val, err := strconv.ParseInt(valStr, 10, 64)
 	if err != nil {
-		return defaultValue
+		return 0, fmt.Errorf("invalid value for parameter '%s': must be an integer", key)
 	}
-	return val
+	return val, nil
 }
