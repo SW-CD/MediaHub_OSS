@@ -15,22 +15,23 @@ func (r *PostgresRepository) AcquireLock(ctx context.Context, lockName string, o
 	// Convert the TTL into milliseconds to pass to the query
 	ttlMs := ttl.Milliseconds()
 
-	// By using (EXTRACT(EPOCH FROM NOW()) * 1000), Postgres acts as the single source
+	// By using (EXTRACT(EPOCH FROM clock_timestamp()) * 1000), Postgres acts as the single source
 	// of truth for time directly during the INSERT
 	query, args, err := r.Builder.Insert("system_locks").
 		Columns("lock_name", "locked_at", "locked_by", "expires_at").
 		Values(
 			lockName,
-			squirrel.Expr("(EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT"),
+			squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT"),
 			ownerID,
-			squirrel.Expr("(EXTRACT(EPOCH FROM NOW()) * 1000 + ?)::BIGINT", ttlMs),
+			squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 + ?)::BIGINT", ttlMs),
 		).
 		Suffix(`
             ON CONFLICT (lock_name) DO UPDATE 
             SET locked_at = EXCLUDED.locked_at, 
                 locked_by = EXCLUDED.locked_by, 
                 expires_at = EXCLUDED.expires_at 
-            WHERE system_locks.expires_at < (EXTRACT(EPOCH FROM NOW()) * 1000)
+            WHERE system_locks.expires_at < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)
+               OR system_locks.locked_by = EXCLUDED.locked_by
             RETURNING lock_name
         `).
 		ToSql()

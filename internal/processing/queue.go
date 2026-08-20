@@ -41,14 +41,13 @@ func (p *Processor) queueLargeFile(
 		os.Remove(workerTempPath)
 		return repo.Entry{}, fmt.Errorf("failed to open claimed file: %w", err)
 	}
-	defer f.Close()
 
 	fileSize, err := p.Storage.Write(ctx, db.ID.String(), createdEntry.ID, f)
+	f.Close()
+	os.Remove(workerTempPath)
 	if err != nil {
-		os.Remove(workerTempPath)
 		return repo.Entry{}, fmt.Errorf("failed to write file to storage: %w", err)
 	}
-	os.Remove(workerTempPath)
 
 	createdEntry.Size = uint64(fileSize)
 	finalEntry, err := p.Repo.UpdateEntry(ctx, db.ID, createdEntry)

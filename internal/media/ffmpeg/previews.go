@@ -52,16 +52,17 @@ func (c *FfmpegConverter) generatePreview(ctx context.Context, inputSource strin
 	var preInputArgs []string
 
 	switch contentType {
-	case "image", "video":
-		// For videos, it's safer to quickly seek to the 1-second mark to avoid black frames.
-		if contentType == "video" {
-			preInputArgs = append(preInputArgs, "-ss", "00:00:01.000")
-		}
-
+	case "image":
 		// Crop to aspect ratio [0.4, 2.5] then scale to fit 200x200
 		filterArgs = []string{
 			"-vframes", "1",
 			"-vf", fmt.Sprintf("crop=min(iw\\,2.5*ih):min(ih\\,2.5*iw),scale='%d:%d':force_original_aspect_ratio=decrease", maxPreviewWidth, maxPreviewHeight),
+		}
+	case "video":
+		// Use thumbnail filter (n=30) to select the most representative frame, avoiding black start frames safely even for videos < 1s
+		filterArgs = []string{
+			"-vframes", "1",
+			"-vf", fmt.Sprintf("thumbnail=n=30,crop=min(iw\\,2.5*ih):min(ih\\,2.5*iw),scale='%d:%d':force_original_aspect_ratio=decrease", maxPreviewWidth, maxPreviewHeight),
 		}
 	case "audio":
 		// Generate a 200x120 waveform image (using a pleasant blue color)

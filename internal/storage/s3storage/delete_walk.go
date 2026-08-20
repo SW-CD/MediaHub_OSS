@@ -134,7 +134,9 @@ func (s *S3StorageProvider) DeleteDatabase(ctx context.Context, dbID string) err
 
 	var errs []error
 	for _, prefix := range prefixes {
-		objectsCh := make(chan minio.ObjectInfo)
+		objectsCh := make(chan minio.ObjectInfo, 250)
+		listErrCh := make(chan error, 1)
+
 		go func(p string) {
 			defer close(objectsCh)
 			opts := minio.ListObjectsOptions{
@@ -142,14 +144,26 @@ func (s *S3StorageProvider) DeleteDatabase(ctx context.Context, dbID string) err
 				Recursive: true,
 			}
 			for object := range s.client.ListObjects(ctx, s.bucket, opts) {
-				if object.Err == nil {
-					objectsCh <- object
+				if object.Err != nil {
+					listErrCh <- object.Err
+					return
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case objectsCh <- object:
 				}
 			}
 		}(prefix)
 
 		for errObj := range s.client.RemoveObjects(ctx, s.bucket, objectsCh, minio.RemoveObjectsOptions{}) {
 			errs = append(errs, errObj.Err)
+		}
+
+		select {
+		case listErr := <-listErrCh:
+			errs = append(errs, listErr)
+		default:
 		}
 	}
 

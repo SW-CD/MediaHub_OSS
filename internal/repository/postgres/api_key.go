@@ -18,8 +18,12 @@ func (r *PostgresRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKe
 	if apiKey.ID == "" {
 		apiKey.ID = repo.ULID(shared.GenerateULID())
 	}
-	if apiKey.CreatedAt.IsZero() {
-		apiKey.CreatedAt = time.Now()
+
+	var createdAtVal any
+	if !apiKey.CreatedAt.IsZero() {
+		createdAtVal = apiKey.CreatedAt.UnixMilli()
+	} else {
+		createdAtVal = squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")
 	}
 
 	var expiresAtVal any = nil
@@ -47,14 +51,16 @@ func (r *PostgresRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKe
 		Values(
 			apiKey.ID.String(), apiKey.UserID.String(), apiKey.Name, apiKey.KeyHash, apiKey.KeyHint,
 			scopeView, scopeCreate, scopeEdit, scopeDelete, scopeAdmin,
-			apiKey.CreatedAt.UnixMilli(), expiresAtVal, lastUsedAtVal,
+			createdAtVal, expiresAtVal, lastUsedAtVal,
 		).
+		Suffix("RETURNING created_at").
 		ToSql()
 	if err != nil {
 		return repo.APIKey{}, fmt.Errorf("failed to build insert api_key query: %w", err)
 	}
 
-	_, err = r.DB.ExecContext(ctx, query, args...)
+	var createdMillis int64
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&createdMillis)
 	if err != nil {
 		if isPQUniqueViolation(err) {
 			return repo.APIKey{}, customerrors.ErrConflict
@@ -62,6 +68,7 @@ func (r *PostgresRepository) CreateAPIKey(ctx context.Context, apiKey repo.APIKe
 		return repo.APIKey{}, fmt.Errorf("failed to insert api_key: %w", err)
 	}
 
+	apiKey.CreatedAt = time.UnixMilli(createdMillis)
 	return apiKey, nil
 }
 
@@ -399,10 +406,7 @@ func (r *PostgresRepository) DeleteAPIKey(ctx context.Context, id repo.ULID) err
 // DeleteExpiredAPIKeys purges all API keys that have passed their expiration date.
 func (r *PostgresRepository) DeleteExpiredAPIKeys(ctx context.Context) (int64, error) {
 	query, args, err := r.Builder.Delete("api_keys").
-		Where(squirrel.And{
-			squirrel.NotEq{"expires_at": nil},
-			squirrel.Lt{"expires_at": time.Now().UnixMilli()},
-		}).
+		Where(squirrel.Expr("expires_at IS NOT NULL AND expires_at < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)")).
 		ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("failed to build delete expired api_keys query: %w", err)
@@ -424,7 +428,7 @@ func (r *PostgresRepository) DeleteExpiredAPIKeys(ctx context.Context) (int64, e
 // UpdateAPIKeyLastUsed updates only the last_used_at field for the API Key.
 func (r *PostgresRepository) UpdateAPIKeyLastUsed(ctx context.Context, id repo.ULID, lastUsed time.Duration) error {
 	query, args, err := r.Builder.Update("api_keys").
-		Set("last_used_at", time.Now().Add(-lastUsed).UnixMilli()).
+		Set("last_used_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 - ?)::BIGINT", lastUsed.Milliseconds())).
 		Where(squirrel.Eq{"id": id.String()}).
 		ToSql()
 	if err != nil {

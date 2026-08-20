@@ -28,7 +28,7 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 	// Establish timing (SQLite case, with single client, we take client time)
 	now := time.Now()
-	var entryTime time.Time
+	entryTime := now
 	if !entry.Timestamp.IsZero() {
 		entryTime = entry.Timestamp
 	}
@@ -121,6 +121,7 @@ func (r *SQLiteRepository) CreateEntry(ctx context.Context, db repo.Database, en
 
 	entry.CreatedAt = now
 	entry.UpdatedAt = now
+	entry.Timestamp = entryTime
 
 	return entry, nil
 }

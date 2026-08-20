@@ -14,11 +14,9 @@ import (
 
 // StoreRefreshToken inserts a new hashed refresh token into the database along with its expiry time.
 func (r *PostgresRepository) StoreRefreshToken(ctx context.Context, userID repo.ULID, tokenHash string, validDuration time.Duration) error {
-	expiry := time.Now().Add(validDuration).UnixMilli()
-
 	query, args, err := r.Builder.Insert("refresh_tokens").
 		Columns("user_id", "token_hash", "expiry").
-		Values(userID.String(), tokenHash, expiry).
+		Values(userID.String(), tokenHash, squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 + ?)::BIGINT", validDuration.Milliseconds())).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build insert token query: %w", err)
@@ -34,27 +32,21 @@ func (r *PostgresRepository) StoreRefreshToken(ctx context.Context, userID repo.
 
 // ValidateRefreshToken checks if a refresh token hash exists and is not expired.
 func (r *PostgresRepository) ValidateRefreshToken(ctx context.Context, tokenHash string) (repo.ULID, error) {
-	query, args, err := r.Builder.Select("user_id", "expiry").
+	query, args, err := r.Builder.Select("user_id").
 		From("refresh_tokens").
-		Where(squirrel.Eq{"token_hash": tokenHash}).
+		Where(squirrel.Expr("token_hash = ? AND expiry >= (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)", tokenHash)).
 		ToSql()
 	if err != nil {
 		return "", fmt.Errorf("failed to build validate token query: %w", err)
 	}
 
 	var userIDStr string
-	var expiry int64
-
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&userIDStr, &expiry)
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&userIDStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", customerrors.ErrNotFound
 		}
 		return "", fmt.Errorf("failed to query refresh token: %w", err)
-	}
-
-	if time.Now().After(time.UnixMilli(expiry)) {
-		return "", customerrors.ErrNotFound
 	}
 
 	return repo.ULID(userIDStr), nil
@@ -88,9 +80,8 @@ func (r *PostgresRepository) DeleteRefreshToken(ctx context.Context, tokenHash s
 
 // DeleteExpiredRefreshTokens removes all tokens that have passed their expiration date.
 func (r *PostgresRepository) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error) {
-	nowMs := time.Now().UnixMilli()
 	query, args, err := r.Builder.Delete("refresh_tokens").
-		Where(squirrel.Lt{"expiry": nowMs}).
+		Where(squirrel.Expr("expiry < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)")).
 		ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("failed to build delete expired tokens query: %w", err)

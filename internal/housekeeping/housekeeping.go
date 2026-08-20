@@ -205,6 +205,10 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 				s.Logger.Error("Housekeeper failed during MaxAge batch deletion", "error", err, "database_id", db.ID, "database_name", db.Name)
 				break
 			}
+			if delCount == 0 {
+				s.Logger.Warn("Housekeeper made no deletion progress during MaxAge batch, aborting loop", "database_id", db.ID, "database_name", db.Name)
+				break
+			}
 		}
 	}
 
@@ -233,7 +237,7 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 			var targetSpaceToFree uint64
 
 			for i, e := range entries {
-				targetSpaceToFree += e.Size
+				targetSpaceToFree += e.Size + e.PreviewSize
 				slideEnd = i + 1
 
 				// Check if this entry pushes us under the limit
@@ -253,6 +257,10 @@ func (s *HouseKeeper) RunDBHousekeeping(ctx context.Context, db repository.Datab
 
 			if err != nil {
 				s.Logger.Error("Housekeeper failed during DiskSpace batch deletion", "error", err, "database_id", db.ID, "database_name", db.Name)
+				break
+			}
+			if delCount == 0 || freed == 0 {
+				s.Logger.Warn("Housekeeper made no progress freeing disk space, aborting loop", "database_id", db.ID, "database_name", db.Name, "delCount", delCount, "freed", freed)
 				break
 			}
 		}

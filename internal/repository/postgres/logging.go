@@ -19,10 +19,16 @@ func (r *PostgresRepository) LogAudit(ctx context.Context, log repository.AuditL
 		detailsJSON = []byte("{}")
 	}
 
-	nowMs := time.Now().UnixMilli()
+	var tsVal any
+	if !log.Timestamp.IsZero() {
+		tsVal = log.Timestamp.UnixMilli()
+	} else {
+		tsVal = squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")
+	}
+
 	query, args, err := r.Builder.Insert("audit_logs").
 		Columns("timestamp", "action", "actor", "resource", "details").
-		Values(nowMs, log.Action, log.Actor, log.Resource, string(detailsJSON)).
+		Values(tsVal, log.Action, log.Actor, log.Resource, string(detailsJSON)).
 		ToSql()
 
 	if err != nil {
@@ -110,14 +116,9 @@ func (r *PostgresRepository) DeleteLogs(ctx context.Context, maxAge time.Duratio
 	if maxAge <= 0 {
 		return nil
 	}
-	now, err := r.GetDBTime(ctx)
-	if err != nil {
-		now = time.Now()
-	}
-	cutoff := now.Add(-maxAge).UnixMilli()
 
 	query, args, err := r.Builder.Delete("audit_logs").
-		Where(squirrel.Lt{"timestamp": cutoff}).
+		Where(squirrel.Expr("timestamp < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000 - ?)", maxAge.Milliseconds())).
 		ToSql()
 
 	if err != nil {

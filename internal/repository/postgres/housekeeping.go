@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -48,32 +50,23 @@ func (r *PostgresRepository) HouseKeepingRequired(ctx context.Context) ([]repo.D
 
 // HouseKeepingWasCalled sets the LastHkRun to now (server timestamp).
 func (r *PostgresRepository) HouseKeepingWasCalled(ctx context.Context, dbID repo.ULID) (time.Time, error) {
-	now, err := r.GetDBTime(ctx)
-	if err != nil {
-		now = time.Now()
-	}
-
 	query, args, err := r.Builder.Update("databases").
-		Set("hk_last_run", now.UnixMilli()).
+		Set("hk_last_run", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
 		Where(squirrel.Eq{"id": dbID.String()}).
+		Suffix("RETURNING hk_last_run").
 		ToSql()
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to build housekeeping update query: %w", err)
 	}
 
-	res, err := r.DB.ExecContext(ctx, query, args...)
+	var hkLastRunMillis int64
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&hkLastRunMillis)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, customerrors.ErrNotFound
+		}
 		return time.Time{}, fmt.Errorf("failed to update last housekeeping run: %w", err)
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to retrieve rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return time.Time{}, customerrors.ErrNotFound
-	}
-
-	return now, nil
+	return time.UnixMilli(hkLastRunMillis), nil
 }

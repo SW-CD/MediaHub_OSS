@@ -521,3 +521,52 @@ func TestS3DeleteMultipleErrors(t *testing.T) {
 	}
 }
 
+func TestS3StorageProvider_DeleteDatabase(t *testing.T) {
+	ts, _ := newMockS3Server()
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+	cfg := Config{
+		Endpoint:  u.Host,
+		Bucket:    "testbucket",
+		AccessKey: "minioadmin",
+		SecretKey: "minioadmin",
+		UseSSL:    false,
+		Region:    "us-east-1",
+	}
+
+	provider, err := NewS3StorageProvider(cfg)
+	if err != nil {
+		t.Fatalf("failed to create s3 provider: %v", err)
+	}
+
+	ctx := context.Background()
+	dbID := "01HGFB9Z5W7ABCDEFGHJKMNPQR"
+
+	// Write objects and previews
+	for id := int64(1); id <= 3; id++ {
+		data := []byte(fmt.Sprintf("data-%d", id))
+		if _, err := provider.Write(ctx, dbID, id, bytes.NewReader(data)); err != nil {
+			t.Fatalf("failed to write object %d: %v", id, err)
+		}
+		if _, err := provider.WritePreview(ctx, dbID, id, bytes.NewReader(data)); err != nil {
+			t.Fatalf("failed to write preview %d: %v", id, err)
+		}
+	}
+
+	// DeleteDatabase
+	if err := provider.DeleteDatabase(ctx, dbID); err != nil {
+		t.Fatalf("unexpected error during DeleteDatabase: %v", err)
+	}
+
+	// Verify all are removed
+	for id := int64(1); id <= 3; id++ {
+		if _, err := provider.Read(ctx, dbID, id, 0, -1); err == nil {
+			t.Errorf("expected object %d to be deleted, but read succeeded", id)
+		}
+		if _, err := provider.ReadPreview(ctx, dbID, id); err == nil {
+			t.Errorf("expected preview %d to be deleted, but read succeeded", id)
+		}
+	}
+}
+

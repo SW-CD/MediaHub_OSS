@@ -25,21 +25,22 @@ func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, 
 		return repo.Entry{}, err
 	}
 
-	now := time.Now()
-	var entryTime time.Time
-	if !entry.Timestamp.IsZero() {
-		entryTime = entry.Timestamp
-	}
+	dbNowExpr := squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")
 
 	insertData := map[string]any{
-		"timestamp":        entryTime.UnixMilli(),
-		"created_at":       now.UnixMilli(),
-		"updated_at":       now.UnixMilli(),
+		"created_at":       dbNowExpr,
+		"updated_at":       dbNowExpr,
 		"filesize":         entry.Size,
 		"preview_filesize": entry.PreviewSize,
 		"filename":         entry.FileName,
 		"status":           entry.Status,
 		"mime_type":        entry.MimeType,
+	}
+
+	if !entry.Timestamp.IsZero() {
+		insertData["timestamp"] = entry.Timestamp.UnixMilli()
+	} else {
+		insertData["timestamp"] = dbNowExpr
 	}
 
 	if entry.ID > 0 {
@@ -68,32 +69,27 @@ func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, 
 	defer tx.Rollback()
 
 	tableName := fmt.Sprintf(`"entries_%s"`, db.ID)
-	insertBuilder := r.Builder.Insert(tableName).SetMap(insertData)
+	insertQuery, args, err := r.Builder.Insert(tableName).
+		SetMap(insertData).
+		Suffix("RETURNING id, timestamp, created_at, updated_at").
+		ToSql()
+	if err != nil {
+		return repo.Entry{}, fmt.Errorf("failed to build insert query: %w", err)
+	}
 
-	if entry.ID <= 0 {
-		insertBuilder = insertBuilder.Suffix("RETURNING id")
-		insertQuery, args, err := insertBuilder.ToSql()
-		if err != nil {
-			return repo.Entry{}, fmt.Errorf("failed to build insert query: %w", err)
+	var tsMillis, createdMillis, updatedMillis int64
+	if err := tx.QueryRowContext(ctx, insertQuery, args...).Scan(&entry.ID, &tsMillis, &createdMillis, &updatedMillis); err != nil {
+		if isPQUniqueViolation(err) {
+			return repo.Entry{}, customerrors.ErrConflict
 		}
-		if err := tx.QueryRowContext(ctx, insertQuery, args...).Scan(&entry.ID); err != nil {
-			if isPQUniqueViolation(err) {
-				return repo.Entry{}, customerrors.ErrConflict
-			}
-			return repo.Entry{}, fmt.Errorf("failed to insert entry and scan ID: %w", err)
-		}
-	} else {
-		insertQuery, args, err := insertBuilder.ToSql()
-		if err != nil {
-			return repo.Entry{}, fmt.Errorf("failed to build insert query: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, insertQuery, args...); err != nil {
-			if isPQUniqueViolation(err) {
-				return repo.Entry{}, customerrors.ErrConflict
-			}
-			return repo.Entry{}, fmt.Errorf("failed to insert entry: %w", err)
-		}
+		return repo.Entry{}, fmt.Errorf("failed to insert entry and scan returning fields: %w", err)
+	}
 
+	entry.Timestamp = time.UnixMilli(tsMillis)
+	entry.CreatedAt = time.UnixMilli(createdMillis)
+	entry.UpdatedAt = time.UnixMilli(updatedMillis)
+
+	if entry.ID > 0 {
 		// Synchronize the sequence so subsequent auto-generated IDs don't collide
 		seqQuery := fmt.Sprintf(`SELECT setval(pg_get_serial_sequence('%s', 'id'), (SELECT COALESCE(MAX(id), 1) FROM %s))`, tableName, tableName)
 		if _, err := tx.ExecContext(ctx, seqQuery); err != nil {
@@ -119,9 +115,6 @@ func (r *PostgresRepository) CreateEntry(ctx context.Context, db repo.Database, 
 	if err := tx.Commit(); err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-
-	entry.CreatedAt = now
-	entry.UpdatedAt = now
 
 	return entry, nil
 }
@@ -239,10 +232,9 @@ func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, en
 		return repo.Entry{}, fmt.Errorf("failed to query old sizes: %w", err)
 	}
 
-	now := time.Now().UnixMilli()
 	updateData := map[string]any{
 		"timestamp":        entryTime.UnixMilli(),
-		"updated_at":       now,
+		"updated_at":       squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT"),
 		"filesize":         entry.Size,
 		"preview_filesize": entry.PreviewSize,
 		"filename":         entry.FileName,
@@ -268,12 +260,17 @@ func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, en
 	updateQuery, argsUpdate, err := r.Builder.Update(tableName).
 		SetMap(updateData).
 		Where(squirrel.Eq{"id": entry.ID}).
+		Suffix("RETURNING updated_at").
 		ToSql()
 	if err != nil {
 		return repo.Entry{}, fmt.Errorf("failed to build update query: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, updateQuery, argsUpdate...); err != nil {
+	var updatedMillis int64
+	if err = tx.QueryRowContext(ctx, updateQuery, argsUpdate...).Scan(&updatedMillis); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repo.Entry{}, customerrors.ErrNotFound
+		}
 		return repo.Entry{}, fmt.Errorf("failed to update entry: %w", err)
 	}
 
@@ -297,7 +294,7 @@ func (r *PostgresRepository) UpdateEntry(ctx context.Context, dbID repo.ULID, en
 		return repo.Entry{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	entry.UpdatedAt = time.UnixMilli(now)
+	entry.UpdatedAt = time.UnixMilli(updatedMillis)
 	return entry, nil
 }
 
@@ -308,11 +305,10 @@ func (r *PostgresRepository) UpdateEntriesStatus(ctx context.Context, dbID repo.
 	}
 
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
-	now := time.Now().UnixMilli()
 
 	query, args, err := r.Builder.Update(tableName).
 		Set("status", status).
-		Set("updated_at", now).
+		Set("updated_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
 		Where(squirrel.Eq{"id": entryIDs}).
 		ToSql()
 	if err != nil {
@@ -538,7 +534,7 @@ func (r *PostgresRepository) ClaimQueuedEntry(ctx context.Context, dbID repo.ULI
 	tableName := fmt.Sprintf(`"entries_%s"`, dbID.String())
 	query, args, err := r.Builder.Update(tableName).
 		Set("status", repo.EntryStatusProcessing).
-		Set("updated_at", time.Now().UnixMilli()).
+		Set("updated_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
 		Where(squirrel.Eq{"id": entryID, "status": repo.EntryStatusQueued}).
 		ToSql()
 	if err != nil {

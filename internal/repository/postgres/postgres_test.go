@@ -119,3 +119,261 @@ func TestAllMediaTypesConfigured(t *testing.T) {
 		}
 	}
 }
+
+func TestAcquireLockQuery(t *testing.T) {
+	r := &PostgresRepository{
+		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+
+	ttlMs := int64(30000)
+	query, _, err := r.Builder.Insert("system_locks").
+		Columns("lock_name", "locked_at", "locked_by", "expires_at").
+		Values(
+			"hk_lock",
+			squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT"),
+			"worker-1",
+			squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 + ?)::BIGINT", ttlMs),
+		).
+		Suffix(`
+            ON CONFLICT (lock_name) DO UPDATE 
+            SET locked_at = EXCLUDED.locked_at, 
+                locked_by = EXCLUDED.locked_by, 
+                expires_at = EXCLUDED.expires_at 
+            WHERE system_locks.expires_at < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)
+               OR system_locks.locked_by = EXCLUDED.locked_by
+            RETURNING lock_name
+        `).
+		ToSql()
+
+	if err != nil {
+		t.Fatalf("failed to build query: %v", err)
+	}
+
+	if !strings.Contains(query, "clock_timestamp()") {
+		t.Errorf("expected clock_timestamp() in query, got: %s", query)
+	}
+	if !strings.Contains(query, "system_locks.locked_by = EXCLUDED.locked_by") {
+		t.Errorf("expected owner renewal check in query, got: %s", query)
+	}
+}
+
+func TestCreateEntryQuery_DynamicTimestamp(t *testing.T) {
+	r := &PostgresRepository{
+		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+
+	dbNowExpr := squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")
+
+	t.Run("zero timestamp uses clock_timestamp expression", func(t *testing.T) {
+		insertData := map[string]any{
+			"created_at":       dbNowExpr,
+			"updated_at":       dbNowExpr,
+			"timestamp":        dbNowExpr,
+			"filesize":         1024,
+			"preview_filesize": 0,
+			"filename":         "test.jpg",
+			"status":           repo.EntryStatusReady,
+			"mime_type":        "image/jpeg",
+		}
+
+		query, args, err := r.Builder.Insert(`"entries_01HGFB9Z5W7ABCDEFGHJKMNPQR"`).
+			SetMap(insertData).
+			Suffix("RETURNING id, timestamp, created_at, updated_at").
+			ToSql()
+
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in query, got: %s", query)
+		}
+		if !strings.Contains(query, "RETURNING id, timestamp, created_at, updated_at") {
+			t.Errorf("expected RETURNING clause in query, got: %s", query)
+		}
+		// Since created_at, updated_at, timestamp are raw expressions, args only contain filesize, preview_filesize, filename, status, mime_type
+		if len(args) != 5 {
+			t.Errorf("expected 5 args for raw timestamp expressions, got: %d (%v)", len(args), args)
+		}
+	})
+
+	t.Run("explicit timestamp uses parameter binding", func(t *testing.T) {
+		explicitTS := int64(1700000000000)
+		insertData := map[string]any{
+			"created_at":       dbNowExpr,
+			"updated_at":       dbNowExpr,
+			"timestamp":        explicitTS,
+			"filesize":         1024,
+			"preview_filesize": 0,
+			"filename":         "test.jpg",
+			"status":           repo.EntryStatusReady,
+			"mime_type":        "image/jpeg",
+		}
+
+		query, args, err := r.Builder.Insert(`"entries_01HGFB9Z5W7ABCDEFGHJKMNPQR"`).
+			SetMap(insertData).
+			Suffix("RETURNING id, timestamp, created_at, updated_at").
+			ToSql()
+
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+
+		if !strings.Contains(query, "RETURNING id, timestamp, created_at, updated_at") {
+			t.Errorf("expected RETURNING clause in query, got: %s", query)
+		}
+
+		if len(args) != 6 {
+			t.Errorf("expected 6 args when timestamp is provided, got: %d (%v)", len(args), args)
+		}
+
+		foundTS := false
+		for _, arg := range args {
+			if arg == explicitTS {
+				foundTS = true
+				break
+			}
+		}
+		if !foundTS {
+			t.Errorf("expected explicit timestamp %d in args, got: %v", explicitTS, args)
+		}
+	})
+}
+
+func TestDynamicTimestampQueries(t *testing.T) {
+	r := &PostgresRepository{
+		Builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+
+	t.Run("UpdateEntriesStatus query", func(t *testing.T) {
+		query, _, err := r.Builder.Update(`"entries_01HGFB9Z5W7ABCDEFGHJKMNPQR"`).
+			Set("status", repo.EntryStatusReady).
+			Set("updated_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
+			Where(squirrel.Eq{"id": []int64{1, 2, 3}}).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in UpdateEntriesStatus query, got: %s", query)
+		}
+	})
+
+	t.Run("ClaimQueuedEntry query", func(t *testing.T) {
+		query, _, err := r.Builder.Update(`"entries_01HGFB9Z5W7ABCDEFGHJKMNPQR"`).
+			Set("status", repo.EntryStatusProcessing).
+			Set("updated_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
+			Where(squirrel.Eq{"id": int64(10), "status": repo.EntryStatusQueued}).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in ClaimQueuedEntry query, got: %s", query)
+		}
+	})
+
+	t.Run("UpdateAPIKeyLastUsed query", func(t *testing.T) {
+		query, args, err := r.Builder.Update("api_keys").
+			Set("last_used_at", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 - ?)::BIGINT", int64(5000))).
+			Where(squirrel.Eq{"id": "01HGFB9Z5W7ABCDEFGHJKMNPQR"}).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in UpdateAPIKeyLastUsed query, got: %s", query)
+		}
+		if len(args) != 2 || args[0] != int64(5000) {
+			t.Errorf("expected lastUsed duration in args, got: %v", args)
+		}
+	})
+
+	t.Run("DeleteExpiredAPIKeys query", func(t *testing.T) {
+		query, _, err := r.Builder.Delete("api_keys").
+			Where(squirrel.Expr("expires_at IS NOT NULL AND expires_at < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)")).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in DeleteExpiredAPIKeys query, got: %s", query)
+		}
+	})
+
+	t.Run("StoreRefreshToken query", func(t *testing.T) {
+		query, args, err := r.Builder.Insert("refresh_tokens").
+			Columns("user_id", "token_hash", "expiry").
+			Values("user1", "hash1", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000 + ?)::BIGINT", int64(3600000))).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in StoreRefreshToken query, got: %s", query)
+		}
+		if len(args) != 3 {
+			t.Errorf("expected 3 args, got: %v", args)
+		}
+	})
+
+	t.Run("ValidateRefreshToken query", func(t *testing.T) {
+		query, args, err := r.Builder.Select("user_id").
+			From("refresh_tokens").
+			Where(squirrel.Expr("token_hash = ? AND expiry >= (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)", "hash1")).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in ValidateRefreshToken query, got: %s", query)
+		}
+		if len(args) != 1 || args[0] != "hash1" {
+			t.Errorf("expected hash1 in args, got: %v", args)
+		}
+	})
+
+	t.Run("DeleteExpiredRefreshTokens query", func(t *testing.T) {
+		query, _, err := r.Builder.Delete("refresh_tokens").
+			Where(squirrel.Expr("expiry < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)")).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in DeleteExpiredRefreshTokens query, got: %s", query)
+		}
+	})
+
+	t.Run("DeleteLogs query", func(t *testing.T) {
+		query, args, err := r.Builder.Delete("audit_logs").
+			Where(squirrel.Expr("timestamp < (EXTRACT(EPOCH FROM clock_timestamp()) * 1000 - ?)", int64(86400000))).
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in DeleteLogs query, got: %s", query)
+		}
+		if len(args) != 1 || args[0] != int64(86400000) {
+			t.Errorf("expected maxAge in args, got: %v", args)
+		}
+	})
+
+	t.Run("HouseKeepingWasCalled query", func(t *testing.T) {
+		query, _, err := r.Builder.Update("databases").
+			Set("hk_last_run", squirrel.Expr("(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT")).
+			Where(squirrel.Eq{"id": "01HGFB9Z5W7ABCDEFGHJKMNPQR"}).
+			Suffix("RETURNING hk_last_run").
+			ToSql()
+		if err != nil {
+			t.Fatalf("failed to build query: %v", err)
+		}
+		if !strings.Contains(query, "clock_timestamp()") {
+			t.Errorf("expected clock_timestamp() in HouseKeepingWasCalled query, got: %s", query)
+		}
+		if !strings.Contains(query, "RETURNING hk_last_run") {
+			t.Errorf("expected RETURNING in HouseKeepingWasCalled query, got: %s", query)
+		}
+	})
+}
