@@ -55,8 +55,11 @@ func NewRootCMD(frontendFS fs.FS) *cobra.Command {
 			}
 			globalOptions.Conf = loadedConfig
 
-			// Determine final log level (CLI flag overrides TOML config)
+			// Determine final log level (CLI flag > ENV var > TOML config)
 			finalLogLevel := globalOptions.Conf.Logging.Level
+			if envLogLevel := os.Getenv("MEDIAHUB_LOGGING_LEVEL"); envLogLevel != "" {
+				finalLogLevel = envLogLevel
+			}
 			if globalOptions.LogLevel != "" {
 				finalLogLevel = globalOptions.LogLevel
 			}

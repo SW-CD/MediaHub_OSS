@@ -8,13 +8,14 @@ import (
 	"time"
 )
 
+var (
+	sizeRegex     = regexp.MustCompile(`(?i)^(\d+)\s*([a-z]*)$`)
+	durationRegex = regexp.MustCompile(`(?i)^(\d+)\s*([a-z]+)$`)
+)
+
 // ParseSize parses a size string (e.g., "100G", "500MB", "1024 bytes") into bytes.
 func ParseSize(sizeStr string) (uint64, error) {
-	// (?i) makes it case-insensitive.
-	// \s* allows optional spaces between the number and the unit.
-	// ([a-z]*) captures any alphabetical characters that follow the number.
-	re := regexp.MustCompile(`(?i)^(\d+)\s*([a-z]*)$`)
-	matches := re.FindStringSubmatch(strings.TrimSpace(sizeStr))
+	matches := sizeRegex.FindStringSubmatch(strings.TrimSpace(sizeStr))
 
 	if len(matches) < 2 {
 		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
@@ -57,8 +58,7 @@ func ParseDuration(durationStr string) (time.Duration, error) {
 	}
 
 	// Capture the number and any trailing alphabetical characters
-	re := regexp.MustCompile(`(?i)^(\d+)\s*([a-z]+)$`)
-	matches := re.FindStringSubmatch(trimmedStr)
+	matches := durationRegex.FindStringSubmatch(trimmedStr)
 
 	if len(matches) < 3 {
 		return 0, fmt.Errorf("invalid duration format: %s", durationStr)

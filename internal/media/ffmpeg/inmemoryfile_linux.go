@@ -29,6 +29,10 @@ func createInMemoryFile(dir, pattern string) (string, error) {
 	optimalDir := getTempDir(dir)
 
 	tmpFile, err := os.CreateTemp(optimalDir, pattern)
+	if err != nil && optimalDir != "" && dir == "" {
+		// Fall back to default OS temp dir if RAM disk creation fails (e.g. in restricted containers)
+		tmpFile, err = os.CreateTemp("", pattern)
+	}
 	if err != nil {
 		return "", err
 	}

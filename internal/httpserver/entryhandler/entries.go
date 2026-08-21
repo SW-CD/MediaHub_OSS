@@ -271,7 +271,7 @@ func (h *EntryHandler) GetEntryFile(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err := writeJSONFileResponseStream(w, filemeta.FileName, filemeta.MimeType, fileStream); err != nil {
+		if err := writeJSONFileResponseStream(w, filemeta.FileName, filemeta.MimeType, filemeta.Size, fileStream); err != nil {
 			h.Logger.Error("Failed to stream JSON file to client", "entry", id, "error", err)
 		}
 		return
@@ -443,13 +443,18 @@ func (h *EntryHandler) GetEntryPreview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ioReader.Close()
 
-	// 3. Content Negotiation: Check if the client specifically requested JSON
+	// 3. Set anti-caching headers (Prevents stale previews)
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// 4. Content Negotiation: Check if the client specifically requested JSON
 	acceptHeader := r.Header.Get("Accept")
 	if strings.Contains(acceptHeader, "application/json") {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		filename := fmt.Sprintf("%d_preview.webp", id)
-		if err := writeJSONFileResponseStream(w, filename, "image/webp", ioReader); err != nil {
+		if err := writeJSONFileResponseStream(w, filename, "image/webp", 0, ioReader); err != nil {
 			h.Logger.Error("Failed to stream JSON preview to client", "entry", id, "error", err)
 		}
 		return
@@ -827,7 +832,7 @@ func (h *EntryHandler) ExportEntries(w http.ResponseWriter, r *http.Request) {
 
 	// Set headers for ZIP download
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s_export.zip\"", db.Name))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s_export.zip\"", dbID))
 
 	// Use io.Pipe to stream generation directly to the HTTP response
 	pr, pw := io.Pipe()

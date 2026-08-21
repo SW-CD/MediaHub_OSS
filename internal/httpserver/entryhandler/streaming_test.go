@@ -62,7 +62,8 @@ func TestWriteJSONFileResponseStream(t *testing.T) {
 			reader := bytes.NewReader(rawBytes)
 			var out bytes.Buffer
 
-			err := writeJSONFileResponseStream(&out, tc.filename, tc.mimeType, reader)
+			sizeUint := uint64(tc.dataSize)
+			err := writeJSONFileResponseStream(&out, tc.filename, tc.mimeType, sizeUint, reader)
 			if err != nil {
 				t.Fatalf("writeJSONFileResponseStream returned error: %v", err)
 			}
@@ -77,6 +78,9 @@ func TestWriteJSONFileResponseStream(t *testing.T) {
 			}
 			if resp.MimeType != tc.mimeType {
 				t.Errorf("expected mimeType %q, got %q", tc.mimeType, resp.MimeType)
+			}
+			if resp.Size != sizeUint {
+				t.Errorf("expected size %d, got %d", sizeUint, resp.Size)
 			}
 
 			expectedPrefix := fmt.Sprintf("data:%s;base64,", tc.mimeType)
@@ -95,6 +99,30 @@ func TestWriteJSONFileResponseStream(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Omitted size (0)", func(t *testing.T) {
+		rawBytes := []byte("hello world")
+		reader := bytes.NewReader(rawBytes)
+		var out bytes.Buffer
+
+		err := writeJSONFileResponseStream(&out, "test.txt", "text/plain", 0, reader)
+		if err != nil {
+			t.Fatalf("writeJSONFileResponseStream returned error: %v", err)
+		}
+
+		if strings.Contains(out.String(), `"size":`) {
+			t.Errorf("expected output to omit size field, got: %s", out.String())
+		}
+
+		var resp FileJSONResponse
+		if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse output: %v", err)
+		}
+
+		if resp.Filename != "test.txt" || resp.MimeType != "text/plain" || resp.Size != 0 {
+			t.Errorf("unexpected parsed response: %+v", resp)
+		}
+	})
 }
 
 func min(a, b int) int {

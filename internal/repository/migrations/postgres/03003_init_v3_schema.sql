@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS databases (
     auto_conversion VARCHAR(32) NOT NULL DEFAULT 'none',
     n_max_queued INTEGER NOT NULL DEFAULT 0,
     
-    custom_fields TEXT NOT NULL DEFAULT '[]',
     hk_last_run BIGINT NOT NULL DEFAULT 0,
     
     entry_count BIGINT NOT NULL DEFAULT 0,

@@ -12,7 +12,7 @@ import (
 
 // writeJSONFileResponseStream streams a binary io.Reader as a Base64-encoded Data URI JSON response directly to w.
 // This eliminates buffering full files in memory.
-func writeJSONFileResponseStream(w io.Writer, filename, mimeType string, reader io.Reader) error {
+func writeJSONFileResponseStream(w io.Writer, filename, mimeType string, size uint64, reader io.Reader) error {
 	fnBytes, err := json.Marshal(filename)
 	if err != nil {
 		return err
@@ -22,7 +22,12 @@ func writeJSONFileResponseStream(w io.Writer, filename, mimeType string, reader 
 		return err
 	}
 
-	prefix := fmt.Sprintf(`{"filename":%s,"mime_type":%s,"data":"data:%s;base64,`, string(fnBytes), string(mtBytes), mimeType)
+	var prefix string
+	if size > 0 {
+		prefix = fmt.Sprintf(`{"filename":%s,"mime_type":%s,"size":%d,"data":"data:%s;base64,`, string(fnBytes), string(mtBytes), size, mimeType)
+	} else {
+		prefix = fmt.Sprintf(`{"filename":%s,"mime_type":%s,"data":"data:%s;base64,`, string(fnBytes), string(mtBytes), mimeType)
+	}
 	if _, err := io.WriteString(w, prefix); err != nil {
 		return err
 	}
@@ -110,31 +115,6 @@ func parseRange(header string, fileSize int64) ([]byteRange, error) {
 		})
 	}
 	return ranges, nil
-}
-
-// encodeReaderAsJSON reads data from an io.Reader stream, encodes it as Base64,
-// and returns it as a JSON object.
-// This is used to support clients that cannot handle binary streams with auth headers.
-func encodeReaderAsJSON(reader io.Reader, filename, mimeType string) (FileJSONResponse, error) {
-	// 1. Read the stream into memory
-	// io.ReadAll reads from the reader until an error or EOF and returns the data it read.
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return FileJSONResponse{}, err
-	}
-
-	// 2. Encode to Base64
-	b64Str := base64.StdEncoding.EncodeToString(data)
-
-	// 3. Construct the response object
-	resp := FileJSONResponse{
-		Filename: filename,
-		MimeType: mimeType,
-		// Format strictly follows the Data URI scheme: data:[<mediatype>][;base64],<data>
-		Data: fmt.Sprintf("data:%s;base64,%s", mimeType, b64Str),
-	}
-
-	return resp, nil
 }
 
 // parseQueryInt safely parses an integer from query parameters, falling back to a default value if omitted.

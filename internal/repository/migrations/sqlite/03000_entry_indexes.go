@@ -1,6 +1,5 @@
 // Migration: Add CreatedAt & UpdatedAt Indexes to dynamic entry tables
-// Description: Upgrades the database schema from v2.1 to v2.2 by adding indexes for created_at and updated_at.
-// Work In Progress file.
+// Description: Upgrades the database schema to v3.0 by adding indexes for created_at and updated_at.
 package sqlitemigrations
 
 import (
@@ -9,7 +8,7 @@ import (
 	"fmt"
 )
 
-func up02002(ctx context.Context, tx *sql.Tx) error {
+func up03000(ctx context.Context, tx *sql.Tx) error {
 	// Query all existing database IDs
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM databases")
 	if err != nil {
@@ -47,7 +46,7 @@ func up02002(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-func down02002(ctx context.Context, tx *sql.Tx) error {
+func down03000(ctx context.Context, tx *sql.Tx) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM databases")
 	if err != nil {
 		return nil

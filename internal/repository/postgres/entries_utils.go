@@ -118,12 +118,33 @@ func asInt64(val any) int64 {
 	switch v := val.(type) {
 	case int64:
 		return v
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case uint64:
+		return int64(v)
+	case uint:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint8:
+		return int64(v)
 	case float64:
 		return int64(v)
-	case int:
+	case float32:
 		return int64(v)
 	case []byte:
 		parsed, _ := strconv.ParseInt(string(v), 10, 64)
+		return parsed
+	case string:
+		parsed, _ := strconv.ParseInt(v, 10, 64)
 		return parsed
 	}
 	return 0

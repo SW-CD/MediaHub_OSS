@@ -100,6 +100,7 @@ type PartialEntryResponse struct {
 type FileJSONResponse struct {
 	Filename string `json:"filename"`
 	MimeType string `json:"mime_type"`
+	Size     uint64 `json:"size,omitempty"`
 	Data     string `json:"data"` // Base64 encoded string with data URI prefix
 }
 
