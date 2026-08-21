@@ -4,9 +4,7 @@
 }
 
 .user-management-container {
-  /* Fills the height dynamically based on your dashboard layout */
-  height: calc(100vh - 120px);
-  min-height: 500px;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }

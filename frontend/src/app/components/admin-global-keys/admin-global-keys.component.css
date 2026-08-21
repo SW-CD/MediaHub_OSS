@@ -1,4 +1,7 @@
-/* frontend/src/app/components/admin-global-keys/admin-global-keys.component.css */
+:host {
+  display: block;
+  height: 100%;
+}
 
 .global-keys-container {
   display: flex;

@@ -1,19 +1,20 @@
-/* frontend/src/app/pages/profile-page/profile-page.component.css */
+:host {
+  display: block;
+  height: 100%;
+}
 
 .profile-container {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  height: auto;
+  height: 100%;
 }
 
 .split-layout {
   display: flex;
   flex-direction: row;
   gap: 1.5rem;
-  padding: 1.5rem 0 3rem 0;
+  padding: 0 0 3rem 0;
   width: 100%;
-  flex: 1;
 }
 
 .permissions-details .table-wrapper {

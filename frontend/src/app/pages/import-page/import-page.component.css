@@ -1,9 +1,14 @@
-/* frontend/src/app/pages/import-page/import-page.component.css */
+:host {
+  display: block;
+  height: 100%;
+}
 
 .import-page-container {
-  padding: 1.5rem;
   max-width: 900px;
   margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .header-section { 

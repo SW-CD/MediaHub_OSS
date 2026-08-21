@@ -566,16 +566,18 @@ input:focus-visible + .toggle-slider {
 .pt-4 { padding-top: 1rem; }
 
 /* =========================================
-   STICKY HEADER & LAYOUT HELPER SYSTEM
+   STICKY / PINNED HEADER & SCROLL CONTAINER
    ========================================= */
 .page-container {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
   position: relative;
+  overflow: hidden;
 }
 
 .sticky-header {
+  flex-shrink: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -585,9 +587,6 @@ input:focus-visible + .toggle-slider {
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
   background-color: var(--app-bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 .sticky-header h2 {
@@ -595,7 +594,9 @@ input:focus-visible + .toggle-slider {
 }
 
 .scroll-content {
-  flex-grow: 1;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
   padding-bottom: 3rem;
 }
 
