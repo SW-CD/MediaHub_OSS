@@ -189,6 +189,8 @@ definitions:
         type: string
       mime_type:
         type: string
+      size:
+        type: integer
     type: object
   entryhandler.ImportResponse:
     properties:
@@ -1620,61 +1622,6 @@ paths:
       summary: Delete a user
       tags:
       - User
-    patch:
-      consumes:
-      - application/json
-      description: Updates an existing user's global status, password, or database
-        permissions. Permissions act as an Upsert/Replace operation. Requires the
-        global IsAdmin role.
-      parameters:
-      - description: User ID
-        in: query
-        name: id
-        required: true
-        type: integer
-      - description: Fields to update
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.UpdateUserPayload'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: User successfully updated
-          schema:
-            $ref: '#/definitions/userhandler.UserResponse'
-        "400":
-          description: Missing ID or invalid JSON body
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-        "401":
-          description: Authentication failed
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-        "403":
-          description: 'Forbidden: Admin user not retrieved'
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-        "404":
-          description: User not found
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-        "409":
-          description: Cannot remove last admin user
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-      security:
-      - BasicAuth: []
-      - BearerAuth: []
-      summary: Update an existing user
-      tags:
-      - User
     post:
       consumes:
       - application/json
@@ -1757,6 +1704,61 @@ paths:
       - BasicAuth: []
       - BearerAuth: []
       summary: Retrieve a user
+      tags:
+      - User
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing user's global status, password, or database
+        permissions. Permissions act as an Upsert/Replace operation. Requires the
+        global IsAdmin role.
+      parameters:
+      - description: User ULID
+        in: path
+        name: user_ulid
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.UpdateUserPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully updated
+          schema:
+            $ref: '#/definitions/userhandler.UserResponse'
+        "400":
+          description: Missing ID, duplicate DBs, or invalid JSON body
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: 'Forbidden: Admin user not retrieved'
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "409":
+          description: Cannot remove last admin user
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BasicAuth: []
+      - BearerAuth: []
+      summary: Update an existing user
       tags:
       - User
   /user/{user_ulid}/keys:
