@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { map, shareReplay, catchError, take } from 'rxjs/operators';
+import { map, shareReplay, catchError, tap } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +10,7 @@ import { map, shareReplay, catchError, take } from 'rxjs/operators';
 export class ImageCacheService {
   private readonly MAX_CACHE_SIZE = 1024;
   private cache = new Map<string, Observable<string>>();
+  private resolvedBlobUrls = new Map<string, string>();
 
   constructor(private http: HttpClient) {}
 
@@ -34,9 +35,11 @@ export class ImageCacheService {
       headers: new HttpHeaders({ 'Accept': '*/*' })
     }).pipe(
       map(blob => URL.createObjectURL(blob)),
+      tap(blobUrl => this.resolvedBlobUrls.set(url, blobUrl)),
       shareReplay(1),
       catchError(err => {
         this.cache.delete(url);
+        this.resolvedBlobUrls.delete(url);
         return throwError(() => err);
       })
     );
@@ -55,31 +58,29 @@ export class ImageCacheService {
   }
 
   /**
-   * Invalidates and revokes a single cached image URL.
+   * Invalidates and revokes a single cached image URL without triggering un-subscribed HTTP requests.
    */
   public invalidate(url: string): void {
-    const stream$ = this.cache.get(url);
-    if (stream$) {
-      stream$.pipe(take(1)).subscribe({
-        next: blobUrl => {
-          try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-        }
-      });
-      this.cache.delete(url);
+    this.cache.delete(url);
+    const blobUrl = this.resolvedBlobUrls.get(url);
+    if (blobUrl) {
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch (_) {}
+      this.resolvedBlobUrls.delete(url);
     }
   }
 
   /**
-   * Clears and revokes all cached Blob URLs in memory.
+   * Clears and revokes all materialized Blob URLs in memory without triggering un-subscribed HTTP requests.
    */
   public clearAll(): void {
-    this.cache.forEach(stream$ => {
-      stream$.pipe(take(1)).subscribe({
-        next: blobUrl => {
-          try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-        }
-      });
+    this.resolvedBlobUrls.forEach(blobUrl => {
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch (_) {}
     });
+    this.resolvedBlobUrls.clear();
     this.cache.clear();
   }
 }

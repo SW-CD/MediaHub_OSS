@@ -54,10 +54,17 @@ export class ProfilePageComponent implements OnInit, OnDestroy {
         this.user = user;
         if (user) {
           this.loadApiKeys();
-          this.mapPermissions();
         }
         this.cdr.markForCheck();
       });
+
+    // 2. Fetch databases
+    this.databaseService.loadDatabases()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ error: (err) => console.error('Failed to load databases on profile page', err) });
+
+    // 3. Reactively map database permissions
+    this.mapPermissions();
   }
 
   private passwordMatchValidator(g: FormGroup) {
@@ -93,16 +100,18 @@ export class ProfilePageComponent implements OnInit, OnDestroy {
   }
 
   private mapPermissions(): void {
-    if (!this.user) return;
-
     // Fetch database list and align with user's permissions array
     combineLatest([
       this.databaseService.databases$,
       this.authService.currentUser$
     ])
-    .pipe(take(1))
+    .pipe(takeUntil(this.destroy$))
     .subscribe(([dbs, currentUser]) => {
-      if (!currentUser) return;
+      if (!currentUser) {
+        this.databasePermissionsMapped = [];
+        this.cdr.markForCheck();
+        return;
+      }
       
       if (currentUser.is_admin) {
         this.databasePermissionsMapped = dbs.map(db => ({

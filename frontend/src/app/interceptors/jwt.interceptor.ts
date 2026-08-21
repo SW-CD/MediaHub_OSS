@@ -6,15 +6,14 @@ import {
   HttpInterceptor,
   HttpErrorResponse
 } from '@angular/common/http';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, filter, switchMap, take } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError, switchMap, shareReplay, finalize } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { TokenResponse } from '../models';
 
 @Injectable()
 export class JwtInterceptor implements HttpInterceptor {
-  private isRefreshing = false;
-  private refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+  private refreshToken$: Observable<TokenResponse> | null = null;
 
   constructor(private authService: AuthService) {}
 
@@ -50,33 +49,24 @@ export class JwtInterceptor implements HttpInterceptor {
   }
 
   private handle401Error(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    if (!this.isRefreshing) {
-      this.isRefreshing = true;
-      this.refreshTokenSubject.next(null);
-
-      return this.authService.refreshToken().pipe(
-        switchMap((tokenResponse: TokenResponse) => {
-          this.isRefreshing = false;
-          this.refreshTokenSubject.next(tokenResponse.access_token);
-          // Retry the original request with the new token
-          return next.handle(this.addTokenHeader(request, tokenResponse.access_token));
-        }),
-        catchError((err) => {
-          this.isRefreshing = false;
-          this.authService.logout(false); // Logout locally without hitting API (since tokens are dead)
-          return throwError(() => err);
-        })
-      );
-    } else {
-      // If already refreshing, wait until the new token is ready
-      return this.refreshTokenSubject.pipe(
-        filter((token) => token != null),
-        take(1),
-        switchMap((token) => {
-          return next.handle(this.addTokenHeader(request, token!));
+    if (!this.refreshToken$) {
+      this.refreshToken$ = this.authService.refreshToken().pipe(
+        shareReplay(1),
+        finalize(() => {
+          this.refreshToken$ = null;
         })
       );
     }
+
+    return this.refreshToken$.pipe(
+      switchMap((tokenResponse: TokenResponse) => {
+        return next.handle(this.addTokenHeader(request, tokenResponse.access_token));
+      }),
+      catchError((err) => {
+        this.authService.logout(false); // Logout locally without hitting API (since tokens are dead)
+        return throwError(() => err);
+      })
+    );
   }
 
   private addTokenHeader(request: HttpRequest<any>, token: string): HttpRequest<any> {

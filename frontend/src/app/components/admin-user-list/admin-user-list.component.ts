@@ -306,6 +306,10 @@ export class AdminUserListComponent implements OnInit, OnDestroy {
       });
     }
 
+    if (this.isNewUser) {
+      delete formData.id;
+    }
+
     const apiCall$ = this.isNewUser
       ? this.authService.createUser(formData)
       : this.authService.updateUser(formData.id, formData);

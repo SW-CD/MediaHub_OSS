@@ -50,7 +50,7 @@ export class ModalComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     // Calling the service will emit the 'close' event, updating the state cleanly
-    this.modalService.close();
+    this.modalService.close(false, this.modalId);
   }
 
   onContentClick(event: MouseEvent): void {

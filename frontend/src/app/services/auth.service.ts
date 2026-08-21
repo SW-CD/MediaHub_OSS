@@ -32,8 +32,10 @@ export class AuthService {
    * then fetching the user's profile.
    */
   basicAuthLogin(username: string, password: string): Observable<User> {
-    // 1. Prepare Basic Auth header for the token endpoint
-    const basicAuth = 'Basic ' + btoa(`${username}:${password}`);
+    // 1. Prepare Basic Auth header for the token endpoint (Unicode-safe base64 encoding)
+    const bytes = new TextEncoder().encode(`${username}:${password}`);
+    const binString = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
+    const basicAuth = 'Basic ' + btoa(binString);
     const headers = new HttpHeaders({ Authorization: basicAuth });
 
     // 2. Call POST /api/token to get the tokens
@@ -54,20 +56,6 @@ export class AuthService {
     );
   }
 
-  oidcLogin(idpToken: string): Observable<User> {
-    return this.http.post<TokenResponse>(`${this.apiUrl}/token`, { idp_token: idpToken }).pipe(
-      tap((tokens) => this.storeTokens(tokens)),
-      switchMap(() => this.fetchCurrentUser()),
-      map(user => {
-        if (!user) throw new Error('Failed to fetch user details after OIDC login');
-        return user;
-      }),
-      catchError((err: HttpErrorResponse) => {
-        this.logout(false);
-        return throwError(() => err);
-      })
-    );
-  }
 
   /**
    * Logs the user out.
@@ -132,6 +120,23 @@ export class AuthService {
         return of(null);
       })
     );
+  }
+
+  /**
+   * Ensures that the current user profile is loaded.
+   * If already present in memory, returns it immediately.
+   * If token exists, fetches the user from /me.
+   * Otherwise returns null.
+   */
+  public ensureCurrentUser(): Observable<User | null> {
+    const user = this.getCurrentUser();
+    if (user) {
+      return of(user);
+    }
+    if (!this.getAccessToken()) {
+      return of(null);
+    }
+    return this.fetchCurrentUser();
   }
 
   // --- Token Management Helpers ---

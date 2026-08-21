@@ -1,9 +1,24 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges, ChangeDetectorRef, HostListener, ElementRef } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  ChangeDetectionStrategy,
+  OnChanges,
+  OnInit,
+  AfterViewInit,
+  OnDestroy,
+  SimpleChanges,
+  ChangeDetectorRef,
+  ElementRef,
+  NgZone
+} from '@angular/core';
 import { Entry } from '../../models'; 
 import { EntryService } from '../../services/entry.service';
 import { CommonModule } from '@angular/common'; 
 import { SecureImageDirective } from '../../directives/secure-image.directive';
-import { ImageCacheService } from '../../services/image-cache.service';
+import { fromEvent, Subject, Subscription } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 
 export interface DateGroup {
   dateStr: string;
@@ -21,7 +36,7 @@ export interface DateGroup {
   ], 
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class EntryGridComponent implements OnChanges {
+export class EntryGridComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() entries: Entry[] = [];
   @Input() dbId: string | null = null; // UPDATED: Changed from dbName to dbId
   
@@ -34,28 +49,62 @@ export class EntryGridComponent implements OnChanges {
   public failedImageIds = new Set<number>();
   public dateGroups: DateGroup[] = [];
   public aspectRatios = new Map<number, number>();
+  private groupAspectRatios = new Map<DateGroup, number>();
+  private _maxRowAspectRatio = 8;
+
+  private resizeObserver: ResizeObserver | null = null;
+  private resizeSub: Subscription | null = null;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private entryService: EntryService,
-    private imageCacheService: ImageCacheService,
     private cdr: ChangeDetectorRef,
-    private el: ElementRef
+    private el: ElementRef,
+    private ngZone: NgZone
   ) {}
+
+  ngOnInit(): void {
+    this.updateContainerWidth();
+  }
+
+  ngAfterViewInit(): void {
+    this.ngZone.runOutsideAngular(() => {
+      if (typeof ResizeObserver !== 'undefined' && this.el?.nativeElement) {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.handleResize();
+        });
+        this.resizeObserver.observe(this.el.nativeElement);
+      } else if (typeof window !== 'undefined') {
+        this.resizeSub = fromEvent(window, 'resize')
+          .pipe(
+            debounceTime(50),
+            takeUntil(this.destroy$)
+          )
+          .subscribe(() => {
+            this.handleResize();
+          });
+      }
+    });
+
+    this.updateContainerWidth();
+    this.cdr.markForCheck();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     // Check for dbId changes
     if (changes['dbId'] || changes['entries']) {
       if (changes['dbId']) {
         this.failedImageIds.clear();
-        this.imageCacheService.clearAll();
       }
       this.groupEntries();
+      this.recalculateGroupAspectRatios();
     }
   }
 
   private groupEntries(): void {
     if (!this.entries || this.entries.length === 0) {
       this.dateGroups = [];
+      this.groupAspectRatios.clear();
       return;
     }
 
@@ -82,6 +131,17 @@ export class EntryGridComponent implements OnChanges {
       dateStr,
       entries
     }));
+  }
+
+  private recalculateGroupAspectRatios(): void {
+    this.groupAspectRatios.clear();
+    for (const group of this.dateGroups) {
+      let sum = 0;
+      for (const entry of group.entries) {
+        sum += this.getAspectRatio(entry);
+      }
+      this.groupAspectRatios.set(group, sum > 0 ? sum : 1.0);
+    }
   }
 
   public getPreviewUrl(entry: Entry): string {
@@ -150,43 +210,69 @@ export class EntryGridComponent implements OnChanges {
     const clamped = this.clampAspectRatio(ar);
     if (this.aspectRatios.get(entryId) !== clamped) {
       this.aspectRatios.set(entryId, clamped);
+      this.recalculateGroupAspectRatios();
       this.cdr.markForCheck();
     }
   }
 
   public getGroupAspectRatio(group: DateGroup): number {
+    if (this.groupAspectRatios.has(group)) {
+      return this.groupAspectRatios.get(group)!;
+    }
     if (!group || !group.entries) return 1.0;
     let sum = 0;
     for (const entry of group.entries) {
       sum += this.getAspectRatio(entry);
     }
-    return sum > 0 ? sum : 1.0;
+    const val = sum > 0 ? sum : 1.0;
+    this.groupAspectRatios.set(group, val);
+    return val;
   }
 
-  @HostListener('window:resize')
-  onResize() {
-    this.cdr.markForCheck();
+  private handleResize(): void {
+    this.updateContainerWidth();
+    this.ngZone.run(() => {
+      this.cdr.markForCheck();
+    });
   }
 
-  private getContainerWidth(): number {
-    if (typeof window === 'undefined') return 1200;
-    if (this.el && this.el.nativeElement) {
-      const width = this.el.nativeElement.getBoundingClientRect().width;
-      if (width > 0) return width;
+  private updateContainerWidth(): void {
+    if (typeof window === 'undefined') {
+      this._maxRowAspectRatio = 8;
+      return;
     }
-    const isSidebarShown = window.location.pathname === '/dashboard' || window.location.pathname === '/';
-    const sidebarWidth = isSidebarShown ? 260 : 0;
-    const padding = 48;
-    return window.innerWidth - sidebarWidth - padding;
+    let width = 0;
+    if (this.el && this.el.nativeElement) {
+      width = this.el.nativeElement.getBoundingClientRect().width;
+    }
+    if (width <= 0) {
+      const isSidebarShown = window.location.pathname === '/dashboard' || window.location.pathname === '/';
+      const sidebarWidth = isSidebarShown ? 260 : 0;
+      const padding = 48;
+      width = window.innerWidth - sidebarWidth - padding;
+    }
+    const tileHeight = window.innerWidth <= 768 ? 100 : 150;
+    this._maxRowAspectRatio = width > 0 ? width / tileHeight : 8;
   }
 
   public get maxRowAspectRatio(): number {
-    const width = this.getContainerWidth();
-    const tileHeight = window.innerWidth <= 768 ? 100 : 150;
-    return width / tileHeight;
+    return this._maxRowAspectRatio;
   }
 
   public isLargeGroup(group: DateGroup): boolean {
-    return this.getGroupAspectRatio(group) > this.maxRowAspectRatio;
+    return this.getGroupAspectRatio(group) > this._maxRowAspectRatio;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    if (this.resizeSub) {
+      this.resizeSub.unsubscribe();
+      this.resizeSub = null;
+    }
   }
 }

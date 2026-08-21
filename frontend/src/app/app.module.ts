@@ -24,7 +24,6 @@ import { EntryDetailModalComponent } from './components/entry-detail-modal/entry
 import { EditEntryModalComponent } from './components/edit-entry-modal/edit-entry-modal.component';
 import { ConfirmationModalComponent } from './components/confirmation-modal/confirmation-modal.component';
 import { AdminUserListComponent } from './components/admin-user-list/admin-user-list.component';
-import { IntervalPickerComponent } from './components/interval-picker/interval-picker.component';
 import { EntryGridComponent } from './components/entry-grid/entry-grid.component';
 import { EntryListViewComponent } from './components/entry-list-view/entry-list-view.component';
 import { EntryFilterComponent } from './components/entry-filter/entry-filter.component';
@@ -80,7 +79,6 @@ import { JwtInterceptor } from './interceptors/jwt.interceptor';
     FormsModule,
     ReactiveFormsModule,
     BrowserAnimationsModule,
-    IntervalPickerComponent, 
     EntryGridComponent,
     EntryListViewComponent,
     SecureImageDirective,

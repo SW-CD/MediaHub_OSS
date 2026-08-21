@@ -34,7 +34,7 @@ export class ImportPageComponent implements OnInit, OnDestroy {
   public customCsvHeaders: string[] = [];
   
   private readonly STANDARD_HEADERS = [
-    'id', 'filename', 'timestamp', 'filesize', 'previewsize', 'mime_type', 'status', 'width', 'height', 'duration', 'channels'
+    'id', 'filename', 'timestamp', 'created_at', 'updated_at', 'filesize', 'preview_filesize', 'previewsize', 'mime_type', 'status', 'width', 'height', 'duration', 'channels'
   ];
 
   // Upload State

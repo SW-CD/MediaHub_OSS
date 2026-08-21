@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, UrlTree, Router } from '@angular/router';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
 
@@ -16,10 +16,15 @@ export class AdminGuard implements CanActivate {
   ) {}
 
   canActivate(): Observable<boolean | UrlTree> | boolean | UrlTree {
-    return this.authService.currentUser$.pipe(
+    return this.authService.ensureCurrentUser().pipe(
+      take(1),
       map(user => {
+        if (!user) {
+          return this.router.createUrlTree(['/login']);
+        }
+
         // Global Role: IsAdmin bypasses all permission checks
-        if (user && user.is_admin) {
+        if (user.is_admin) {
           return true;
         }
         

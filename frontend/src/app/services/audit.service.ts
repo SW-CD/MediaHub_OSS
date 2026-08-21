@@ -9,7 +9,7 @@ import { AuditLog } from '../models/audit.models';
   providedIn: 'root'
 })
 export class AuditService {
-  private readonly apiUrl = 'api/audit';
+  private readonly apiUrl = '/api';
 
   constructor(
     private http: HttpClient,
@@ -64,7 +64,7 @@ export class AuditService {
     }
 
     // Execute the GET request to /api/audit
-    return this.http.get<AuditLog[]>(`/${this.apiUrl}`, { params }).pipe(
+    return this.http.get<AuditLog[]>(`${this.apiUrl}/audit`, { params }).pipe(
       catchError((error: HttpErrorResponse) => this.handleError(error))
     );
   }

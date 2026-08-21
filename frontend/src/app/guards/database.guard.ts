@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Permission } from '../models';
 import { CanActivate, ActivatedRouteSnapshot, UrlTree, Router } from '@angular/router';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
 
@@ -24,7 +24,8 @@ export class DatabaseGuard implements CanActivate {
       return this.router.createUrlTree(['/dashboard']);
     }
 
-    return this.authService.currentUser$.pipe(
+    return this.authService.ensureCurrentUser().pipe(
+      take(1),
       map(user => {
         if (!user) return this.router.createUrlTree(['/login']);
         

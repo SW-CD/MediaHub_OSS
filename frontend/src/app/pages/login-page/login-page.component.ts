@@ -85,15 +85,15 @@ export class LoginPageComponent implements OnInit, OnDestroy {
     const oidcConfig = this.appInfo?.oidc;
 
     // UPDATED: Check the nested properties
-    if (!oidcConfig?.issuer_url || !oidcConfig?.client_id) {
+    if (!oidcConfig?.oidc_issuer_url || !oidcConfig?.oidc_client_id) {
       this.loginError = 'OIDC configuration is missing from the server.';
       return;
     }
     
     // Construct the standard OIDC Authorization URL using the nested object
-    const authEndpoint = `${oidcConfig.issuer_url}/protocol/openid-connect/auth`;
-    const clientId = encodeURIComponent(oidcConfig.client_id);
-    const redirectUri = encodeURIComponent(oidcConfig.redirect_url || window.location.origin + '/login');
+    const authEndpoint = `${oidcConfig.oidc_issuer_url}/protocol/openid-connect/auth`;
+    const clientId = encodeURIComponent(oidcConfig.oidc_client_id);
+    const redirectUri = encodeURIComponent(oidcConfig.oidc_redirect_url || window.location.origin + '/login');
     
     const oidcUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid`;
     

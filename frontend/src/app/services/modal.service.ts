@@ -66,7 +66,7 @@ export class ModalService {
    */
   getModalEvents(id: string): Observable<ModalEvent> {
     return this.modalEventSubject.asObservable().pipe(
-      filter(event => event.action === 'close' || event.id === id)
+      filter(event => event.id === id || (!event.id && event.action === 'close'))
     );
   }
 }

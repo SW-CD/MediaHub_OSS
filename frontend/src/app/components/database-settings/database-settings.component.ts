@@ -220,7 +220,7 @@ export class DatabaseSettingsComponent implements OnInit, OnDestroy {
   }
 
   onDeleteDatabase(): void {
-    if (!this.currentDb || !this.canDelete) return;
+    if (!this.currentDb || !this.isGlobalAdmin) return;
 
     const modalData: ConfirmationModalData = {
       title: 'Confirm Database Deletion',

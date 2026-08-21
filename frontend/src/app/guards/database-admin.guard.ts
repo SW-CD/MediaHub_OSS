@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
+import { Permission } from '../models';
 import { CanActivate, ActivatedRouteSnapshot, UrlTree, Router } from '@angular/router';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
 
@@ -23,7 +24,8 @@ export class DatabaseAdminGuard implements CanActivate {
       return this.router.createUrlTree(['/dashboard']);
     }
 
-    return this.authService.currentUser$.pipe(
+    return this.authService.ensureCurrentUser().pipe(
+      take(1),
       map(user => {
         if (!user) return this.router.createUrlTree(['/login']);
         
@@ -31,7 +33,9 @@ export class DatabaseAdminGuard implements CanActivate {
         if (user.is_admin) return true;
 
         // Check if the user has explicitly been granted CanAdmin for this specific database ID
-        const hasAccess = this.authService.hasDatabasePermission(dbId, 'can_admin');
+        const hasAccess = user.permissions?.some(
+          (p: Permission) => p.database_id === dbId && p.can_admin
+        );
 
         if (hasAccess) {
           return true;

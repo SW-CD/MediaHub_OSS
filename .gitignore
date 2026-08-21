@@ -36,6 +36,10 @@ cmd/mediahub/frontend_embed
 # node modules
 frontend/node_modules
 
+# Test coverage
+frontend/coverage/
+coverage/
+
 # AI documentation folder
 AI
 

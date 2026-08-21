@@ -82,48 +82,93 @@ export class EntryListComponent implements OnInit, OnDestroy {
 
     this.route.paramMap.pipe(
       takeUntil(this.destroy$),
-      map((params: ParamMap) => params.get('id')), // UPDATED: Extract 'id' instead of 'name'
-      distinctUntilChanged(), 
-      tap(id => this.setupForNewDatabase(id)),
-      filter((id): id is string => !!id), 
-      switchMap(id =>
-        merge(
-          of({ isSilent: false }),
-          this.manualFetchTrigger$.pipe(map(() => ({ isSilent: false }))),
-          this.entryService.refreshRequired$.pipe(map(() => ({ isSilent: true })))
-        ).pipe(
-          tap(({ isSilent }) => {
-            if (!isSilent) {
-              this.isLoading = true; 
-              this.clearSelection();
+      map((params: ParamMap) => params.get('id')),
+      distinctUntilChanged(),
+      switchMap(id => {
+        if (!id) {
+          this.dbId = null;
+          this.currentDb = null;
+          this.fileAcceptString = null;
+          this.entriesToShow = [];
+          this.tableColumns = [];
+          this.availableFilters = [];
+          this.isLoading = false;
+          this.updatePermissions();
+          this.cdr.markForCheck();
+          return of(null);
+        }
+
+        this.dbId = id;
+        this.entriesToShow = [];
+        this.currentPage = 1;
+        this.hasNextPage = false;
+        this.clearSelection();
+        this.currentFilterConditions = undefined;
+        this.isLoading = true;
+        this.cdr.markForCheck();
+
+        return this.databaseService.selectDatabase(id).pipe(
+          tap(db => {
+            if (db) {
+              this.currentDb = db;
+              this.fileAcceptString = getFileAcceptString(db.content_type);
+              this.updatePermissions();
+              this.setupTableColumns(db);
+              this.setupAvailableFilters(db);
+            } else {
+              this.currentDb = null;
+              this.fileAcceptString = null;
+              this.updatePermissions();
+              this.tableColumns = [];
+              this.availableFilters = [];
             }
             this.cdr.markForCheck();
           }),
-          switchMap(() => {
-            if (!this.dbId || this.dbId !== id) return of([]); 
-            
-            const searchPayload = this.buildSearchPayload();
-            return this.entryService.searchEntries(id, searchPayload); // UPDATED: pass id
+          switchMap(db => {
+            if (!db) {
+              this.isLoading = false;
+              this.cdr.markForCheck();
+              return of([]);
+            }
+
+            return merge(
+              of({ isSilent: false }),
+              this.manualFetchTrigger$.pipe(map(() => ({ isSilent: false }))),
+              this.entryService.refreshRequired$.pipe(map(() => ({ isSilent: true })))
+            ).pipe(
+              tap(({ isSilent }) => {
+                if (!isSilent) {
+                  this.isLoading = true;
+                  this.clearSelection();
+                }
+                this.cdr.markForCheck();
+              }),
+              switchMap(() => {
+                const searchPayload = this.buildSearchPayload();
+                return this.entryService.searchEntries(id, searchPayload);
+              })
+            );
           })
-        )
-      )
+        );
+      })
     ).subscribe({
       next: entries => {
-        if (entries && entries.length > this.imagesPerPage) {
+        if (!entries) return;
+        if (entries.length > this.imagesPerPage) {
           this.hasNextPage = true;
           this.entriesToShow = entries.slice(0, this.imagesPerPage);
         } else {
           this.hasNextPage = false;
-          this.entriesToShow = entries || [];
+          this.entriesToShow = entries;
         }
-        this.isLoading = false; 
-        this.cdr.markForCheck(); 
+        this.isLoading = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
-        this.isLoading = false; 
+        this.isLoading = false;
         this.entriesToShow = [];
         this.hasNextPage = false;
-        this.cdr.markForCheck(); 
+        this.cdr.markForCheck();
       }
     });
 
@@ -192,45 +237,6 @@ export class EntryListComponent implements OnInit, OnDestroy {
       payload.filter = this.currentFilterConditions;
     }
     return payload;
-  }
-
-  private setupForNewDatabase(id: string | null): void { // UPDATED: param is id
-    this.dbId = id;
-    this.entriesToShow = [];
-    this.currentPage = 1; 
-    this.hasNextPage = false;
-    this.clearSelection();
-    this.currentFilterConditions = undefined;
-
-    this.isLoading = !!id; 
-
-    if (id) {
-      this.databaseService.selectDatabase(id).pipe(take(1)).subscribe(db => { // UPDATED: pass id
-        if (db) {
-          this.currentDb = db;
-          this.fileAcceptString = getFileAcceptString(db.content_type);
-          this.updatePermissions();
-          this.setupTableColumns(db);
-          this.setupAvailableFilters(db);
-        } else {
-          this.currentDb = null;
-          this.fileAcceptString = null;
-          this.updatePermissions();
-          this.tableColumns = [];
-          this.availableFilters = [];
-          this.isLoading = false;
-        }
-        this.cdr.markForCheck();
-      });
-    } else {
-      this.currentDb = null;
-      this.fileAcceptString = null;
-      this.updatePermissions();
-      this.tableColumns = [];
-      this.availableFilters = [];
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }
   }
 
   private setupAvailableFilters(db: Database): void {

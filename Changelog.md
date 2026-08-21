@@ -15,7 +15,7 @@ Bug fixes:
 - fix missing timestamp in JSON inserting timestamp far in the past
 - fix time display for timestamp <1970
 - fix export not including media fields
-- other minor fixes, mainly issues found through LLM analysis
+- multiple minor bug fixes, mainly issues found through LLM analysis
 
 # v3.0
 

@@ -234,8 +234,11 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
 
     // Pre-emptively ping the server to ensure our access token is fresh. 
     this.authService.fetchCurrentUser().pipe(
-      filter(user => user !== null),
-      switchMap(async () => {
+      switchMap(async (user) => {
+        if (!user) {
+          throw new Error('User session is invalid or expired.');
+        }
+
         if (this.isMultipleUpload) {
           this.totalUploads = this.selectedFiles.length;
           this.uploadProgressIndex = 0;
@@ -285,6 +288,7 @@ export class UploadEntryModalComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isLoading = false;
+        this.notificationService.showError(err?.message || 'Upload failed.');
         if (this.isMultipleUpload) {
           this.entryService.triggerImageListRefresh();
         }
