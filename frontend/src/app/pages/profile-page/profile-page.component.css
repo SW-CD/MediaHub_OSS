@@ -13,20 +13,7 @@
   display: flex;
   flex-direction: row;
   gap: 1.5rem;
-  padding: 0 0 3rem 0;
   width: 100%;
-}
-
-.permissions-details .table-wrapper {
-  max-height: 320px;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
-.keys-pane .table-wrapper {
-  max-height: 480px;
-  overflow-y: auto;
-  overflow-x: auto;
 }
 
 .settings-pane {
