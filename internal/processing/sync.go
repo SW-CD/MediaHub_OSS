@@ -98,7 +98,7 @@ func (p *Processor) handleSmallFileSync(
 			var previewSize uint64 = 0
 
 			reader := bytes.NewReader(fileBytes)
-			if previewSize, err = p.generateAndStorePreview(context.Background(), db, bgEntry.ID, reader, plan.TargetMimeType); err != nil {
+			if previewSize, err = p.generateAndStorePreview(context.Background(), db, bgEntry.ID, reader, plan.ResultMimeType); err != nil {
 				p.Logger.Error("Async preview generation failed", "entry", bgEntry.ID, "error", err)
 			}
 

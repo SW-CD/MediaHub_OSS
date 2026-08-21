@@ -36,6 +36,8 @@ func TestBuildDynamicTableSchema(t *testing.T) {
 		{ID: 1, Name: "year", Type: "INTEGER", IsIndexed: false},
 		{ID: 2, Name: "rating", Type: "REAL", IsIndexed: true},
 		{ID: 3, Name: "is_favorite", Type: "BOOLEAN", IsIndexed: false},
+		{ID: 4, Name: "score", Type: "float64", IsIndexed: false},
+		{ID: 5, Name: "count", Type: "int", IsIndexed: false},
 	}
 
 	sql, err := r.BuildDynamicTableSchema("01HGFB9Z5W7ABCDEFGHJKMNPQR", "image", customFields)
@@ -57,6 +59,12 @@ func TestBuildDynamicTableSchema(t *testing.T) {
 	}
 	if !strings.Contains(sql, `"cf_3" BOOLEAN`) {
 		t.Errorf("expected cf_3 column in SQL, got: %s", sql)
+	}
+	if !strings.Contains(sql, `"cf_4" DOUBLE PRECISION`) {
+		t.Errorf("expected cf_4 column in SQL, got: %s", sql)
+	}
+	if !strings.Contains(sql, `"cf_5" INTEGER`) {
+		t.Errorf("expected cf_5 column in SQL, got: %s", sql)
 	}
 	if !strings.Contains(sql, `id SERIAL PRIMARY KEY`) {
 		t.Errorf("expected SERIAL id column in SQL, got: %s", sql)

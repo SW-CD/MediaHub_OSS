@@ -357,16 +357,16 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Security     BasicAuth
 // @Security     BearerAuth
-// @Param        id      query    int true "User ID"
-// @Param        payload body     userhandler.UpdateUserPayload true "Fields to update"
-// @Success      200     {object} userhandler.UserResponse "User successfully updated"
-// @Failure      400     {object} utils.ErrorResponse "Missing ID or invalid JSON body"
-// @Failure      401     {object} utils.ErrorResponse "Authentication failed"
-// @Failure      403     {object} utils.ErrorResponse "Forbidden: Admin user not retrieved"
-// @Failure      404     {object} utils.ErrorResponse "User not found"
-// @Failure      409     {object} utils.ErrorResponse "Cannot remove last admin user"
-// @Failure      500     {object} utils.ErrorResponse "Internal server error"
-// @Router       /user [patch]
+// @Param        user_ulid path   string true "User ULID"
+// @Param        payload   body   userhandler.UpdateUserPayload true "Fields to update"
+// @Success      200       {object} userhandler.UserResponse "User successfully updated"
+// @Failure      400       {object} utils.ErrorResponse "Missing ID, duplicate DBs, or invalid JSON body"
+// @Failure      401       {object} utils.ErrorResponse "Authentication failed"
+// @Failure      403       {object} utils.ErrorResponse "Forbidden: Admin user not retrieved"
+// @Failure      404       {object} utils.ErrorResponse "User not found"
+// @Failure      409       {object} utils.ErrorResponse "Cannot remove last admin user"
+// @Failure      500       {object} utils.ErrorResponse "Internal server error"
+// @Router       /user/{user_ulid} [patch]
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -390,6 +390,16 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		h.Logger.Warn("Failed to decode UpdateUser payload", "error", err)
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid JSON body")
 		return
+	}
+
+	// Validate for duplicate database permissions
+	seenDBs := make(map[string]bool)
+	for _, p := range payload.Permissions {
+		if seenDBs[p.DatabaseID] {
+			utils.RespondWithError(w, http.StatusBadRequest, "Duplicate database IDs in permissions list")
+			return
+		}
+		seenDBs[p.DatabaseID] = true
 	}
 
 	// 3. Fetch the existing user

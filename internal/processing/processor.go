@@ -133,7 +133,7 @@ func (p *Processor) ProcessEntry(
 		return entry, false, nil
 	}
 
-	p.Logger.Warn("Upload rejected: Concurrency limit reached and queue is full", "database_id", db.ID, "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
+	p.Logger.Warn("Upload rejected: Concurrency limit reached and queue is full", "database_id", db.ID.String(), "active_total", p.activeTotal, "queued_count", queuedCount, "max_queued", db.NMaxQueued)
 	return repo.Entry{}, false, customerrors.ErrUnavailable
 }
 

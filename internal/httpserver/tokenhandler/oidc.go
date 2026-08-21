@@ -12,7 +12,6 @@ import (
 
 type OidcTokenRequest struct {
 	IdpToken string `json:"idp_token"`
-	// TODO add access_token and check for access role?
 }
 
 // handleOIDCValidationAndProvisioning validates the external token and returns the internal User ID.

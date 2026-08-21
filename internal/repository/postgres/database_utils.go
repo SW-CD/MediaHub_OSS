@@ -94,7 +94,11 @@ func (r *PostgresRepository) BuildDynamicTableSchema(dbID, contentType string, c
 	sb.WriteString(",\n\tmime_type TEXT NOT NULL")
 
 	for _, cf := range customFields {
-		datatype := mapToPostgresType(strings.ToUpper(cf.Type))
+		normType, err := repo.NormalizeCustomFieldType(cf.Type)
+		if err != nil {
+			return "", fmt.Errorf("unsupported custom field type: %s", cf.Type)
+		}
+		datatype := mapToPostgresType(normType)
 		switch datatype {
 		case "TEXT", "INTEGER", "DOUBLE PRECISION", "BOOLEAN":
 			sb.WriteString(fmt.Sprintf(",\n\t\"%s%d\" %s", customFieldsPrefix, cf.ID, datatype))

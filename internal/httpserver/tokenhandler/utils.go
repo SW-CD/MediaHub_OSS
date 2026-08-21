@@ -64,6 +64,11 @@ func (h *TokenHandler) handleBasicAuth(r *http.Request, username, password strin
 		return repository.User{}, err
 	}
 
+	// Prevent Service Accounts from interactive login via Basic Auth
+	if user.IsServiceAccount {
+		return repository.User{}, customerrors.ErrPermissionDenied
+	}
+
 	// Verify password (this handler does not have an auth middleware in front)
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {

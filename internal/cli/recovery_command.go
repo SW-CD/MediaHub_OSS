@@ -76,10 +76,6 @@ func runRecovery(globalOptions *GlobalOptions, recoveryOptions *RecoveryOptions)
 		return fmt.Errorf("integrity check failed: %w", err)
 	}
 
-	if err := recoverySvc.Close(); err != nil {
-		return fmt.Errorf("failed to close recovery service: %w", err)
-	}
-
 	logger.Info("Recovery process completed successfully.")
 	return nil
 }

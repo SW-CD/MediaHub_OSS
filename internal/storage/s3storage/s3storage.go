@@ -24,11 +24,6 @@ type S3StorageProvider struct {
 	bucket string
 }
 
-type limitedReadCloser struct {
-	io.Reader
-	io.Closer
-}
-
 func NewS3StorageProvider(cfg Config) (*S3StorageProvider, error) {
 	if cfg.Endpoint == "" {
 		return nil, fmt.Errorf("s3 endpoint is required")
